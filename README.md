@@ -6,8 +6,12 @@ For help getting started with Flutter development, view the online Flutter docum
 
 ## Production Audit — 2026-09-07
 
-- Latest code/UI change: `7772f22aec1ed5659ce8f20c97cb8c612cce8a4b` — modernized the notifications page visual system with a vibrant navy/teal/gold gradient header, notification-type accents, elevated cards, and explicit high-contrast text colors.
-- The latest repository commits also include security migrations and their documentation; the most recent repository commit is the documentation commit below.
+- Latest client-home UI refinement: `eb96e42525e6e463b4824f4ab4f23738a10013ee` — tightened the vertical rhythm between the consultation CTA, legal-specialization cards, and suggested-lawyer section without changing routes, data flow, or business logic.
+- The client home now uses a more compact CTA card, tighter section spacing, and a slightly wider/taller-balanced specialization grid so the page reads as one continuous modern composition rather than showing an unnecessary blank gap.
+- Existing Istishara visual identity was preserved: the current theme/color scheme, gold accents, RTL layout, rounded cards, typography hierarchy, notification bell, lawyer cards, and existing navigation actions remain unchanged.
+- Status: `WARNING — NOT FULLY TESTED` pending GitHub CI and rendered-device verification.
+
+- Latest code/UI change before this refinement: `7772f22aec1ed5659ce8f20c97cb8c612cce8a4b` — modernized the notifications page visual system with a vibrant navy/teal/gold gradient header, notification-type accents, elevated cards, and explicit high-contrast text colors.
 - Notification behavior was preserved: loading/error/empty states, pull-to-refresh, mark-read, mark-all-read, and booking/chat/profile navigation remain in place.
 - Text-over-background collisions were addressed by separating notification content onto white cards, using high-contrast `AppColors.textPrimary`/`textSecondary`, bounded title/body lines with ellipsis, and responsive `Expanded`/`Flexible` layout constraints.
 - Status: `WARNING — NOT FULLY TESTED` pending GitHub CI and rendered-device verification.
