@@ -21,6 +21,14 @@ For help getting started with Flutter development, view the online Flutter docum
 - No application-facing authenticated data privileges were removed; existing RLS policies remain the row-level authorization boundary.
 - Status: `PASS — TESTED` for the database-grant verification query. Full application regression and CI for the new commit remain `WARNING — NOT FULLY TESTED` until an associated workflow/device result exists.
 
+### Security hardening — trigger RPC surface
+
+- Production migration: `supabase/migrations/20260907031000_lock_down_trigger_function_execute.sql`.
+- Repository commit: `101249a04b7bd68f12cca18a6da746f70de4f0b1`.
+- Revoked `anon` and `authenticated` EXECUTE on `set_push_device_tokens_updated_at()` and `touch_pwa_push_subscription()`. These routines are PostgreSQL trigger callbacks and do not need direct PostgREST execution.
+- Production verification returned no remaining `anon`/`authenticated` EXECUTE grants for either trigger routine.
+- Status: `PASS — TESTED` for the database privilege verification. Application regression and CI for the new commit remain `WARNING — NOT FULLY TESTED`.
+
 - Previous repository change: `0f7be7fcef9eda5d537d9ff00b01f1e83348ff63` — replaced the client-callable `get_profile_auth_id(uuid)` RLS helper with a boolean ownership helper and removed its `authenticated` EXECUTE grant.
 - Root cause: `get_profile_auth_id(uuid)` returned raw `profiles.auth_id` values and was still executable by `authenticated`, even though it was primarily used internally by RLS policies.
 - Fix: added `is_profile_owned_by_actor(uuid)` as a SECURITY DEFINER boolean helper, rewired all affected conversation/message/lawyer-profile/notification/specialization RLS policies to use the boolean ownership check, and revoked client execution of `get_profile_auth_id(uuid)`.
