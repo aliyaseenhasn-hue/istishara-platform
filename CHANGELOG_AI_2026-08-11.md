@@ -46,17 +46,22 @@
 - Webhook الحالي: يوجد trigger أصلي لإرسال native push عند INSERT على `public.notifications`.
 - تنبيه أمني: أثناء التدقيق ظهرت بيانات اعتماد سرية داخل تعريف trigger في نتيجة قاعدة البيانات. لم يتم تسجيل القيمة في المستودع أو سجل التغييرات. يجب اعتبار المفتاح المكشوف compromised وتدويره من Supabase Dashboard، ثم تحديث Webhook بالمفتاح الجديد.
 
-### 4. حدود التحقق
-- محاولة نشر الإصدار المصحح مباشرة عبر أداة Supabase لم تكتمل بسبب تعارض import-map في النشر الحالي، ثم تم منع محاولة النشر البديلة آلياً بسبب فحص أمان الأداة.
-- لذلك لا يتم اعتبار `send-pwa-push` بعد هذا التعديل **مُحدّثة في الإنتاج** اعتماداً على الكود وحده.
-- لم يتم إنشاء Database Webhook جديد آلياً؛ لا توجد أداة Dashboard/Webhook متاحة في جلسة التنفيذ الحالية، ولا يجوز اختلاق أنه تم إنشاؤه.
-- لم يتم تنفيذ اختبار End-to-End حقيقي على جهاز/متصفح PWA، لذلك لا يجوز تسجيل ظهور Notification أو نجاح الصوت أو background delivery كنجاح مثبت.
+### 4. نشر الإنتاج — 2026-09-07
+- Supabase Function: `send-pwa-push` أصبحت **ACTIVE version 5** بعد نشر الإصلاح.
+- `verify_jwt`: أصبح **false** كما يتطلب webhook الداخلي، مع بقاء المصادقة الداخلية عبر `withSupabase({ auth: "secret" })`.
+- النشر الأول فشل بسبب تمرير مسار import-map قديم؛ لم يتم تعديل الإنتاج في تلك المحاولة.
+- أُعيد النشر باستخدام `deno.json` كـimport-map path، ونجح النشر فعلياً.
+- إعادة القراءة من Supabase أكدت أن الإصدار النشط هو **5** وأن كود الإصدار المنشور هو الكود الموجود في المستودع.
 
-### 5. حالة الاختبار
-- PWA subscriptions: `3`
-- `send-pwa-push` ACTIVE: نعم، لكن النسخة الإنتاجية الحالية كانت الإصدار 4 قبل نشر الإصلاح.
-- Database Webhook لـPWA: غير مثبت وجوده؛ الموجود المؤكد هو native push trigger.
-- Notification فعلي: غير مثبت.
-- Background/closed-page push: غير مثبت.
-- Notification click: الكود الحالي في Service Worker يدعم `notificationclick`، لكن اختبار فعلي غير منفذ.
-- CI: لم يتم إثبات PASS للـcommitين الجديدين؛ أداة GitHub أعادت عدم وجود workflow runs مرتبطة بآخر commit عند وقت الفحص.
+### 5. حدود التحقق المتبقية
+- لم يتم تنفيذ اختبار End-to-End حقيقي على جهاز/متصفح PWA، لذلك لا يتم تسجيل ظهور Notification أو background delivery أو notification click كنجاح مثبت.
+- لم يتم إنشاء Database Webhook جديد آلياً؛ يجب التأكد من وجود webhook الذي يرسل `INSERT` على `public.notifications` إلى `send-pwa-push` من إعدادات Supabase.
+- المفتاح السري الذي ظهر ضمن تعريف trigger أثناء التدقيق يجب تدويره وتحديث webhook به قبل اعتبار الجانب الأمني مغلقاً بالكامل.
+- CI للـcommit التوثيقي الجديد لم يُثبت PASS بعد؛ يلزم فحص run المرتبط به.
+
+### 6. الحالة الحالية
+- `send-pwa-push`: **PRODUCTION ACTIVE — v5**.
+- PWA subscriptions: `3` وفق آخر تدقيق موثق.
+- Web Push delivery الفعلي: **غير مثبت E2E**.
+- Database Webhook: **غير مثبت آلياً**.
+- CI: **بانتظار تحقق run المرتبط بآخر commit**.
