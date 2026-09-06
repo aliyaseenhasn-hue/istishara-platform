@@ -11,6 +11,16 @@ For help getting started with Flutter development, view the online Flutter docum
 - Text-over-background collisions were addressed by separating notification content onto white cards, using high-contrast `AppColors.textPrimary`/`textSecondary`, bounded title/body lines with ellipsis, and responsive `Expanded`/`Flexible` layout constraints.
 - Status: `WARNING — NOT FULLY TESTED` pending GitHub CI and rendered-device verification.
 
+### Security hardening — public database role privileges
+
+- Production migration: `supabase/migrations/20260907030000_harden_public_role_privileges.sql`.
+- Repository commit: `186105611415d11a896cb57e78c6234f92f9f72c`.
+- Removed unnecessary `REFERENCES`, `TRIGGER`, and `TRUNCATE` privileges from both `anon` and `authenticated` on all `public` tables.
+- Removed all direct `INSERT`, `UPDATE`, and `DELETE` privileges from `anon`; anonymous reads continue to use the existing public RLS/views/RPC paths.
+- Production verification after the migration returned zero remaining `anon`/`authenticated` grants for `REFERENCES`, `TRIGGER`, or `TRUNCATE`, and zero anonymous `INSERT`/`UPDATE`/`DELETE` grants.
+- No application-facing authenticated data privileges were removed; existing RLS policies remain the row-level authorization boundary.
+- Status: `PASS — TESTED` for the database-grant verification query. Full application regression and CI for the new commit remain `WARNING — NOT FULLY TESTED` until an associated workflow/device result exists.
+
 - Previous repository change: `0f7be7fcef9eda5d537d9ff00b01f1e83348ff63` — replaced the client-callable `get_profile_auth_id(uuid)` RLS helper with a boolean ownership helper and removed its `authenticated` EXECUTE grant.
 - Root cause: `get_profile_auth_id(uuid)` returned raw `profiles.auth_id` values and was still executable by `authenticated`, even though it was primarily used internally by RLS policies.
 - Fix: added `is_profile_owned_by_actor(uuid)` as a SECURITY DEFINER boolean helper, rewired all affected conversation/message/lawyer-profile/notification/specialization RLS policies to use the boolean ownership check, and revoked client execution of `get_profile_auth_id(uuid)`.
