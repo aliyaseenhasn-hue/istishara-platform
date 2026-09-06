@@ -6,28 +6,31 @@ For help getting started with Flutter development, view the online Flutter docum
 
 ## Production Audit — 2026-09-07
 
-- Latest repository change: `7772f22aec1ed5659ce8f20c97cb8c612cce8a4b` — modernized the notifications page visual system with a vibrant navy/teal/gold gradient header, notification-type accents, elevated cards, and explicit high-contrast text colors.
+- Latest code/UI change: `7772f22aec1ed5659ce8f20c97cb8c612cce8a4b` — modernized the notifications page visual system with a vibrant navy/teal/gold gradient header, notification-type accents, elevated cards, and explicit high-contrast text colors.
+- The latest repository commits also include security migrations and their documentation; the most recent repository commit is the documentation commit below.
 - Notification behavior was preserved: loading/error/empty states, pull-to-refresh, mark-read, mark-all-read, and booking/chat/profile navigation remain in place.
 - Text-over-background collisions were addressed by separating notification content onto white cards, using high-contrast `AppColors.textPrimary`/`textSecondary`, bounded title/body lines with ellipsis, and responsive `Expanded`/`Flexible` layout constraints.
 - Status: `WARNING — NOT FULLY TESTED` pending GitHub CI and rendered-device verification.
 
 ### Security hardening — public database role privileges
 
-- Production migration: `supabase/migrations/20260907030000_harden_public_role_privileges.sql`.
-- Repository commit: `186105611415d11a896cb57e78c6234f92f9f72c`.
+- Production migration: `supabase/migrations/20260906233312_harden_public_role_non_data_privileges.sql`.
+- Repository migration commit: `9e2b763c557e8f5d347317fdc2debe1be79c5973`.
+- Production migration was applied and is recorded by Supabase as version `20260906233312`.
 - Removed unnecessary `REFERENCES`, `TRIGGER`, and `TRUNCATE` privileges from both `anon` and `authenticated` on all `public` tables.
-- Removed all direct `INSERT`, `UPDATE`, and `DELETE` privileges from `anon`; anonymous reads continue to use the existing public RLS/views/RPC paths.
-- Production verification after the migration returned zero remaining `anon`/`authenticated` grants for `REFERENCES`, `TRIGGER`, or `TRUNCATE`, and zero anonymous `INSERT`/`UPDATE`/`DELETE` grants.
+- Removed all direct `INSERT`, `UPDATE`, and `DELETE` privileges from `anon`; anonymous reads continue through the existing public RLS/views/RPC paths.
+- Production verification returned zero remaining `anon`/`authenticated` grants for `REFERENCES`, `TRIGGER`, or `TRUNCATE`, and zero anonymous `INSERT`/`UPDATE`/`DELETE` grants.
 - No application-facing authenticated data privileges were removed; existing RLS policies remain the row-level authorization boundary.
-- Status: `PASS — TESTED` for the database-grant verification query. Full application regression and CI for the new commit remain `WARNING — NOT FULLY TESTED` until an associated workflow/device result exists.
+- Status: `PASS — TESTED` for the database-grant verification query. Full application regression and CI remain `WARNING — NOT FULLY TESTED` until an associated workflow/device result exists.
 
 ### Security hardening — trigger RPC surface
 
-- Production migration: `supabase/migrations/20260907031000_lock_down_trigger_function_execute.sql`.
-- Repository commit: `101249a04b7bd68f12cca18a6da746f70de4f0b1`.
+- Production migration: `supabase/migrations/20260906233443_lock_down_trigger_function_execute.sql`.
+- Repository migration commit: `867d34c6aa0ee8f5ca2b6ba77a9de955eb0c8adc`.
+- Production migration was applied and is recorded by Supabase as version `20260906233443`.
 - Revoked `anon` and `authenticated` EXECUTE on `set_push_device_tokens_updated_at()` and `touch_pwa_push_subscription()`. These routines are PostgreSQL trigger callbacks and do not need direct PostgREST execution.
 - Production verification returned no remaining `anon`/`authenticated` EXECUTE grants for either trigger routine.
-- Status: `PASS — TESTED` for the database privilege verification. Application regression and CI for the new commit remain `WARNING — NOT FULLY TESTED`.
+- Status: `PASS — TESTED` for the database privilege verification. Application regression and CI remain `WARNING — NOT FULLY TESTED`.
 
 - Previous repository change: `0f7be7fcef9eda5d537d9ff00b01f1e83348ff63` — replaced the client-callable `get_profile_auth_id(uuid)` RLS helper with a boolean ownership helper and removed its `authenticated` EXECUTE grant.
 - Root cause: `get_profile_auth_id(uuid)` returned raw `profiles.auth_id` values and was still executable by `authenticated`, even though it was primarily used internally by RLS policies.
