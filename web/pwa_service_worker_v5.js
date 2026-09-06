@@ -1,4 +1,4 @@
-const CACHE_NAME = 'astshara-pwa-v5';
+const CACHE_NAME = 'astshara-pwa-v6';
 const APP_SHELL = [
   './',
   './index.html',
@@ -52,12 +52,15 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'استشارة';
   const options = {
     body: data.body || 'لديك إشعار جديد',
+    // Keep icon/badge relative to the deployed PWA scope. This is important
+    // for GitHub Pages deployments under /istishara-platform/.
     icon: data.icon || './icons/Icon-192.png',
     badge: data.badge || './icons/Icon-192.png',
     dir: 'rtl',
     lang: 'ar',
     tag: data.tag || 'astshara-notification',
     renotify: true,
+    // Allow the browser/OS to use its normal notification sound behavior.
     silent: false,
     requireInteraction: Boolean(data.requireInteraction),
     data: { url: data.url || './', notification_id: data.notification_id || null },
@@ -68,13 +71,20 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = event.notification.data?.url || './';
+
+  const rawTarget = event.notification.data?.url || './';
+  let target;
+  try {
+    target = new URL(rawTarget, self.registration.scope).href;
+  } catch (_) {
+    target = self.registration.scope;
+  }
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if ('focus' in client) {
-          client.navigate(target);
-          return client.focus();
+        if ('navigate' in client && 'focus' in client) {
+          return client.navigate(target).then(() => client.focus());
         }
       }
       return clients.openWindow(target);
