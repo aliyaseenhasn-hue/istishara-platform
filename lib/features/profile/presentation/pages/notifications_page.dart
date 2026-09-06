@@ -188,7 +188,6 @@ class _NotificationsHeader extends StatelessWidget {
                 ),
                 child: Text(
                   unread == 0 ? 'كل شيء محدث' : '$unread تنبيه غير مقروء',
-                  textDirection: TextDirection.rtl,
                   style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
                 ),
               ),
