@@ -53,15 +53,27 @@
 - أُعيد النشر باستخدام `deno.json` كـimport-map path، ونجح النشر فعلياً.
 - إعادة القراءة من Supabase أكدت أن الإصدار النشط هو **5** وأن كود الإصدار المنشور هو الكود الموجود في المستودع.
 
-### 5. حدود التحقق المتبقية
-- لم يتم تنفيذ اختبار End-to-End حقيقي على جهاز/متصفح PWA، لذلك لا يتم تسجيل ظهور Notification أو background delivery أو notification click كنجاح مثبت.
-- لم يتم إنشاء Database Webhook جديد آلياً؛ يجب التأكد من وجود webhook الذي يرسل `INSERT` على `public.notifications` إلى `send-pwa-push` من إعدادات Supabase.
-- المفتاح السري الذي ظهر ضمن تعريف trigger أثناء التدقيق يجب تدويره وتحديث webhook به قبل اعتبار الجانب الأمني مغلقاً بالكامل.
-- CI للـcommit التوثيقي الجديد لم يُثبت PASS بعد؛ يلزم فحص run المرتبط به.
+### 5. اختبار Push حقيقي — 2026-09-07
+- تم نشر النسخة المصححة التالية في الإنتاج: `send-pwa-push` **ACTIVE version 6**.
+- سبب النشر الجديد: نسخة المستودع الحالية تحتوي على routing نسبي `./...` المتوافق مع نطاق PWA، بينما النسخة الإنتاجية السابقة كانت تستخدم مسارات جذرية `/...`.
+- تم التحقق بعد النشر من أن الإصدار النشط أصبح **v6**.
+- تم العثور على **3** اشتراكات PWA للمستخدم الاختباري، منها اشتراكات Web Push الخاصة بـApple.
+- تم إنشاء إشعار اختبار حقيقي في `public.notifications` بعنوان `اختبار إشعار PWA`.
+- Database webhook/trigger استجاب فعلياً: ظهرت استجابتان HTTP ناجحتان `200` في `net._http_response`، وكانت إحداهما ناتجها `{"sent":3,"removed":0}`.
+- النتيجة: **تم إثبات وصول طلب Web Push إلى Edge Function وإرسال الإشعار إلى 3 اشتراكات دون حذف أي اشتراك منتهي.**
+- ملاحظة مهمة: السجل يثبت الإرسال الفعلي من الخادم، لكنه لا يستطيع من داخل Supabase إثبات أن نافذة إشعار iPhone ظهرت على شاشة الجهاز؛ ذلك يتطلب تأكيداً بصرياً على iPhone نفسه.
 
-### 6. الحالة الحالية
-- `send-pwa-push`: **PRODUCTION ACTIVE — v5**.
-- PWA subscriptions: `3` وفق آخر تدقيق موثق.
-- Web Push delivery الفعلي: **غير مثبت E2E**.
-- Database Webhook: **غير مثبت آلياً**.
-- CI: **بانتظار تحقق run المرتبط بآخر commit**.
+### 6. Service Worker / Background
+- الملف: `web/pwa_service_worker.js`
+- التحقق: يحتوي على `push` event ويستخدم `self.registration.showNotification(...)`، مع `silent: false`، و`notificationclick` لفتح الرابط المستهدف.
+- النتيجة: بنية Service Worker تدعم استقبال Push في الخلفية وإظهار Notification، بما في ذلك الصوت وفق إعدادات النظام/الجهاز، ولا يوجد في الكود ما يطلب إشعاراً صامتاً.
+
+### 7. الحالة الحالية
+- `send-pwa-push`: **PRODUCTION ACTIVE — v6**.
+- PWA subscriptions: **3**.
+- Server-side Web Push delivery: **PASS — sent=3, removed=0**.
+- Database trigger → Edge Function: **PASS — HTTP 200 responses observed**.
+- Service Worker background handler: **PASS by code inspection**.
+- iPhone visible background notification: **requires physical-device confirmation**.
+- CI: يجب فحص run المرتبط بآخر commit التوثيقي قبل إعلان الإغلاق الكامل.
+- Security: المفتاح السري الذي ظهر سابقاً في تعريف trigger يجب تدويره وتحديث webhook به قبل اعتبار الجانب الأمني مغلقاً بالكامل.
