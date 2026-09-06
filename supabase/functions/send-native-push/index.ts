@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { withSupabase } from 'npm:@supabase/server@^1';
 import { importPKCS8, SignJWT } from 'npm:jose@6';
 
 interface NotificationRecord {
@@ -55,108 +55,98 @@ async function getAccessToken(serviceAccount: Record<string, string>) {
   return data.access_token as string;
 }
 
-Deno.serve(async (request) => {
-  try {
-    if (request.method !== 'POST') {
-      return Response.json({ error: 'Method not allowed' }, { status: 405 });
-    }
+export default {
+  fetch: withSupabase({ auth: 'secret' }, async (request, ctx) => {
+    try {
+      if (request.method !== 'POST') {
+        return Response.json({ error: 'Method not allowed' }, { status: 405 });
+      }
 
-    const expectedServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const authorization = request.headers.get('authorization');
-    if (!expectedServiceKey || authorization !== `Bearer ${expectedServiceKey}`) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+      const payload = (await request.json()) as WebhookPayload;
+      if (payload.type !== 'INSERT' || payload.table !== 'notifications' || payload.schema !== 'public') {
+        return Response.json({ ok: true, skipped: true });
+      }
 
-    const payload = (await request.json()) as WebhookPayload;
-    if (payload.type !== 'INSERT' || payload.table !== 'notifications' || payload.schema !== 'public') {
-      return Response.json({ ok: true, skipped: true });
-    }
+      const serviceAccount = JSON.parse(requireEnv('FCM_SERVICE_ACCOUNT_JSON')) as Record<string, string>;
+      const projectId = serviceAccount.project_id || requireEnv('FIREBASE_PROJECT_ID');
 
-    const serviceAccount = JSON.parse(requireEnv('FCM_SERVICE_ACCOUNT_JSON')) as Record<string, string>;
-    const projectId = serviceAccount.project_id || requireEnv('FIREBASE_PROJECT_ID');
+      const { data: devices, error } = await ctx.supabaseAdmin
+        .from('push_device_tokens')
+        .select('id, token')
+        .eq('user_id', payload.record.user_id)
+        .eq('is_active', true);
 
-    const supabase = createClient(
-      requireEnv('SUPABASE_URL'),
-      expectedServiceKey,
-      { auth: { persistSession: false, autoRefreshToken: false } },
-    );
+      if (error) throw error;
+      if (!devices?.length) return Response.json({ ok: true, sent: 0 });
 
-    const { data: devices, error } = await supabase
-      .from('push_device_tokens')
-      .select('id, token')
-      .eq('user_id', payload.record.user_id)
-      .eq('is_active', true);
+      const accessToken = await getAccessToken(serviceAccount);
+      const endpoint = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
+      let sent = 0;
+      const invalidDeviceIds: string[] = [];
 
-    if (error) throw error;
-    if (!devices?.length) return Response.json({ ok: true, sent: 0 });
-
-    const accessToken = await getAccessToken(serviceAccount);
-    const endpoint = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
-    let sent = 0;
-    const invalidDeviceIds: string[] = [];
-
-    for (const device of devices) {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: JSON.stringify({
-          message: {
-            token: device.token,
-            notification: {
-              title: payload.record.title ?? 'إشعار جديد',
-              body: payload.record.body ?? '',
-            },
-            data: {
-              notification_id: payload.record.id,
-              type: payload.record.type ?? '',
-              reference_id: payload.record.reference_id ?? '',
-              reference_type: payload.record.reference_type ?? '',
-            },
-            android: {
-              priority: 'HIGH',
+      for (const device of devices) {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json; charset=UTF-8',
+          },
+          body: JSON.stringify({
+            message: {
+              token: device.token,
               notification: {
-                channel_id: 'law_connect_channel',
-                sound: 'default',
+                title: payload.record.title ?? 'إشعار جديد',
+                body: payload.record.body ?? '',
               },
-            },
-            apns: {
-              payload: {
-                aps: {
+              data: {
+                notification_id: payload.record.id,
+                type: payload.record.type ?? '',
+                reference_id: payload.record.reference_id ?? '',
+                reference_type: payload.record.reference_type ?? '',
+              },
+              android: {
+                priority: 'HIGH',
+                notification: {
+                  channel_id: 'law_connect_channel',
                   sound: 'default',
-                  badge: 1,
+                },
+              },
+              apns: {
+                payload: {
+                  aps: {
+                    sound: 'default',
+                    badge: 1,
+                  },
                 },
               },
             },
-          },
-        }),
-      });
+          }),
+        });
 
-      if (response.ok) {
-        sent += 1;
-        continue;
+        if (response.ok) {
+          sent += 1;
+          continue;
+        }
+
+        const errorText = await response.text();
+        if (/UNREGISTERED|INVALID_ARGUMENT/i.test(errorText)) {
+          invalidDeviceIds.push(device.id);
+        } else {
+          console.error('FCM delivery failed', { deviceId: device.id, errorText });
+        }
       }
 
-      const errorText = await response.text();
-      if (/UNREGISTERED|INVALID_ARGUMENT/i.test(errorText)) {
-        invalidDeviceIds.push(device.id);
-      } else {
-        console.error('FCM delivery failed', { deviceId: device.id, errorText });
+      if (invalidDeviceIds.length) {
+        await ctx.supabaseAdmin
+          .from('push_device_tokens')
+          .update({ is_active: false })
+          .in('id', invalidDeviceIds);
       }
-    }
 
-    if (invalidDeviceIds.length) {
-      await supabase
-        .from('push_device_tokens')
-        .update({ is_active: false })
-        .in('id', invalidDeviceIds);
+      return Response.json({ ok: true, sent, invalidated: invalidDeviceIds.length });
+    } catch (error) {
+      console.error('send-native-push failed', error);
+      return Response.json({ error: String(error) }, { status: 500 });
     }
-
-    return Response.json({ ok: true, sent, invalidated: invalidDeviceIds.length });
-  } catch (error) {
-    console.error('send-native-push failed', error);
-    return Response.json({ error: String(error) }, { status: 500 });
-  }
-});
+  }),
+};
