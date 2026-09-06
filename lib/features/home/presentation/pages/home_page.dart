@@ -55,10 +55,10 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               sliver: SliverToBoxAdapter(
                 child: Container(
-                  padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
+                  padding: const EdgeInsets.fromLTRB(20, 21, 20, 20),
                   decoration: BoxDecoration(
                     color: scheme.primaryContainer,
                     borderRadius: BorderRadius.circular(24),
@@ -67,10 +67,10 @@ class HomePage extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text('استشر محامياً بثقة', textAlign: TextAlign.right, style: TextStyle(color: scheme.onPrimaryContainer, fontSize: 28, fontWeight: FontWeight.w900, height: 1.2)),
-                      const SizedBox(height: 8),
-                      Text('اختر تخصصك وابحث عن المحامي المناسب لطلبك القانوني.', textAlign: TextAlign.right, style: TextStyle(color: scheme.onPrimaryContainer.withValues(alpha: .78), height: 1.55, fontSize: 13)),
-                      const SizedBox(height: 18),
+                      Text('استشر محامياً بثقة', textAlign: TextAlign.right, style: TextStyle(color: scheme.onPrimaryContainer, fontSize: 27, fontWeight: FontWeight.w900, height: 1.2)),
+                      const SizedBox(height: 7),
+                      Text('اختر تخصصك وابحث عن المحامي المناسب لطلبك القانوني.', textAlign: TextAlign.right, style: TextStyle(color: scheme.onPrimaryContainer.withValues(alpha: .78), height: 1.5, fontSize: 13)),
+                      const SizedBox(height: 15),
                       SizedBox(
                         width: double.infinity,
                         height: 48,
@@ -86,7 +86,7 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 9),
               sliver: SliverToBoxAdapter(
                 child: _SectionTitle(title: 'التخصصات القانونية', action: 'عرض الكل', onTap: () => context.push('/lawyers')),
               ),
@@ -108,12 +108,12 @@ class HomePage extends ConsumerWidget {
                   crossAxisCount: 2,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
-                  childAspectRatio: 1.28,
+                  childAspectRatio: 1.4,
                 ),
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 10),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
               sliver: SliverToBoxAdapter(
                 child: _SectionTitle(title: 'محامون مقترحون', action: 'عرض الكل', onTap: () => context.push('/lawyers')),
               ),
@@ -175,13 +175,13 @@ class _CategoryCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
         child: Container(
-          padding: const EdgeInsets.all(13),
+          padding: const EdgeInsets.all(11),
           decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), border: Border.all(color: scheme.outlineVariant)),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(width: 42, height: 42, decoration: BoxDecoration(color: AppColors.goldLight.withValues(alpha: .38), borderRadius: BorderRadius.circular(13)), alignment: Alignment.center, child: const Icon(Icons.gavel_rounded, color: AppColors.gold, size: 22)),
-              const SizedBox(height: 9),
+              const SizedBox(height: 8),
               Text(title, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurface, fontSize: 12, fontWeight: FontWeight.w800, height: 1.25)),
             ],
           ),
