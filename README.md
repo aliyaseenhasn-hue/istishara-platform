@@ -6,7 +6,12 @@ For help getting started with Flutter development, view the online Flutter docum
 
 ## Production Audit — 2026-09-07
 
-- Latest repository change: `0f7be7fcef9eda5d537d9ff00b01f1e83348ff63` — replaced the client-callable `get_profile_auth_id(uuid)` RLS helper with a boolean ownership helper and removed its `authenticated` EXECUTE grant.
+- Latest repository change: `7772f22aec1ed5659ce8f20c97cb8c612cce8a4b` — modernized the notifications page visual system with a vibrant navy/teal/gold gradient header, notification-type accents, elevated cards, and explicit high-contrast text colors.
+- Notification behavior was preserved: loading/error/empty states, pull-to-refresh, mark-read, mark-all-read, and booking/chat/profile navigation remain in place.
+- Text-over-background collisions were addressed by separating notification content onto white cards, using high-contrast `AppColors.textPrimary`/`textSecondary`, bounded title/body lines with ellipsis, and responsive `Expanded`/`Flexible` layout constraints.
+- Status: `WARNING — NOT FULLY TESTED` pending GitHub CI and rendered-device verification.
+
+- Previous repository change: `0f7be7fcef9eda5d537d9ff00b01f1e83348ff63` — replaced the client-callable `get_profile_auth_id(uuid)` RLS helper with a boolean ownership helper and removed its `authenticated` EXECUTE grant.
 - Root cause: `get_profile_auth_id(uuid)` returned raw `profiles.auth_id` values and was still executable by `authenticated`, even though it was primarily used internally by RLS policies.
 - Fix: added `is_profile_owned_by_actor(uuid)` as a SECURITY DEFINER boolean helper, rewired all affected conversation/message/lawyer-profile/notification/specialization RLS policies to use the boolean ownership check, and revoked client execution of `get_profile_auth_id(uuid)`.
 - Supabase production migration: `20260907023000_replace_profile_auth_id_rls_helper` applied successfully.
