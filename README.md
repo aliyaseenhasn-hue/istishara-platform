@@ -32,6 +32,16 @@ For help getting started with Flutter development, view the online Flutter docum
 - Production verification returned no remaining `anon`/`authenticated` EXECUTE grants for either trigger routine.
 - Status: `PASS — TESTED` for the database privilege verification. Application regression and CI remain `WARNING — NOT FULLY TESTED`.
 
+### Notifications UI — web build error fix
+
+- A real GitHub Actions failure was traced to `lib/features/profile/presentation/pages/notifications_page.dart:191`.
+- Root cause: `TextDirection.rtl` was resolved incorrectly by the Flutter web compiler in this file because of the `intl` import context, producing `undefined_getter` and stopping both `flutter analyze` and the web build.
+- Fix commit: `81dadf05d22452a539b3ad37924358f8e3b31536`.
+- Removed the unnecessary explicit `textDirection` assignment from the unread-count label. RTL layout remains inherited from the application directionality and the label retains its right alignment.
+- No notification colors, card styling, navigation, read-state behavior, or push-notification logic was changed by this fix.
+- Evidence: the failed workflow run `34067080603` showed exactly one Dart compilation error at this line; dependency installation and Flutter 3.47.0 setup completed successfully before the failure.
+- Status before fix: `FAIL — TESTED`; status after fix: pending a new GitHub Actions run on the fix commit.
+
 - Previous repository change: `0f7be7fcef9eda5d537d9ff00b01f1e83348ff63` — replaced the client-callable `get_profile_auth_id(uuid)` RLS helper with a boolean ownership helper and removed its `authenticated` EXECUTE grant.
 - Root cause: `get_profile_auth_id(uuid)` returned raw `profiles.auth_id` values and was still executable by `authenticated`, even though it was primarily used internally by RLS policies.
 - Fix: added `is_profile_owned_by_actor(uuid)` as a SECURITY DEFINER boolean helper, rewired all affected conversation/message/lawyer-profile/notification/specialization RLS policies to use the boolean ownership check, and revoked client execution of `get_profile_auth_id(uuid)`.
