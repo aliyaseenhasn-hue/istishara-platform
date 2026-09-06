@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase_config.dart';
@@ -18,11 +17,23 @@ class PushNotificationService {
   static StreamSubscription<RemoteMessage>? _openedSubscription;
   static StreamSubscription<AuthState>? _authSubscription;
   static bool _initialized = false;
+  static bool _registrationInProgress = false;
 
   static Future<void> initialize() async {
     if (kIsWeb || _initialized) return;
 
     await Firebase.initializeApp();
+
+    // Subscribe before resolving the current session so an initial session
+    // restored after Firebase startup cannot race past token registration.
+    _authSubscription = SupabaseConfig.client.auth.onAuthStateChange.listen((data) {
+      final event = data.event;
+      if (event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.tokenRefreshed ||
+          event == AuthChangeEvent.initialSession) {
+        unawaited(refreshForCurrentUser());
+      }
+    });
 
     final settings = await _messaging.requestPermission(
       alert: true,
@@ -64,19 +75,13 @@ class PushNotificationService {
       ));
     }
 
-    await _registerToken(await _messaging.getToken());
+    await refreshForCurrentUser();
 
     _tokenSubscription = _messaging.onTokenRefresh.listen((token) {
       unawaited(_registerToken(token));
-    });
-
-    _authSubscription = SupabaseConfig.client.auth.onAuthStateChange.listen((data) {
-      final event = data.event;
-      if (event == AuthChangeEvent.signedIn ||
-          event == AuthChangeEvent.tokenRefreshed ||
-          event == AuthChangeEvent.initialSession) {
-        unawaited(refreshForCurrentUser());
-      }
+    }, onError: (Object error, StackTrace stackTrace) {
+      debugPrint('FCM token refresh error: $error');
+      debugPrintStack(stackTrace: stackTrace);
     });
   }
 
@@ -86,35 +91,76 @@ class PushNotificationService {
     return message.data['payload']?.toString() ?? '';
   }
 
-  static Future<void> _registerToken(String? token) async {
-    if (token == null || token.isEmpty) return;
-
+  static Future<String?> _currentProfileId() async {
     final user = SupabaseConfig.client.auth.currentUser;
-    if (user == null) return;
+    if (user == null) return null;
 
     final profile = await SupabaseConfig.client
         .from('profiles')
         .select('id')
         .eq('auth_id', user.id)
         .maybeSingle();
-    final profileId = profile?['id']?.toString();
-    if (profileId == null) return;
 
-    await SupabaseConfig.client.from('push_device_tokens').upsert(
-      {
-        'user_id': profileId,
-        'token': token,
-        'platform': defaultTargetPlatform.name,
-        'is_active': true,
-        'last_seen_at': DateTime.now().toUtc().toIso8601String(),
-      },
-      onConflict: 'token',
-    );
+    return profile?['id']?.toString();
+  }
+
+  static Future<void> _registerToken(String? token) async {
+    if (token == null || token.isEmpty || kIsWeb || _registrationInProgress) return;
+
+    final user = SupabaseConfig.client.auth.currentUser;
+    if (user == null) {
+      debugPrint('FCM token available, waiting for authenticated Supabase session');
+      return;
+    }
+
+    _registrationInProgress = true;
+    try {
+      String? profileId;
+      for (var attempt = 0; attempt < 3 && profileId == null; attempt++) {
+        try {
+          profileId = await _currentProfileId();
+        } catch (error) {
+          debugPrint('FCM profile lookup attempt ${attempt + 1} failed: $error');
+        }
+        if (profileId == null && attempt < 2) {
+          await Future<void>.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+        }
+      }
+
+      if (profileId == null) {
+        debugPrint('FCM token registration skipped: no profile for ${user.id}');
+        return;
+      }
+
+      await SupabaseConfig.client.from('push_device_tokens').upsert(
+        {
+          'user_id': profileId,
+          'token': token,
+          'platform': defaultTargetPlatform.name,
+          'is_active': true,
+          'last_seen_at': DateTime.now().toUtc().toIso8601String(),
+        },
+        onConflict: 'token',
+      );
+
+      debugPrint('FCM token registered successfully for profile $profileId');
+    } catch (error, stackTrace) {
+      debugPrint('FCM token registration failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    } finally {
+      _registrationInProgress = false;
+    }
   }
 
   static Future<void> refreshForCurrentUser() async {
     if (kIsWeb || !_initialized) return;
-    await _registerToken(await _messaging.getToken());
+    try {
+      final token = await _messaging.getToken();
+      await _registerToken(token);
+    } catch (error, stackTrace) {
+      debugPrint('FCM token retrieval failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
   }
 
   static Future<void> dispose() async {
@@ -127,6 +173,7 @@ class PushNotificationService {
     _openedSubscription = null;
     _authSubscription = null;
     _initialized = false;
+    _registrationInProgress = false;
   }
 }
 
