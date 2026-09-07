@@ -23,16 +23,16 @@ class AppTheme {
     const scheme = ColorScheme.light(
       primary: AppColors.primary,
       onPrimary: AppColors.textOnPrimary,
-      primaryContainer: AppColors.primaryContainer,
-      onPrimaryContainer: AppColors.onPrimaryContainer,
+      primaryContainer: AppColors.primaryFixed,
+      onPrimaryContainer: AppColors.primaryDark,
       secondary: AppColors.secondary,
       onSecondary: AppColors.onSecondary,
       secondaryContainer: AppColors.secondaryContainer,
       onSecondaryContainer: AppColors.onSecondaryContainer,
       tertiary: AppColors.tertiary,
       onTertiary: AppColors.onTertiary,
-      tertiaryContainer: Color(0xFFDDF1F8),
-      onTertiaryContainer: Color(0xFF174C60),
+      tertiaryContainer: Color(0xFFE7EEE9),
+      onTertiaryContainer: Color(0xFF3F5747),
       surface: AppColors.background,
       surfaceDim: AppColors.surfaceDim,
       surfaceBright: AppColors.surfaceBright,
@@ -72,7 +72,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: AppColors.surface,
         elevation: 0,
-        shadowColor: AppColors.primary.withValues(alpha: .06),
+        shadowColor: AppColors.primary.withValues(alpha: .04),
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_cardRadius), side: const BorderSide(color: AppColors.divider)),
         margin: const EdgeInsets.symmetric(vertical: 6),
@@ -81,14 +81,10 @@ class AppTheme {
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.disabled)) return AppColors.surfaceDim;
-            if (states.contains(WidgetState.pressed)) return AppColors.secondaryDark;
-            if (states.contains(WidgetState.hovered)) return AppColors.secondaryDark;
+            if (states.contains(WidgetState.pressed) || states.contains(WidgetState.hovered)) return AppColors.secondaryDark;
             return AppColors.secondary;
           }),
-          foregroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.disabled)) return AppColors.textSecondary;
-            return Colors.white;
-          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.disabled) ? AppColors.textSecondary : Colors.white),
           minimumSize: const WidgetStatePropertyAll(Size.fromHeight(52)),
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 24)),
           shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -99,21 +95,21 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: ButtonStyle(
-          foregroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.disabled) ? AppColors.textSecondary : AppColors.primaryDark),
+          foregroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.disabled) ? AppColors.textSecondary : AppColors.primary),
           side: WidgetStateProperty.resolveWith((states) => BorderSide(color: states.contains(WidgetState.disabled) ? AppColors.outline : AppColors.primary, width: states.contains(WidgetState.focused) ? 2 : 1)),
           minimumSize: const WidgetStatePropertyAll(Size.fromHeight(48)),
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 20)),
           shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
           textStyle: WidgetStatePropertyAll(GoogleFonts.ibmPlexSansArabic(fontSize: 14, height: 20 / 14, fontWeight: FontWeight.w700)),
-          overlayColor: const WidgetStatePropertyAll(Color(0x14566B2F)),
+          overlayColor: const WidgetStatePropertyAll(Color(0x14243B53)),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: ButtonStyle(
-          foregroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.disabled) ? AppColors.textSecondary : AppColors.primaryDark),
+          foregroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.disabled) ? AppColors.textSecondary : AppColors.primary),
           textStyle: WidgetStatePropertyAll(GoogleFonts.ibmPlexSansArabic(fontSize: 14, fontWeight: FontWeight.w700)),
           minimumSize: const WidgetStatePropertyAll(Size.fromHeight(44)),
-          overlayColor: const WidgetStatePropertyAll(Color(0x14566B2F)),
+          overlayColor: const WidgetStatePropertyAll(Color(0x14243B53)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -122,13 +118,13 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.divider)),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.divider)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.secondary, width: 2)),
         errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.error)),
         focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.error, width: 2)),
         labelStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 14, height: 20 / 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
         hintStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 14, height: 20 / 14, color: AppColors.textSecondary),
-        prefixIconColor: AppColors.primary,
-        suffixIconColor: AppColors.primary,
+        prefixIconColor: AppColors.secondary,
+        suffixIconColor: AppColors.secondary,
       ),
       listTileTheme: ListTileThemeData(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
@@ -139,10 +135,7 @@ class AppTheme {
         subtitleTextStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 14, height: 20 / 14, color: AppColors.textSecondary),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(color: AppColors.secondary, linearTrackColor: AppColors.secondaryContainer),
-      checkboxTheme: CheckboxThemeData(
-        fillColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? AppColors.secondary : Colors.transparent),
-        checkColor: const WidgetStatePropertyAll(Colors.white),
-      ),
+      checkboxTheme: CheckboxThemeData(fillColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? AppColors.secondary : Colors.transparent), checkColor: const WidgetStatePropertyAll(Colors.white)),
       radioTheme: const RadioThemeData(fillColor: WidgetStatePropertyAll(AppColors.primary)),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? AppColors.secondary : AppColors.outline),
@@ -163,49 +156,49 @@ class AppTheme {
   }
 
   static ThemeData get dark {
-    const darkBackground = Color(0xFF11170F);
-    const darkSurface = Color(0xFF1A2218);
-    const darkText = Color(0xFFF2F6EE);
-    const darkVariant = Color(0xFFC6D0C2);
-    const olive = Color(0xFFB8CC82);
-    const green = Color(0xFF72C49B);
-    const sky = Color(0xFF83C5DD);
+    const darkBackground = Color(0xFF111820);
+    const darkSurface = Color(0xFF18222C);
+    const darkText = Color(0xFFF2F5F7);
+    const darkVariant = Color(0xFFBBC5CC);
+    const navy = Color(0xFFA9BED0);
+    const blue = Color(0xFF8FB0C8);
+    const sage = Color(0xFFA4B6A8);
 
     final base = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: const ColorScheme.dark(
-        primary: olive,
-        onPrimary: Color(0xFF26330F),
-        primaryContainer: Color(0xFF3E5121),
-        onPrimaryContainer: Color(0xFFE8F1D2),
-        secondary: green,
-        onSecondary: Color(0xFF073824),
-        secondaryContainer: Color(0xFF174C37),
-        onSecondaryContainer: Color(0xFFC8F1DA),
-        tertiary: sky,
-        onTertiary: Color(0xFF003546),
-        tertiaryContainer: Color(0xFF174D60),
-        onTertiaryContainer: Color(0xFFD6F2FC),
+        primary: navy,
+        onPrimary: Color(0xFF172A3A),
+        primaryContainer: Color(0xFF2A4255),
+        onPrimaryContainer: Color(0xFFEAF0F5),
+        secondary: blue,
+        onSecondary: Color(0xFF183142),
+        secondaryContainer: Color(0xFF29475C),
+        onSecondaryContainer: Color(0xFFDDE9F0),
+        tertiary: sage,
+        onTertiary: Color(0xFF27382D),
+        tertiaryContainer: Color(0xFF3D5144),
+        onTertiaryContainer: Color(0xFFE3EAE5),
         surface: darkBackground,
         onSurface: darkText,
-        surfaceContainerLowest: Color(0xFF0C110B),
-        surfaceContainerLow: Color(0xFF151C13),
+        surfaceContainerLowest: Color(0xFF0C1218),
+        surfaceContainerLow: Color(0xFF141D25),
         surfaceContainer: darkSurface,
-        surfaceContainerHigh: Color(0xFF232D20),
-        surfaceContainerHighest: Color(0xFF2D3929),
+        surfaceContainerHigh: Color(0xFF202D38),
+        surfaceContainerHighest: Color(0xFF2A3945),
         onSurfaceVariant: darkVariant,
-        outline: Color(0xFF879381),
-        outlineVariant: Color(0xFF465142),
+        outline: Color(0xFF82909A),
+        outlineVariant: Color(0xFF3C4A54),
         error: Color(0xFFFFB4AB),
         onError: Color(0xFF690005),
       ),
       scaffoldBackgroundColor: darkBackground,
       appBarTheme: AppBarTheme(backgroundColor: darkBackground, foregroundColor: darkText, elevation: 0, centerTitle: false, scrolledUnderElevation: 0, surfaceTintColor: Colors.transparent, titleTextStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 20, fontWeight: FontWeight.w600, color: darkText)),
-      cardTheme: CardThemeData(color: darkSurface, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_cardRadius), side: const BorderSide(color: Color(0xFF465142)))),
+      cardTheme: CardThemeData(color: darkSurface, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_cardRadius), side: const BorderSide(color: Color(0xFF3C4A54)))),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ButtonStyle(
-          backgroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.disabled) ? const Color(0xFF2D3929) : AppColors.secondary),
+          backgroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.disabled) ? const Color(0xFF2A3945) : const Color(0xFF4F7896)),
           foregroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.disabled) ? darkVariant : Colors.white),
           minimumSize: const WidgetStatePropertyAll(Size.fromHeight(52)),
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 24)),
@@ -217,8 +210,8 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: ButtonStyle(
-          foregroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.disabled) ? darkVariant : olive),
-          side: WidgetStateProperty.resolveWith((states) => BorderSide(color: states.contains(WidgetState.disabled) ? const Color(0xFF879381) : olive, width: states.contains(WidgetState.focused) ? 2 : 1)),
+          foregroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.disabled) ? darkVariant : navy),
+          side: WidgetStateProperty.resolveWith((states) => BorderSide(color: states.contains(WidgetState.disabled) ? const Color(0xFF82909A) : navy, width: states.contains(WidgetState.focused) ? 2 : 1)),
           minimumSize: const WidgetStatePropertyAll(Size.fromHeight(48)),
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 20)),
           shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -227,13 +220,22 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: ButtonStyle(
-          foregroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.disabled) ? darkVariant : olive),
+          foregroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.disabled) ? darkVariant : navy),
           textStyle: WidgetStatePropertyAll(GoogleFonts.ibmPlexSansArabic(fontSize: 14, fontWeight: FontWeight.w700)),
           minimumSize: const WidgetStatePropertyAll(Size.fromHeight(44)),
         ),
       ),
-      inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: darkSurface, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF465142))), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF465142))), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: olive, width: 2)), labelStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 14, fontWeight: FontWeight.w600, color: darkText), hintStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 14, color: darkVariant)),
-      dividerTheme: const DividerThemeData(color: Color(0xFF465142)),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: darkSurface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF3C4A54))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF3C4A54))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: blue, width: 2)),
+        labelStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 14, fontWeight: FontWeight.w600, color: darkText),
+        hintStyle: GoogleFonts.ibmPlexSansArabic(fontSize: 14, color: darkVariant),
+      ),
+      dividerTheme: const DividerThemeData(color: Color(0xFF3C4A54)),
     );
 
     return base.copyWith(textTheme: _arabicTextTheme(base.textTheme, darkText));
