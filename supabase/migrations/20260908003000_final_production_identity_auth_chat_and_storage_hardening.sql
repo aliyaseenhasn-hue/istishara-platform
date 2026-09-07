@@ -1,5 +1,5 @@
 -- Final production hardening for profile identity, lawyer self-registration,
--- orphan profile recovery, and chat creation boundaries.
+-- orphan profile recovery, chat creation boundaries, and payment idempotency.
 
 -- Recover legitimate auth users that were created while profile creation failed.
 -- profiles.id remains database-generated and independent from auth.users.id.
@@ -115,3 +115,11 @@ grant execute on function public.register_self_as_lawyer() to authenticated;
 -- booking reaches the allowed state. Clients must not fabricate conversations by
 -- supplying arbitrary participant UUIDs.
 drop policy if exists conversations_insert on public.conversations;
+
+-- This index already exists in Production and is intentionally repeated here with
+-- IF NOT EXISTS so the repository migration history describes the live invariant.
+-- Reserving a processing row before contacting Qi Card makes this constraint the
+-- server-side concurrency gate for one active payment per booking.
+create unique index if not exists ux_payments_one_active_per_booking
+  on public.payments (booking_id)
+  where status in ('قيد معالجة الدفع', 'تم الدفع');
