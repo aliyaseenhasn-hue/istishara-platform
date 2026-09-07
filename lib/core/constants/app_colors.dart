@@ -26,6 +26,8 @@ class AppColors {
   static const Color goldDark = Color(0xFF8C7445);
   static const Color goldSoft = Color(0x24C8AD72);
   static const Color goldSoftStrong = Color(0x3DC8AD72);
+  static const Color goldTransparent = goldSoft;
+  static const Color goldTransparentStrong = goldSoftStrong;
 
   static const Color tertiary = Color(0xFF718B7A);
   static const Color onTertiary = Color(0xFFFFFFFF);
