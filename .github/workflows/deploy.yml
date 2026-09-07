@@ -48,6 +48,19 @@ jobs:
           test -f lib/app/router.g.dart
           test -f lib/shared/providers/global_loading_provider.g.dart
 
+      - name: Verify Telegram auth hardening
+        run: |
+          set -euo pipefail
+          file="supabase/functions/telegram-auth-v2/index.ts"
+          test -f "$file"
+          if grep -Fq "signInWithPassword" "$file"; then
+            echo "::error::telegram-auth-v2 must not reset/use a generated password to mint sessions"
+            exit 1
+          fi
+          grep -Fq "generateLink" "$file"
+          grep -Fq "contact.user_id" "$file"
+          grep -Fq "Telegram webhook secret missing" "$file"
+
       - name: Create .env file for analyzer
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
