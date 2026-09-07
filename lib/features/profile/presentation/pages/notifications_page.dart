@@ -49,6 +49,7 @@ class NotificationsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
     final async = ref.watch(notificationsProvider);
     final unread = ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
 
@@ -58,7 +59,7 @@ class NotificationsPage extends ConsumerWidget {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: scheme.surface,
       body: RefreshIndicator(
         color: AppColors.teal,
         onRefresh: refresh,
@@ -208,6 +209,7 @@ class _NotificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final unread = !item.isRead;
     final visual = _visualFor(item.type);
     final time = DateFormat('yyyy/MM/dd - HH:mm', 'ar').format(item.createdAt.toLocal());
@@ -215,10 +217,10 @@ class _NotificationCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 13),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(23),
         border: Border.all(
-          color: unread ? visual.color.withValues(alpha: .38) : AppColors.outlineVariant.withValues(alpha: .75),
+          color: unread ? visual.color.withValues(alpha: .55) : scheme.outlineVariant,
         ),
         boxShadow: [
           BoxShadow(
@@ -271,7 +273,7 @@ class _NotificationCard extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: AppColors.textPrimary,
+                                color: scheme.onSurface,
                                 fontSize: 15,
                                 height: 1.35,
                                 fontWeight: unread ? FontWeight.w900 : FontWeight.w700,
@@ -286,7 +288,7 @@ class _NotificationCard extends StatelessWidget {
                         textAlign: TextAlign.right,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.55),
+                        style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13, height: 1.55),
                       ),
                       const SizedBox(height: 10),
                       Row(
@@ -297,7 +299,7 @@ class _NotificationCard extends StatelessWidget {
                               time,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: AppColors.outline, fontSize: 10, fontWeight: FontWeight.w600),
+                              style: TextStyle(color: scheme.outline, fontSize: 12, fontWeight: FontWeight.w600),
                             ),
                           ),
                           const SizedBox(width: 6),
@@ -373,6 +375,7 @@ class _EmptyNotifications extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
@@ -400,16 +403,16 @@ class _EmptyNotifications extends StatelessWidget {
               child: const Icon(Icons.notifications_active_rounded, size: 45, color: Colors.white),
             ),
             const SizedBox(height: 22),
-            const Text(
+            Text(
               'لا توجد تنبيهات حالياً',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w900),
+              style: TextStyle(color: scheme.onSurface, fontSize: 18, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'ستظهر هنا آخر تحديثات حسابك واستشاراتك.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.5),
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13, height: 1.5),
             ),
           ],
         ),
@@ -428,6 +431,7 @@ class _NotificationState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
@@ -444,7 +448,7 @@ class _NotificationState extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w800),
+              style: TextStyle(color: scheme.onSurface, fontSize: 16, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 14),
             FilledButton(

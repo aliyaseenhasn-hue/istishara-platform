@@ -66,7 +66,7 @@ class _LawyerOnboardingPageState extends ConsumerState<LawyerOnboardingPage> {
         actions: [
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: Colors.white),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: AppColors.onSecondary),
             child: const Text('حسناً'),
           ),
         ],

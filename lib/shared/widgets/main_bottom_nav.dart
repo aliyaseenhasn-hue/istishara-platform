@@ -22,11 +22,11 @@ class MainBottomNav extends ConsumerWidget {
   static const _lawyerItems = <_NavItem>[
     _NavItem(Icons.home_outlined, Icons.home_rounded, 'الرئيسية'),
     _NavItem(Icons.calendar_month_outlined, Icons.calendar_month_rounded, 'استشاراتي'),
+    _NavItem(Icons.notifications_none_rounded, Icons.notifications_rounded, 'التنبيهات'),
     _NavItem(Icons.settings_outlined, Icons.settings_rounded, 'الإعدادات'),
   ];
 
   static const _lawyerQuickActions = <_QuickAction>[
-    _QuickAction(Icons.calendar_month_rounded, 'المواعيد', '/bookings'),
     _QuickAction(Icons.person_rounded, 'ملفي', '/lawyer-profile-edit'),
     _QuickAction(Icons.schedule_rounded, 'أوقات التوفر', '/lawyer-availability'),
     _QuickAction(Icons.account_balance_wallet_rounded, 'المحفظة', '/lawyer-wallet'),
@@ -50,8 +50,8 @@ class MainBottomNav extends ConsumerWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.surface,
-                AppColors.surfaceContainerLow,
+                scheme.surfaceContainerLowest,
+                scheme.surfaceContainerLow,
               ],
             ),
             borderRadius: BorderRadius.circular(28),
@@ -86,6 +86,7 @@ class MainBottomNav extends ConsumerWidget {
                     child: _NavDestination(
                       item: items[index],
                       selected: index == selectedIndex,
+                      scheme: scheme,
                       onTap: () => _navigate(context, index),
                     ),
                   ),
@@ -103,7 +104,8 @@ class MainBottomNav extends ConsumerWidget {
         ? switch (index) {
             0 => '/lawyer-home',
             1 => '/bookings',
-            2 => '/app-settings',
+            2 => '/notifications',
+            3 => '/app-settings',
             _ => '/lawyer-home',
           }
         : switch (index) {
@@ -188,12 +190,13 @@ class _NavDestination extends StatelessWidget {
   final _NavItem item;
   final bool selected;
   final VoidCallback onTap;
+  final ColorScheme scheme;
 
-  const _NavDestination({required this.item, required this.selected, required this.onTap});
+  const _NavDestination({required this.item, required this.selected, required this.onTap, required this.scheme});
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = selected ? AppColors.secondaryDark : AppColors.textSecondary;
+    final iconColor = selected ? scheme.onSecondaryContainer : scheme.onSurfaceVariant;
 
     return Semantics(
       button: true,
@@ -248,7 +251,7 @@ class _NavDestination extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: iconColor,
-                                fontSize: 10.5,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 height: 1.15,
                               ),
@@ -268,7 +271,7 @@ class _NavDestination extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: iconColor,
-                              fontSize: 10,
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
                               height: 1.15,
                             ),
