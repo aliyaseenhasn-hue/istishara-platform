@@ -18,7 +18,7 @@ class HomePage extends ConsumerWidget {
     final categories = LegalSpecializations.all.take(8).toList();
 
     return Scaffold(
-      backgroundColor: scheme.surface,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -118,15 +118,12 @@ class _HomeHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 19, 18, 18),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 17),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-          colors: [scheme.primaryContainer, scheme.primaryContainer.withValues(alpha: .82)],
-        ),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: scheme.outlineVariant),
+        border: Border.all(color: AppColors.outlineVariant),
+        boxShadow: const [BoxShadow(color: Color(0x0D082B49), blurRadius: 18, offset: Offset(0, 7))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -135,20 +132,20 @@ class _HomeHero extends StatelessWidget {
             textDirection: TextDirection.rtl,
             children: [
               Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(color: AppColors.goldLight.withValues(alpha: .32), borderRadius: BorderRadius.circular(13)),
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(color: AppColors.secondaryContainer, borderRadius: BorderRadius.circular(13)),
                 alignment: Alignment.center,
-                child: const Icon(Icons.balance_rounded, color: AppColors.gold, size: 23),
+                child: const Icon(Icons.balance_rounded, color: AppColors.onSecondaryContainer, size: 23),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 11),
               Expanded(
-                child: Text('استشر محامياً بثقة', textAlign: TextAlign.right, style: TextStyle(color: scheme.onPrimaryContainer, fontSize: 23, fontWeight: FontWeight.w900, height: 1.2)),
+                child: Text('استشر محامياً بثقة', textAlign: TextAlign.right, style: TextStyle(color: scheme.primary, fontSize: 22, fontWeight: FontWeight.w900, height: 1.2)),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Text('ابحث عن المحامي المناسب أو ابدأ طلب استشارتك القانونية بسهولة.', textAlign: TextAlign.right, style: TextStyle(color: scheme.onPrimaryContainer.withValues(alpha: .78), fontSize: 12.5, height: 1.45)),
+          Text('ابحث عن المحامي المناسب أو ابدأ طلب استشارتك القانونية بسهولة.', textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12.5, height: 1.45)),
           const SizedBox(height: 15),
           Row(
             textDirection: TextDirection.rtl,
@@ -160,6 +157,11 @@ class _HomeHero extends StatelessWidget {
                     onPressed: onConsult,
                     icon: const Icon(Icons.forum_outlined, size: 18),
                     label: const Text('استشر محامياً', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.textOnPrimary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+                    ),
                   ),
                 ),
               ),
@@ -171,6 +173,12 @@ class _HomeHero extends StatelessWidget {
                     onPressed: onSearch,
                     icon: const Icon(Icons.search_rounded, size: 18),
                     label: const Text('ابحث عن محامٍ', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.outline),
+                      backgroundColor: AppColors.surface,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+                    ),
                   ),
                 ),
               ),
@@ -210,18 +218,18 @@ class _CategoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: scheme.surfaceContainerLowest,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(17),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(17),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(17), border: Border.all(color: scheme.outlineVariant)),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(17), border: Border.all(color: AppColors.outlineVariant)),
           child: Row(
             textDirection: TextDirection.rtl,
             children: [
-              Container(width: 36, height: 36, decoration: BoxDecoration(color: AppColors.goldLight.withValues(alpha: .30), borderRadius: BorderRadius.circular(11)), alignment: Alignment.center, child: const Icon(Icons.gavel_rounded, color: AppColors.gold, size: 20)),
+              Container(width: 36, height: 36, decoration: BoxDecoration(color: AppColors.secondaryContainer.withValues(alpha: .65), borderRadius: BorderRadius.circular(11)), alignment: Alignment.center, child: const Icon(Icons.gavel_rounded, color: AppColors.onSecondaryContainer, size: 20)),
               const SizedBox(width: 8),
               Expanded(child: Text(title, textAlign: TextAlign.right, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurface, fontSize: 11.5, fontWeight: FontWeight.w800, height: 1.2))),
             ],
@@ -243,7 +251,7 @@ class _SuggestedLawyerCard extends StatelessWidget {
     final specialization = lawyer.specializations.isNotEmpty ? lawyer.specializations.take(2).join('، ') : 'استشارات قانونية';
     final hasAvatar = lawyer.avatarUrl?.isNotEmpty == true;
     return Material(
-      color: scheme.surfaceContainerLowest,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: () {
@@ -254,7 +262,7 @@ class _SuggestedLawyerCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: scheme.outlineVariant)),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.outlineVariant)),
           child: Row(
             textDirection: TextDirection.rtl,
             children: [
@@ -291,7 +299,7 @@ class _EmptyState extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
       child: Container(
         padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(color: scheme.surfaceContainerLowest, borderRadius: BorderRadius.circular(16), border: Border.all(color: scheme.outlineVariant)),
+        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.outlineVariant)),
         child: Column(children: [Icon(icon, color: scheme.onSurfaceVariant, size: 28), const SizedBox(height: 7), Text(text, textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant))]),
       ),
     );
@@ -310,7 +318,7 @@ class _NotificationBell extends StatelessWidget {
       button: true,
       label: 'التنبيهات',
       child: Material(
-        color: scheme.surfaceContainerLowest,
+        color: AppColors.surface,
         shape: const CircleBorder(),
         child: InkWell(
           customBorder: const CircleBorder(),
@@ -330,7 +338,7 @@ class _NotificationBell extends StatelessWidget {
                       constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       alignment: Alignment.center,
-                      decoration: BoxDecoration(color: scheme.error, borderRadius: BorderRadius.circular(99), border: Border.all(color: scheme.surfaceContainerLowest, width: 1.5)),
+                      decoration: BoxDecoration(color: scheme.error, borderRadius: BorderRadius.circular(99), border: Border.all(color: AppColors.surface, width: 1.5)),
                       child: Text(unreadCount > 99 ? '99+' : '$unreadCount', style: TextStyle(color: scheme.onError, fontSize: 8, fontWeight: FontWeight.w900)),
                     ),
                   ),
