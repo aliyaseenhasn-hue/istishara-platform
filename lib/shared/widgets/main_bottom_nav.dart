@@ -4,8 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 
 /// الشريط السفلي الثابت.
-/// التغيير هنا تنظيمي بصري فقط: إجراءات المحامي الإضافية تُجمع داخل «المزيد»
-/// بدل عرضها جميعاً بشكل دائم، مع الإبقاء على نفس المسارات والوظائف.
+/// تبقى الوجهات الأساسية فقط هنا؛ أدوات المحامي الثانوية متاحة من رأس الرئيسية.
 class MainBottomNav extends ConsumerWidget {
   final int currentIndex;
   final bool isLawyer;
@@ -22,14 +21,8 @@ class MainBottomNav extends ConsumerWidget {
   static const _lawyerItems = <_NavItem>[
     _NavItem(Icons.home_outlined, Icons.home_rounded, 'الرئيسية'),
     _NavItem(Icons.calendar_month_outlined, Icons.calendar_month_rounded, 'استشاراتي'),
+    _NavItem(Icons.notifications_none_rounded, Icons.notifications_rounded, 'التنبيهات'),
     _NavItem(Icons.settings_outlined, Icons.settings_rounded, 'الإعدادات'),
-  ];
-
-  static const _lawyerQuickActions = <_QuickAction>[
-    _QuickAction(Icons.calendar_month_rounded, 'المواعيد', '/bookings'),
-    _QuickAction(Icons.person_rounded, 'ملفي', '/lawyer-profile-edit'),
-    _QuickAction(Icons.schedule_rounded, 'أوقات التوفر', '/lawyer-availability'),
-    _QuickAction(Icons.account_balance_wallet_rounded, 'المحفظة', '/lawyer-wallet'),
   ];
 
   @override
@@ -50,8 +43,8 @@ class MainBottomNav extends ConsumerWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.surface,
-                AppColors.surfaceContainerLow,
+                scheme.surfaceContainerLowest,
+                scheme.surfaceContainerLow,
               ],
             ),
             borderRadius: BorderRadius.circular(28),
@@ -66,32 +59,19 @@ class MainBottomNav extends ConsumerWidget {
             ],
           ),
           padding: const EdgeInsets.fromLTRB(9, 9, 9, 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isLawyer) ...[
-                Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: _MoreButton(actions: _lawyerQuickActions),
-                ),
-                const SizedBox(height: 6),
-                Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: .7)),
-                const SizedBox(height: 5),
-              ],
-              Row(
-                textDirection: direction,
-                children: List.generate(
-                  items.length,
-                  (index) => Expanded(
-                    child: _NavDestination(
-                      item: items[index],
-                      selected: index == selectedIndex,
-                      onTap: () => _navigate(context, index),
-                    ),
-                  ),
+          child: Row(
+            textDirection: direction,
+            children: List.generate(
+              items.length,
+              (index) => Expanded(
+                child: _NavDestination(
+                  item: items[index],
+                  selected: index == selectedIndex,
+                  scheme: scheme,
+                  onTap: () => _navigate(context, index),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -103,7 +83,8 @@ class MainBottomNav extends ConsumerWidget {
         ? switch (index) {
             0 => '/lawyer-home',
             1 => '/bookings',
-            2 => '/app-settings',
+            2 => '/notifications',
+            3 => '/app-settings',
             _ => '/lawyer-home',
           }
         : switch (index) {
@@ -117,53 +98,6 @@ class MainBottomNav extends ConsumerWidget {
   }
 }
 
-class _MoreButton extends StatelessWidget {
-  final List<_QuickAction> actions;
-
-  const _MoreButton({required this.actions});
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<_QuickAction>(
-      tooltip: 'المزيد',
-      onSelected: (action) => context.go(action.route),
-      itemBuilder: (context) => actions
-          .map(
-            (action) => PopupMenuItem<_QuickAction>(
-              value: action,
-              child: Directionality(
-                textDirection: TextDirection.rtl,
-                child: Row(
-                  children: [
-                    Icon(action.icon, size: 20, color: AppColors.primary),
-                    const SizedBox(width: 10),
-                    Text(action.label, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  ],
-                ),
-              ),
-            ),
-          )
-          .toList(growable: false),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: AppColors.secondaryContainer.withValues(alpha: .55),
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: AppColors.secondary.withValues(alpha: .14)),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.more_horiz_rounded, size: 19, color: AppColors.primary),
-            SizedBox(width: 5),
-            Text('المزيد', style: TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w800)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _NavItem {
   final IconData icon;
   final IconData activeIcon;
@@ -171,29 +105,17 @@ class _NavItem {
   const _NavItem(this.icon, this.activeIcon, this.label);
 }
 
-class _QuickAction {
-  final IconData icon;
-  final String label;
-  final String route;
-  const _QuickAction(this.icon, this.label, this.route);
-
-  @override
-  bool operator ==(Object other) => other is _QuickAction && other.route == route;
-
-  @override
-  int get hashCode => route.hashCode;
-}
-
 class _NavDestination extends StatelessWidget {
   final _NavItem item;
   final bool selected;
   final VoidCallback onTap;
+  final ColorScheme scheme;
 
-  const _NavDestination({required this.item, required this.selected, required this.onTap});
+  const _NavDestination({required this.item, required this.selected, required this.onTap, required this.scheme});
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = selected ? AppColors.secondaryDark : AppColors.textSecondary;
+    final iconColor = selected ? scheme.onSecondaryContainer : scheme.onSurfaceVariant;
 
     return Semantics(
       button: true,
@@ -248,7 +170,7 @@ class _NavDestination extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: iconColor,
-                                fontSize: 10.5,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 height: 1.15,
                               ),
@@ -268,7 +190,7 @@ class _NavDestination extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: iconColor,
-                              fontSize: 10,
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
                               height: 1.15,
                             ),

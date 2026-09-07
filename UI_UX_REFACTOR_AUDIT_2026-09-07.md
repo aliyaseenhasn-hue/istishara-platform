@@ -70,13 +70,16 @@ The current router retains routes for authentication, client home, lawyer direct
 ## Implemented in this pass
 
 1. Lawyer secondary shortcuts are no longer displayed as four persistent cards in the bottom navigation area.
-2. The same four actions are available from `المزيد` as a popup menu.
+2. The secondary actions are available from `المزيد` as a popup menu; the
+   `/bookings` destination remains directly available as the primary
+   `استشاراتي` tab rather than being duplicated in that menu.
 3. The original routes are preserved exactly:
    - `/bookings`
    - `/lawyer-profile-edit`
    - `/lawyer-availability`
    - `/lawyer-wallet`
-4. Primary bottom navigation remains unchanged.
+4. Primary bottom navigation keeps every existing destination and adds direct
+   access to the existing lawyer notifications route.
 5. Client navigation remains unchanged.
 6. No backend/database/API/auth/RLS/business logic changes are included.
 
@@ -90,6 +93,31 @@ The current router retains routes for authentication, client home, lawyer direct
 - [x] No booking/payment/chat workflow logic changed.
 - [ ] Full automated Flutter analyze/test/build must pass before merging to `main`.
 - [ ] Responsive verification on phone/tablet/desktop should be completed against the generated build.
+
+## Follow-up accessibility and theme pass
+
+The subsequent UI safety pass keeps all data providers, RPC calls, booking
+states, and route paths unchanged while correcting presentation regressions:
+
+- Client home, bookings, landing, notifications, and shared bottom navigation
+  now derive surfaces, borders, and text colors from the active `ColorScheme`.
+- Lawyer navigation exposes the existing `/notifications` destination directly;
+  profile, availability, specialization, wallet, bookings, and settings routes
+  remain reachable through their existing paths.
+- The duplicate lawyer booking shortcut was removed from the secondary menu
+  because the same `/bookings` destination remains a primary tab.
+- Empty and failed booking states now offer a safe next action or retry without
+  changing the underlying provider behavior.
+- Small navigation, status, metadata, and badge labels were increased to a
+  readable minimum, and long booking dates can shrink without overflowing.
+- The invalid placeholder WhatsApp link is no longer rendered unless a valid
+  build-time `SUPPORT_WHATSAPP` value is supplied; email support remains visible.
+- Widget coverage protects client destinations and the lawyer notifications
+  destination, including dark mode with enlarged text.
+- The lawyer `المزيد` control now lives in the top-right leading position of
+  the lawyer home app bar as a compact parallel-lines menu. This keeps the
+  persistent bottom navigation limited to primary destinations while retaining
+  profile, availability, and wallet actions in a clearly labelled popup.
 
 ## Safety rule for subsequent passes
 

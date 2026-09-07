@@ -33,7 +33,7 @@ class LawConnectApp extends ConsumerWidget {
     });
 
     return MaterialApp.router(
-      title: 'LawConnect',
+      title: 'استشارة',
       debugShowCheckedModeBanner: false,
       scrollBehavior: const MaterialScrollBehavior().copyWith(
         dragDevices: {PointerDeviceKind.touch, PointerDeviceKind.mouse, PointerDeviceKind.trackpad},

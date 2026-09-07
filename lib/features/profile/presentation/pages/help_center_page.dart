@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_sizes.dart';
 
+const _supportWhatsApp = String.fromEnvironment('SUPPORT_WHATSAPP');
+
 class HelpCenterPage extends StatelessWidget {
   const HelpCenterPage({super.key});
 
@@ -79,8 +81,10 @@ class HelpCenterPage extends StatelessWidget {
             const SizedBox(height: 22),
             Text('تواصل معنا', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: scheme.onSurface)),
             const SizedBox(height: 11),
-            _ContactCard(icon: Icons.chat_rounded, title: 'تحدث مع الدعم الفني', subtitle: 'مساعدة مباشرة عبر واتساب', color: scheme.primary, onTap: () => _launchUrl(context, 'https://wa.me/9647XXXXXXXX')),
-            const SizedBox(height: 10),
+            if (_supportWhatsApp.isNotEmpty) ...[
+              _ContactCard(icon: Icons.chat_rounded, title: 'تحدث مع الدعم الفني', subtitle: 'مساعدة مباشرة عبر واتساب', color: scheme.primary, onTap: () => _launchUrl(context, 'https://wa.me/${_supportWhatsApp.replaceAll(RegExp(r'[^0-9]'), '')}')),
+              const SizedBox(height: 10),
+            ],
             _ContactCard(icon: Icons.mail_outline_rounded, title: 'راسلنا عبر البريد', subtitle: 'support@astshara.iq', color: scheme.primary, onTap: () => _launchUrl(context, 'mailto:support@astshara.iq')),
             const SizedBox(height: 26),
             Text('الأسئلة الشائعة', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: scheme.onSurface)),
