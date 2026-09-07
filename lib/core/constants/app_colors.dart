@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Unified premium visual identity for Istishara.
-/// Navy = trust and legal authority, gold = primary actions,
+/// Navy = trust and legal authority, blue-grey = formal supporting actions,
 /// teal = digital guidance and positive information.
 class AppColors {
   static const Color primary = Color(0xFF082B49);
@@ -12,17 +12,19 @@ class AppColors {
   static const Color primaryDark = Color(0xFF061F35);
   static const Color primaryLight = Color(0xFF2B628D);
 
-  static const Color secondary = Color(0xFF8A6700);
-  static const Color onSecondary = Color(0xFF1E1600);
-  static const Color secondaryContainer = Color(0xFFFFD75E);
-  static const Color onSecondaryContainer = Color(0xFF5D4500);
-  static const Color secondaryDark = Color(0xFF4E3A00);
-  static const Color secondaryLight = Color(0xFFE9BD32);
+  // Formal secondary palette. Legacy names are retained for source compatibility,
+  // but no yellow/gold is used for brand or interaction surfaces.
+  static const Color secondary = Color(0xFF315A78);
+  static const Color onSecondary = Color(0xFFFFFFFF);
+  static const Color secondaryContainer = Color(0xFFDCE9F2);
+  static const Color onSecondaryContainer = Color(0xFF17384F);
+  static const Color secondaryDark = Color(0xFF23465F);
+  static const Color secondaryLight = Color(0xFF5E8199);
 
-  static const Color ctaGold = Color(0xFFD9B33F);
+  static const Color ctaGold = primary;
   static const Color gold = secondaryLight;
-  static const Color goldLight = Color(0xFFFFE59A);
-  static const Color goldDark = onSecondaryContainer;
+  static const Color goldLight = Color(0xFFE7F0F6);
+  static const Color goldDark = secondaryDark;
 
   static const Color tertiary = Color(0xFF075E66);
   static const Color onTertiary = Color(0xFFFFFFFF);
@@ -58,6 +60,7 @@ class AppColors {
   static const Color info = Color(0xFF087C86);
   static const Color warning = Color(0xFF8A6700);
 
+  // Semantic statuses remain distinct; these are not brand/hover colors.
   static const Color pendingBg = Color(0xFFFFF4D6);
   static const Color pendingText = Color(0xFF664B00);
   static const Color acceptedBg = Color(0xFFE5F6EC);
@@ -66,6 +69,6 @@ class AppColors {
   static const Color cancelledText = Color(0xFF8B1A12);
 
   static const List<Color> brandGradient = [primary, primaryContainer];
-  static const List<Color> goldGradient = [goldLight, ctaGold];
+  static const List<Color> goldGradient = [goldLight, primaryLight];
   static const List<Color> skyGradient = [Color(0xFFEAF5F7), Color(0xFFC9E4E7)];
 }
