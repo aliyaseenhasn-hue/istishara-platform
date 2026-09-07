@@ -114,6 +114,10 @@ states, and route paths unchanged while correcting presentation regressions:
   build-time `SUPPORT_WHATSAPP` value is supplied; email support remains visible.
 - Widget coverage protects client destinations and the lawyer notifications
   destination, including dark mode with enlarged text.
+- The lawyer `المزيد` control now lives in the top-right leading position of
+  the lawyer home app bar as a compact parallel-lines menu. This keeps the
+  persistent bottom navigation limited to primary destinations while retaining
+  profile, availability, and wallet actions in a clearly labelled popup.
 
 ## Safety rule for subsequent passes
 

@@ -4,9 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:astshara/shared/widgets/main_bottom_nav.dart';
+import 'package:astshara/shared/widgets/lawyer_more_menu_button.dart';
 
 void main() {
-  testWidgets('lawyer navigation exposes notifications and every secondary destination', (tester) async {
+  testWidgets('lawyer navigation exposes notifications without a secondary menu', (tester) async {
     final router = GoRouter(
       initialLocation: '/lawyer-home',
       routes: [
@@ -42,10 +43,43 @@ void main() {
     expect(find.text('التنبيهات'), findsOneWidget);
     expect(find.text('استشاراتي'), findsOneWidget);
     expect(find.text('الإعدادات'), findsOneWidget);
+    expect(find.byTooltip('المزيد من أدوات المحامي'), findsNothing);
 
     await tester.tap(find.text('التنبيهات'));
     await tester.pumpAndSettle();
     expect(find.text('/notifications'), findsOneWidget);
+  });
+
+  testWidgets('lawyer home menu exposes every unique secondary destination', (tester) async {
+    final router = GoRouter(
+      initialLocation: '/lawyer-home',
+      routes: [
+        GoRoute(
+          path: '/lawyer-home',
+          builder: (_, __) => const Scaffold(
+            appBar: _TestLawyerAppBar(),
+          ),
+        ),
+        for (final path in ['/lawyer-profile-edit', '/lawyer-availability', '/lawyer-wallet'])
+          GoRoute(
+            path: path,
+            builder: (_, state) => Scaffold(body: Text(state.uri.path)),
+          ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.tap(find.byTooltip('المزيد من أدوات المحامي'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ملفي المهني'), findsOneWidget);
+    expect(find.text('أوقات التوفر'), findsOneWidget);
+    expect(find.text('المحفظة'), findsOneWidget);
+
+    await tester.tap(find.text('المحفظة'));
+    await tester.pumpAndSettle();
+    expect(find.text('/lawyer-wallet'), findsOneWidget);
   });
 
   testWidgets('client navigation keeps all existing destinations', (tester) async {
@@ -92,6 +126,22 @@ class _NavHost extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       bottomNavigationBar: MainBottomNav(currentIndex: 0, isLawyer: true),
+    );
+  }
+}
+
+class _TestLawyerAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const _TestLawyerAppBar();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      automaticallyImplyLeading: false,
+      leading: const LawyerMoreMenuButton(),
+      title: const Text('الرئيسية'),
     );
   }
 }

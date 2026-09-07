@@ -7,6 +7,7 @@ import '../../../bookings/presentation/providers/bookings_provider.dart';
 import '../../../bookings/domain/entities/booking.dart';
 import '../../domain/entities/lawyer_profile.dart';
 import '../providers/lawyers_provider.dart';
+import '../../../../shared/widgets/lawyer_more_menu_button.dart';
 
 class LawyerDashboardPage extends ConsumerWidget {
   const LawyerDashboardPage({super.key});
@@ -25,6 +26,12 @@ class LawyerDashboardPage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
+        leadingWidth: 66,
+        leading: const Padding(
+          padding: EdgeInsetsDirectional.only(start: 14),
+          child: LawyerMoreMenuButton(),
+        ),
         title: const Text('الرئيسية', style: TextStyle(fontWeight: FontWeight.w900)),
         centerTitle: true,
         actions: [
