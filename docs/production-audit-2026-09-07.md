@@ -7,6 +7,13 @@ Document the current production-safety audit and prevent speculative UI changes 
 - Booking archive/restore RPC execution is restricted to `service_role`.
 - Payment data was checked for orphaned records; current audit found 10 payments associated with 10 distinct bookings.
 - Client home and landing page UI refinements preserve existing routes and business/data flow.
+- Notification deep-link booking navigation now uses the authorized `get_booking_for_notification` RPC, which resolves the authenticated user's `profiles.id` before authorizing access to the booking. This avoids the previous mismatch between `auth.users.id` and `profiles.id`.
+
+## Notification deep-link audit
+- The database already provides `get_booking_for_notification(uuid)` with access restricted to `authenticated` and an ownership check against the caller's profile ID.
+- The notifications list page already used this RPC.
+- The native/local notification service previously bypassed that RPC and queried `bookings` directly when a notification was opened. That path was corrected to use the same authorized RPC.
+- This change is limited to notification navigation and does not alter authentication, booking state transitions, payment processing, or Telegram flows.
 
 ## UI contrast audit
 The audit identified explicit button foreground/background color declarations that require contextual review rather than blanket replacement. In particular, lawyer onboarding uses a gold secondary background with white foreground text. This is now treated as a contrast-review item, not automatically changed without rendered verification.
@@ -20,4 +27,4 @@ The audit identified explicit button foreground/background color declarations th
 ## Current status
 `WARNING — NOT FULLY TESTED`
 
-This document is intentionally limited to verified observations and does not claim that unverified UI issues are fixed.
+The notification deep-link code correction is committed and awaiting CI verification. Rendered-device verification is still required before declaring the production audit complete.
