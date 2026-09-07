@@ -68,7 +68,7 @@ class LawyerDashboardPage extends ConsumerWidget {
                   avatarUrl: avatar,
                   onTap: () => context.push('/lawyer-profile-edit'),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(child: _MetricCard(value: '$active', label: 'استشارات نشطة', icon: Icons.forum_rounded, background: AppColors.tertiary, foreground: Colors.white)),
@@ -78,7 +78,7 @@ class LawyerDashboardPage extends ConsumerWidget {
                 ),
                 const SizedBox(height: 10),
                 _MoneyCard(total: total),
-                const SizedBox(height: 22),
+                const SizedBox(height: 20),
                 Card(
                   elevation: 0,
                   color: AppColors.surface,
@@ -87,20 +87,20 @@ class LawyerDashboardPage extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(20),
                     onTap: () => context.push('/lawyer-profile-edit'),
                     child: Padding(
-                      padding: const EdgeInsets.all(18),
+                      padding: const EdgeInsets.all(17),
                       child: Row(
                         children: [
-                          Container(width: 48, height: 48, decoration: BoxDecoration(color: AppColors.secondaryContainer, borderRadius: BorderRadius.circular(15)), child: const Icon(Icons.badge_outlined, color: AppColors.onSecondaryContainer)),
+                          Container(width: 46, height: 46, decoration: BoxDecoration(color: AppColors.secondaryContainer.withValues(alpha: .70), borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.badge_outlined, color: AppColors.onSecondaryContainer)),
                           const SizedBox(width: 12),
-                          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [Text('ملفي المهني', textAlign: TextAlign.right, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)), SizedBox(height: 4), Text('تعديل البيانات والتخصص والباقات وأوقات التوفر', textAlign: TextAlign.right, style: TextStyle(color: AppColors.textSecondary, fontSize: 12))])),
-                          const Icon(Icons.chevron_left_rounded),
+                          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [Text('ملفي المهني', textAlign: TextAlign.right, style: TextStyle(color: AppColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w900)), SizedBox(height: 4), Text('تعديل البيانات والتخصص والباقات وأوقات التوفر', textAlign: TextAlign.right, style: TextStyle(color: AppColors.textSecondary, fontSize: 12))])),
+                          const Icon(Icons.chevron_left_rounded, color: AppColors.textSecondary),
                         ],
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
-                Row(children: [const Expanded(child: Text('طلبات الاستشارة الواردة', textAlign: TextAlign.right, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900))), Text('${items.length} طلب', style: const TextStyle(color: AppColors.tertiary, fontWeight: FontWeight.w800))]),
+                const SizedBox(height: 22),
+                Row(children: [const Expanded(child: Text('طلبات الاستشارة الواردة', textAlign: TextAlign.right, style: TextStyle(color: AppColors.textPrimary, fontSize: 19, fontWeight: FontWeight.w900))), Text('${items.length} طلب', style: const TextStyle(color: AppColors.tertiary, fontWeight: FontWeight.w800))]),
                 const SizedBox(height: 10),
                 if (items.isEmpty) const _EmptyState() else ...items.take(5).map((b) => _BookingCard(booking: b)),
               ],
@@ -123,44 +123,53 @@ class _ProfileHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 22),
+      padding: const EdgeInsets.fromLTRB(18, 17, 18, 15),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [AppColors.primary, AppColors.primaryContainer]),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: const [BoxShadow(color: Color(0x22082B49), blurRadius: 18, offset: Offset(0, 8))],
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.outlineVariant),
+        boxShadow: const [BoxShadow(color: Color(0x0D082B49), blurRadius: 18, offset: Offset(0, 7))],
       ),
       child: Column(
         children: [
           GestureDetector(
             onTap: onTap,
             child: Container(
-              width: 112,
-              height: 112,
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.goldLight, border: Border.all(color: AppColors.ctaGold, width: 3)),
+              width: 96,
+              height: 96,
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.secondaryContainer, border: Border.all(color: AppColors.ctaGold, width: 2)),
               child: CircleAvatar(
                 backgroundColor: AppColors.surfaceContainerHighest,
                 backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty ? NetworkImage(avatarUrl!) : null,
-                child: avatarUrl == null || avatarUrl!.isEmpty ? Text(name.substring(0, 1), style: const TextStyle(color: AppColors.primary, fontSize: 40, fontWeight: FontWeight.w900)) : null,
+                child: avatarUrl == null || avatarUrl!.isEmpty ? Text(name.substring(0, 1), style: const TextStyle(color: AppColors.primary, fontSize: 34, fontWeight: FontWeight.w900)) : null,
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          const Text('محامي', textAlign: TextAlign.center, style: TextStyle(color: AppColors.goldLight, fontSize: 13, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 3),
-          Text(name, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 9),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(color: AppColors.primaryContainer.withValues(alpha: .10), borderRadius: BorderRadius.circular(99)),
+            child: const Text('محامي', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w900)),
+          ),
           const SizedBox(height: 5),
-          Text(specialization, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.goldLight, fontSize: 13, fontWeight: FontWeight.w700, height: 1.4)),
+          Text(name, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textPrimary, fontSize: 21, fontWeight: FontWeight.w900, height: 1.2)),
+          const SizedBox(height: 4),
+          Text(specialization, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5, fontWeight: FontWeight.w700, height: 1.4)),
           if (license != null && license!.trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 9),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
-              decoration: BoxDecoration(color: AppColors.secondaryContainer, borderRadius: BorderRadius.circular(14)),
-              child: Text('الصلاحية: ${license == 'مطلقة' ? 'مطلقة' : 'الفئة $license'}', style: const TextStyle(color: AppColors.onSecondaryContainer, fontSize: 12, fontWeight: FontWeight.w900)),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(color: AppColors.secondaryContainer, borderRadius: BorderRadius.circular(12)),
+              child: Text('الصلاحية: ${license == 'مطلقة' ? 'مطلقة' : 'الفئة $license'}', style: const TextStyle(color: AppColors.onSecondaryContainer, fontSize: 11.5, fontWeight: FontWeight.w900)),
             ),
           ],
-          const SizedBox(height: 12),
-          TextButton.icon(onPressed: onTap, icon: const Icon(Icons.edit_rounded, color: Colors.white, size: 18), label: const Text('عرض وتعديل الملف', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800))),
+          const SizedBox(height: 7),
+          TextButton.icon(
+            onPressed: onTap,
+            icon: const Icon(Icons.edit_rounded, color: AppColors.primary, size: 17),
+            label: const Text('عرض وتعديل الملف', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800)),
+          ),
         ],
       ),
     );
@@ -176,9 +185,9 @@ class _MetricCard extends StatelessWidget {
   const _MetricCard({required this.value, required this.label, required this.icon, required this.background, required this.foreground});
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 17, horizontal: 10),
-        decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(20)),
-        child: Column(children: [Icon(icon, color: foreground, size: 25), const SizedBox(height: 7), Text(value, style: TextStyle(color: foreground, fontSize: 22, fontWeight: FontWeight.w900)), const SizedBox(height: 2), Text(label, textAlign: TextAlign.center, style: TextStyle(color: foreground.withValues(alpha: .9), fontSize: 11, fontWeight: FontWeight.w700))]),
+        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
+        decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(18)),
+        child: Column(children: [Icon(icon, color: foreground, size: 23), const SizedBox(height: 6), Text(value, style: TextStyle(color: foreground, fontSize: 21, fontWeight: FontWeight.w900)), const SizedBox(height: 2), Text(label, textAlign: TextAlign.center, style: TextStyle(color: foreground.withValues(alpha: .92), fontSize: 10.5, fontWeight: FontWeight.w700))]),
       );
 }
 
@@ -187,16 +196,16 @@ class _MoneyCard extends StatelessWidget {
   const _MoneyCard({required this.total});
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(gradient: const LinearGradient(colors: [AppColors.secondaryContainer, AppColors.goldLight]), borderRadius: BorderRadius.circular(22)),
-        child: Row(children: [Container(width: 52, height: 52, decoration: BoxDecoration(color: AppColors.secondary, borderRadius: BorderRadius.circular(16)), child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 27)), const SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [const Text('إجمالي مبالغ الاستشارات', textAlign: TextAlign.right, style: TextStyle(color: AppColors.onSecondaryContainer, fontSize: 12, fontWeight: FontWeight.w800)), const SizedBox(height: 4), Text('${total.toStringAsFixed(0)} د.ع', textAlign: TextAlign.right, style: const TextStyle(color: AppColors.onSecondaryContainer, fontSize: 25, fontWeight: FontWeight.w900))]))]),
+        padding: const EdgeInsets.all(17),
+        decoration: BoxDecoration(color: AppColors.secondaryContainer, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.goldLight)),
+        child: Row(children: [Container(width: 48, height: 48, decoration: BoxDecoration(color: AppColors.secondary, borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 25)), const SizedBox(width: 13), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [const Text('إجمالي مبالغ الاستشارات', textAlign: TextAlign.right, style: TextStyle(color: AppColors.onSecondaryContainer, fontSize: 11.5, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text('${total.toStringAsFixed(0)} د.ع', textAlign: TextAlign.right, style: const TextStyle(color: AppColors.onSecondaryContainer, fontSize: 23, fontWeight: FontWeight.w900))]))]),
       );
 }
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
   @override
-  Widget build(BuildContext context) => Container(padding: const EdgeInsets.all(28), decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.divider)), child: const Column(children: [Icon(Icons.event_available_rounded, color: AppColors.tertiary, size: 34), SizedBox(height: 8), Text('لا توجد طلبات استشارة حالياً', style: TextStyle(fontWeight: FontWeight.w700))]));
+  Widget build(BuildContext context) => Container(padding: const EdgeInsets.all(25), decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.outlineVariant)), child: const Column(children: [Icon(Icons.event_available_rounded, color: AppColors.tertiary, size: 34), SizedBox(height: 8), Text('لا توجد طلبات استشارة حالياً', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700))]));
 }
 
 class _BookingCard extends ConsumerWidget {
@@ -211,11 +220,15 @@ class _BookingCard extends ConsumerWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
+      elevation: 0,
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: AppColors.outlineVariant)),
       child: ListTile(
         onTap: () => context.push('/booking-details', extra: booking),
-        title: Text(title, textDirection: TextDirection.rtl, textAlign: TextAlign.right),
-        subtitle: Text(booking.status, textDirection: TextDirection.rtl, textAlign: TextAlign.right),
-        trailing: const Icon(Icons.chevron_left_rounded),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        title: Text(title, textDirection: TextDirection.rtl, textAlign: TextAlign.right, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w800)),
+        subtitle: Text(booking.status, textDirection: TextDirection.rtl, textAlign: TextAlign.right, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+        trailing: const Icon(Icons.chevron_left_rounded, color: AppColors.textSecondary),
       ),
     );
   }
