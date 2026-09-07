@@ -36,6 +36,8 @@ begin
 end;
 $$;
 
+revoke execute on function public.protect_profile_sensitive_fields() from public, anon, authenticated;
+
 drop trigger if exists protect_profile_sensitive_fields on public.profiles;
 create trigger protect_profile_sensitive_fields
 before update on public.profiles
