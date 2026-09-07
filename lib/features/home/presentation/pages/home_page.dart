@@ -31,7 +31,7 @@ class HomePage extends ConsumerWidget {
         child: CustomScrollView(
           slivers: [
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
               sliver: SliverToBoxAdapter(
                 child: Row(
                   textDirection: TextDirection.rtl,
@@ -40,24 +40,23 @@ class HomePage extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text('استشارة', style: TextStyle(color: scheme.primary, fontSize: 20, fontWeight: FontWeight.w900)),
-                          const SizedBox(height: 2),
-                          Text('مساحتك للاستشارات القانونية', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11)),
+                          Text('استشارة', style: TextStyle(color: scheme.primary, fontSize: 19, fontWeight: FontWeight.w900)),
+                          Text('مساحتك للاستشارات القانونية', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 10.5)),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     _NotificationBell(unreadCount: unread, onTap: () => context.push('/notifications')),
                   ],
                 ),
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+              padding: const EdgeInsets.fromLTRB(18, 5, 18, 0),
               sliver: SliverToBoxAdapter(child: _ClientProfileHeader(name: name, avatarUrl: avatarUrl)),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 5, 18, 0),
+              padding: const EdgeInsets.fromLTRB(18, 3, 18, 0),
               sliver: SliverToBoxAdapter(
                 child: bookings.when(
                   loading: () => const _StatsLoading(),
@@ -67,11 +66,11 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 6, 18, 2),
+              padding: const EdgeInsets.fromLTRB(18, 3, 18, 1),
               sliver: SliverToBoxAdapter(child: _SectionTitle(title: 'التخصصات القانونية', action: 'عرض الكل', onTap: () => context.push('/lawyers'))),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 0, 18, 5),
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 3),
               sliver: SliverToBoxAdapter(child: _LawyerSearchButton(onTap: () => context.push('/lawyers'))),
             ),
             SliverPadding(
@@ -90,25 +89,25 @@ class HomePage extends ConsumerWidget {
                 ),
                 gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                   maxCrossAxisExtent: 250,
-                  crossAxisSpacing: 9,
-                  mainAxisSpacing: 9,
-                  childAspectRatio: 1.46,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 6,
+                  childAspectRatio: 1.66,
                 ),
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 0, 18, 2),
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
               sliver: SliverToBoxAdapter(child: _SectionTitle(title: 'محامون مقترحون', action: 'عرض الكل', onTap: () => context.push('/lawyers'))),
             ),
             lawyers.when(
-              loading: () => const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))),
+              loading: () => const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()))),
               error: (_, __) => const SliverToBoxAdapter(child: _EmptyState(icon: Icons.cloud_off_rounded, text: 'تعذر تحميل المحامين حالياً')),
               data: (items) => items.isEmpty
                   ? const SliverToBoxAdapter(child: _EmptyState(icon: Icons.person_search_outlined, text: 'لا يوجد محامون موثقون حالياً'))
                   : SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) => Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
                           child: _SuggestedLawyerCard(lawyer: items[index] as LawyerProfile),
                         ),
                         childCount: items.length > 6 ? 6 : items.length,
@@ -132,41 +131,50 @@ class _ClientProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return HoverLift(
-      borderRadius: 24,
+      borderRadius: 20,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 15),
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
         decoration: BoxDecoration(
           gradient: LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft, colors: [scheme.primary, AppColors.primaryContainer]),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: scheme.primary.withValues(alpha: .18)),
         ),
-        child: Column(
+        child: Row(
+          textDirection: TextDirection.rtl,
           children: [
             Container(
-              width: 88,
-              height: 88,
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(shape: BoxShape.circle, color: scheme.onPrimary.withValues(alpha: .12), border: Border.all(color: scheme.onPrimary.withValues(alpha: .72), width: 2)),
+              width: 66,
+              height: 66,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: scheme.onPrimary.withValues(alpha: .12), border: Border.all(color: scheme.onPrimary.withValues(alpha: .72), width: 1.5)),
               child: CircleAvatar(
                 backgroundColor: scheme.surfaceContainerHighest,
                 backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty ? NetworkImage(avatarUrl!) : null,
-                child: avatarUrl == null || avatarUrl!.isEmpty ? Icon(Icons.person_outline_rounded, color: scheme.primary, size: 40) : null,
+                child: avatarUrl == null || avatarUrl!.isEmpty ? Icon(Icons.person_outline_rounded, color: scheme.primary, size: 30) : null,
               ),
             ),
-            const SizedBox(height: 7),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
-              decoration: BoxDecoration(color: scheme.onPrimary.withValues(alpha: .12), borderRadius: BorderRadius.circular(99)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.person_pin_circle_outlined, color: scheme.onPrimary, size: 15),
-                const SizedBox(width: 5),
-                Text('عميل', style: TextStyle(color: scheme.onPrimary, fontSize: 12, fontWeight: FontWeight.w900)),
-              ]),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: scheme.onPrimary.withValues(alpha: .12), borderRadius: BorderRadius.circular(99)),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.person_pin_circle_outlined, color: scheme.onPrimary, size: 13),
+                      const SizedBox(width: 4),
+                      Text('عميل', style: TextStyle(color: scheme.onPrimary, fontSize: 10.5, fontWeight: FontWeight.w900)),
+                    ]),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(name, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onPrimary, fontSize: 18, fontWeight: FontWeight.w900, height: 1.15)),
+                  const SizedBox(height: 2),
+                  Text('اطلب استشارتك القانونية بسهولة وأمان', textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onPrimary.withValues(alpha: .82), fontSize: 11, fontWeight: FontWeight.w600)),
+                ],
+              ),
             ),
-            const SizedBox(height: 5),
-            Text(name, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onPrimary, fontSize: 20, fontWeight: FontWeight.w900, height: 1.2)),
-            const SizedBox(height: 3),
-            Text('اطلب استشارتك القانونية بسهولة وأمان', textAlign: TextAlign.center, style: TextStyle(color: scheme.onPrimary.withValues(alpha: .82), fontSize: 12, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -184,7 +192,7 @@ class _ClientStats extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Row(children: [
       Expanded(child: _ClientStatCard(value: total, label: 'الاستشارات', icon: Icons.forum_outlined, iconBackground: scheme.primary.withValues(alpha: .10), iconColor: scheme.primary)),
-      const SizedBox(width: 9),
+      const SizedBox(width: 7),
       Expanded(child: _ClientStatCard(value: completed, label: 'مكتملة', icon: Icons.verified_outlined, iconBackground: scheme.tertiary.withValues(alpha: .10), iconColor: scheme.tertiary)),
     ]);
   }
@@ -202,15 +210,16 @@ class _ClientStatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return HoverLift(
+      lift: 2,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-        decoration: BoxDecoration(color: scheme.surfaceContainerLowest, borderRadius: BorderRadius.circular(18), border: Border.all(color: scheme.outlineVariant)),
+        padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 9),
+        decoration: BoxDecoration(color: scheme.surfaceContainerLowest, borderRadius: BorderRadius.circular(15), border: Border.all(color: scheme.outlineVariant)),
         child: Row(textDirection: TextDirection.rtl, children: [
-          Container(width: 40, height: 40, decoration: BoxDecoration(color: iconBackground, borderRadius: BorderRadius.circular(12)), alignment: Alignment.center, child: Icon(icon, color: iconColor, size: 21)),
-          const SizedBox(width: 9),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(value, style: TextStyle(color: scheme.onSurface, fontSize: 19, fontWeight: FontWeight.w900)),
-            Text(label, textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w700)),
+          Container(width: 32, height: 32, decoration: BoxDecoration(color: iconBackground, borderRadius: BorderRadius.circular(10)), alignment: Alignment.center, child: Icon(icon, color: iconColor, size: 18)),
+          const SizedBox(width: 7),
+          Expanded(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text(value, style: TextStyle(color: scheme.onSurface, fontSize: 17, fontWeight: FontWeight.w900, height: 1.05)),
+            Text(label, textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 10.5, fontWeight: FontWeight.w700, height: 1.15)),
           ])),
         ]),
       ),
@@ -225,7 +234,7 @@ class _StatsLoading extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Row(children: [
       Expanded(child: _ClientStatCard(value: '—', label: 'الاستشارات', icon: Icons.forum_outlined, iconBackground: scheme.primary.withValues(alpha: .10), iconColor: scheme.primary)),
-      const SizedBox(width: 9),
+      const SizedBox(width: 7),
       Expanded(child: _ClientStatCard(value: '—', label: 'مكتملة', icon: Icons.verified_outlined, iconBackground: scheme.tertiary.withValues(alpha: .10), iconColor: scheme.tertiary)),
     ]);
   }
@@ -240,10 +249,22 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Row(textDirection: TextDirection.rtl, children: [
-      Expanded(child: Text(title, textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurface, fontSize: 17, fontWeight: FontWeight.w900))),
-      TextButton(onPressed: onTap, child: Text(action, style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800, fontSize: 12))),
-    ]);
+    return SizedBox(
+      height: 32,
+      child: Row(textDirection: TextDirection.rtl, children: [
+        Expanded(child: Text(title, textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurface, fontSize: 16, fontWeight: FontWeight.w900))),
+        TextButton(
+          onPressed: onTap,
+          style: TextButton.styleFrom(
+            minimumSize: const Size(0, 30),
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+          child: Text(action, style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800, fontSize: 11.5)),
+        ),
+      ]),
+    );
   }
 }
 
@@ -255,11 +276,11 @@ class _LawyerSearchButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return SizedBox(
-      height: 46,
+      height: 40,
       child: FilledButton.icon(
         onPressed: onTap,
-        icon: const Icon(Icons.manage_search_rounded, size: 20),
-        label: const Text('ابحث عن محامٍ', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+        icon: const Icon(Icons.manage_search_rounded, size: 18),
+        label: const Text('ابحث عن محامٍ', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
         style: ButtonStyle(
           foregroundColor: WidgetStatePropertyAll(scheme.onPrimary),
           backgroundColor: WidgetStateProperty.resolveWith((states) {
@@ -267,7 +288,8 @@ class _LawyerSearchButton extends StatelessWidget {
             return scheme.primary;
           }),
           overlayColor: WidgetStatePropertyAll(scheme.onPrimary.withValues(alpha: .08)),
-          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+          padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 14)),
+          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
         ),
       ),
     );
@@ -300,24 +322,24 @@ class _AnimatedCategoryCard extends StatelessWidget {
       tween: Tween(begin: 0, end: 1),
       duration: Duration(milliseconds: 300 + (index * 40)),
       curve: Curves.easeOutCubic,
-      builder: (context, value, child) => Opacity(opacity: value, child: Transform.translate(offset: Offset(0, 10 * (1 - value)), child: child)),
+      builder: (context, value, child) => Opacity(opacity: value, child: Transform.translate(offset: Offset(0, 8 * (1 - value)), child: child)),
       child: HoverLift(
         child: Material(
           color: scheme.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           child: InkWell(
             onTap: onTap,
             hoverColor: scheme.primary.withValues(alpha: .055),
             focusColor: scheme.primary.withValues(alpha: .07),
             splashColor: scheme.primary.withValues(alpha: .10),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), border: Border.all(color: scheme.outlineVariant)),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: scheme.outlineVariant)),
               child: Row(textDirection: TextDirection.rtl, children: [
-                Container(width: 38, height: 38, decoration: BoxDecoration(color: scheme.primary.withValues(alpha: .09), borderRadius: BorderRadius.circular(12)), alignment: Alignment.center, child: Icon(_iconFor(title), color: scheme.primary, size: 20)),
-                const SizedBox(width: 8),
-                Expanded(child: Text(title, textAlign: TextAlign.right, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurface, fontSize: 12, fontWeight: FontWeight.w800, height: 1.3))),
+                Container(width: 34, height: 34, decoration: BoxDecoration(color: scheme.primary.withValues(alpha: .09), borderRadius: BorderRadius.circular(10)), alignment: Alignment.center, child: Icon(_iconFor(title), color: scheme.primary, size: 18)),
+                const SizedBox(width: 7),
+                Expanded(child: Text(title, textAlign: TextAlign.right, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurface, fontSize: 11.5, fontWeight: FontWeight.w800, height: 1.2))),
               ]),
             ),
           ),
@@ -353,30 +375,30 @@ class _SuggestedLawyerCard extends StatelessWidget {
           splashColor: scheme.primary.withValues(alpha: .10),
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: const EdgeInsets.all(11),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: scheme.outlineVariant)),
             child: Row(textDirection: TextDirection.rtl, children: [
-              CircleAvatar(radius: 24, backgroundColor: scheme.primary.withValues(alpha: .10), backgroundImage: hasAvatar ? NetworkImage(lawyer.avatarUrl!) : null, child: hasAvatar ? null : Icon(Icons.person_outline_rounded, color: scheme.primary)),
-              const SizedBox(width: 10),
+              CircleAvatar(radius: 22, backgroundColor: scheme.primary.withValues(alpha: .10), backgroundImage: hasAvatar ? NetworkImage(lawyer.avatarUrl!) : null, child: hasAvatar ? null : Icon(Icons.person_outline_rounded, color: scheme.primary)),
+              const SizedBox(width: 9),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  Icon(Icons.verified_user_outlined, color: scheme.primary, size: 15),
+                  Icon(Icons.verified_user_outlined, color: scheme.primary, size: 14),
                   const SizedBox(width: 4),
-                  Flexible(child: Text(name, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurface, fontSize: 14, fontWeight: FontWeight.w900))),
+                  Flexible(child: Text(name, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurface, fontSize: 13.5, fontWeight: FontWeight.w900))),
                 ]),
+                const SizedBox(height: 2),
+                Text(specialization, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11.5, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 3),
-                Text(specialization, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 4),
                 Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  Icon(Icons.star_rounded, color: scheme.primary, size: 15),
+                  Icon(Icons.star_rounded, color: scheme.primary, size: 14),
                   const SizedBox(width: 3),
-                  Text(lawyer.rating.toStringAsFixed(1), style: TextStyle(color: scheme.onSurface, fontSize: 12, fontWeight: FontWeight.w800)),
-                  const SizedBox(width: 8),
-                  Text('${lawyer.reviewCount} تقييم', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+                  Text(lawyer.rating.toStringAsFixed(1), style: TextStyle(color: scheme.onSurface, fontSize: 11.5, fontWeight: FontWeight.w800)),
+                  const SizedBox(width: 7),
+                  Text('${lawyer.reviewCount} تقييم', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11.5)),
                 ]),
               ])),
-              const SizedBox(width: 8),
-              Icon(Icons.chevron_left_rounded, color: scheme.onSurfaceVariant, size: 22),
+              const SizedBox(width: 7),
+              Icon(Icons.chevron_left_rounded, color: scheme.onSurfaceVariant, size: 21),
             ]),
           ),
         ),
@@ -394,7 +416,7 @@ class _NotificationBell extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Stack(clipBehavior: Clip.none, children: [
-      IconButton(onPressed: onTap, tooltip: 'الإشعارات', icon: Icon(Icons.notifications_none_rounded, color: scheme.primary)),
+      IconButton(onPressed: onTap, tooltip: 'الإشعارات', visualDensity: VisualDensity.compact, icon: Icon(Icons.notifications_none_rounded, color: scheme.primary)),
       if (unreadCount > 0)
         Positioned(
           top: 2,
@@ -419,10 +441,10 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20),
+      padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(children: [
-        Icon(icon, color: scheme.onSurfaceVariant, size: 34),
-        const SizedBox(height: 8),
+        Icon(icon, color: scheme.onSurfaceVariant, size: 32),
+        const SizedBox(height: 6),
         Text(text, textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w700)),
       ]),
     );
