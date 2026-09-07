@@ -116,14 +116,18 @@ class NotificationService {
 
     if (referenceId != null &&
         (referenceType == 'booking' || type == 'booking' || type == 'payment')) {
-      final row = await SupabaseConfig.client
-          .from('bookings')
-          .select()
-          .eq('id', referenceId)
-          .maybeSingle();
+      final response = await SupabaseConfig.client.rpc(
+        'get_booking_for_notification',
+        params: {'p_booking_id': referenceId},
+      );
+      Map<String, dynamic>? row;
+      if (response is List && response.isNotEmpty) {
+        row = Map<String, dynamic>.from(response.first as Map);
+      } else if (response is Map && response.isNotEmpty) {
+        row = Map<String, dynamic>.from(response);
+      }
       if (row != null && context.mounted) {
-        final booking =
-            BookingModel.fromJson(Map<String, dynamic>.from(row)).toEntity();
+        final booking = BookingModel.fromJson(row).toEntity();
         GoRouter.of(context).push('/booking-details', extra: booking);
         return;
       }
