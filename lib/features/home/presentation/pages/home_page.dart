@@ -141,6 +141,6 @@ class _NotificationBell extends StatelessWidget {
     return Semantics(button: true, label: 'التنبيهات', child: Material(color: scheme.surfaceContainerLowest, shape: const CircleBorder(), child: InkWell(customBorder: const CircleBorder(), onTap: onTap, child: SizedBox(width: 44, height: 44, child: Stack(alignment: Alignment.center, children: [
       Icon(Icons.notifications_none_rounded, color: scheme.onSurface, size: 24),
       if (unreadCount > 0) Positioned(top: 2, right: 1, child: Container(constraints: const BoxConstraints(minWidth: 18, minHeight: 18), padding: const EdgeInsets.symmetric(horizontal: 4), alignment: Alignment.center, decoration: BoxDecoration(color: scheme.error, borderRadius: BorderRadius.circular(99), border: Border.all(color: scheme.surfaceContainerLowest, width: 1.5)), child: Text(unreadCount > 99 ? '99+' : '$unreadCount', style: TextStyle(color: scheme.onError, fontSize: 8, fontWeight: FontWeight.w900)))),
-    ]))));
+    ])))));
   }
 }
