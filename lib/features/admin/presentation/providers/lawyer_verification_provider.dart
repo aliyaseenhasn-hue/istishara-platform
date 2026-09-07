@@ -1,9 +1,10 @@
 import 'package:astshara/features/lawyers/data/models/lawyer_profile_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import '../../../../core/config/supabase_config.dart';
+import '../../../../core/services/private_storage_reference.dart';
 import '../../../lawyers/domain/entities/lawyer_profile.dart';
 import '../../../lawyers/presentation/providers/lawyers_provider.dart';
-import '../../../../core/config/supabase_config.dart';
 
 part 'lawyer_verification_provider.g.dart';
 
@@ -12,7 +13,6 @@ class LawyerVerification extends _$LawyerVerification {
   @override
   FutureOr<List<LawyerProfile>> build() async {
     try {
-      // 1. جلب بيانات المحامين غير الموثقين
       final lawyerResponse = await SupabaseConfig.client
           .from('lawyer_profiles')
           .select()
@@ -21,9 +21,8 @@ class LawyerVerification extends _$LawyerVerification {
       final List<LawyerProfile> lawyers = [];
 
       for (var json in (lawyerResponse as List)) {
-        final lawyer = LawyerProfileModel.fromJson(json).toEntity();
+        var lawyer = LawyerProfileModel.fromJson(json).toEntity();
 
-        // 2. البحث عن اسم المحامي - نستخدم id مباشرة لأنه المعرف الأساسي المربوط بـ Auth
         final profileResponse = await SupabaseConfig.client
             .from('profiles')
             .select('full_name')
@@ -33,7 +32,15 @@ class LawyerVerification extends _$LawyerVerification {
         final fullName = profileResponse != null
             ? profileResponse['full_name']
             : 'محامي مجهول';
-        lawyers.add(lawyer.copyWith(fullName: fullName));
+        final resolvedIdCardUrl = await PrivateStorageReference.resolve(
+          SupabaseConfig.client,
+          lawyer.idCardUrl,
+        );
+        lawyer = lawyer.copyWith(
+          fullName: fullName,
+          idCardUrl: resolvedIdCardUrl,
+        );
+        lawyers.add(lawyer);
       }
 
       return lawyers;
@@ -50,7 +57,6 @@ class LawyerVerification extends _$LawyerVerification {
           .from('lawyer_profiles')
           .update({'verified': true}).eq('profile_id', profileId);
 
-      // إرسال إشعار للمحامي بالموافقة
       await _sendNotification(
         profileId: profileId,
         title: 'تم توثيق حسابك بنجاح ✅',
@@ -66,7 +72,6 @@ class LawyerVerification extends _$LawyerVerification {
   Future<void> rejectLawyer(String profileId) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      // إرسال إشعار للمحامي بالرفض قبل حذف الطلب
       await _sendNotification(
         profileId: profileId,
         title: 'بخصوص طلب الانضمام ⚖️',
@@ -84,14 +89,13 @@ class LawyerVerification extends _$LawyerVerification {
   }
 
   Future<void> _sendNotification({
-    required String profileId, // هذا profiles.id (صحيح)
+    required String profileId,
     required String title,
     required String body,
   }) async {
     try {
-      // profileId هنا = lawyer_profiles.profile_id = profiles.id — مباشر
       await SupabaseConfig.client.from('notifications').insert({
-        'user_id': profileId, // profiles.id مباشرة
+        'user_id': profileId,
         'title': title,
         'body': body,
         'type': 'system',
