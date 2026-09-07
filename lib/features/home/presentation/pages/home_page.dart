@@ -52,9 +52,7 @@ class HomePage extends ConsumerWidget {
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
-              sliver: SliverToBoxAdapter(
-                child: _ClientProfileHeader(name: name, avatarUrl: avatarUrl),
-              ),
+              sliver: SliverToBoxAdapter(child: _ClientProfileHeader(name: name, avatarUrl: avatarUrl)),
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
@@ -69,8 +67,9 @@ class HomePage extends ConsumerWidget {
                 ),
               ),
             ),
+            // Keep the specialization section visually attached to the stats.
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 9),
+              padding: const EdgeInsets.fromLTRB(18, 2, 18, 2),
               sliver: SliverToBoxAdapter(
                 child: _SectionTitle(title: 'التخصصات القانونية', action: 'عرض الكل', onTap: () => context.push('/lawyers')),
               ),
@@ -302,29 +301,9 @@ class _ConsultationActions extends StatelessWidget {
       child: Row(
         textDirection: TextDirection.rtl,
         children: [
-          Expanded(
-            child: SizedBox(
-              height: 44,
-              child: FilledButton.icon(
-                onPressed: onConsult,
-                icon: const Icon(Icons.forum_outlined, size: 18),
-                label: const Text('استشر محامياً', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
-                style: FilledButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.textOnPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))),
-              ),
-            ),
-          ),
+          Expanded(child: SizedBox(height: 44, child: FilledButton.icon(onPressed: onConsult, icon: const Icon(Icons.forum_outlined, size: 18), label: const Text('استشر محامياً', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)), style: FilledButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.textOnPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))))),
           const SizedBox(width: 9),
-          Expanded(
-            child: SizedBox(
-              height: 44,
-              child: OutlinedButton.icon(
-                onPressed: onSearch,
-                icon: const Icon(Icons.search_rounded, size: 18),
-                label: const Text('ابحث عن محامٍ', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
-                style: OutlinedButton.styleFrom(foregroundColor: AppColors.primary, side: const BorderSide(color: AppColors.outline), backgroundColor: AppColors.surface, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))),
-              ),
-            ),
-          ),
+          Expanded(child: SizedBox(height: 44, child: OutlinedButton.icon(onPressed: onSearch, icon: const Icon(Icons.search_rounded, size: 18), label: const Text('ابحث عن محامٍ', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)), style: OutlinedButton.styleFrom(foregroundColor: AppColors.primary, side: const BorderSide(color: AppColors.outline), backgroundColor: AppColors.surface, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))))),
         ],
       ),
     );
@@ -351,45 +330,30 @@ class _SuggestedLawyerCard extends StatelessWidget {
         },
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(11),
           decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.outlineVariant)),
           child: Row(
             textDirection: TextDirection.rtl,
             children: [
-              CircleAvatar(radius: 25, backgroundColor: AppColors.primaryContainer, backgroundImage: hasAvatar ? NetworkImage(lawyer.avatarUrl!) : null, child: hasAvatar ? null : const Icon(Icons.person_outline_rounded, color: AppColors.onPrimaryContainer)),
-              const SizedBox(width: 11),
+              CircleAvatar(radius: 25, backgroundColor: AppColors.surfaceContainer, backgroundImage: hasAvatar ? NetworkImage(lawyer.avatarUrl!) : null, child: hasAvatar ? null : const Icon(Icons.person_outline_rounded, color: AppColors.primary)),
+              const SizedBox(width: 10),
               Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text(name, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w900, fontSize: 14)),
-                  const SizedBox(height: 3),
-                  Text(specialization, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textSecondary, fontSize: 10.5)),
-                  const SizedBox(height: 5),
-                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [const Icon(Icons.star_rounded, color: AppColors.gold, size: 14), const SizedBox(width: 3), Text(lawyer.rating.toStringAsFixed(1), style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 10.5)), const SizedBox(width: 6), const Text('التقييم', style: TextStyle(color: AppColors.textSecondary, fontSize: 9.5))]),
-                ]),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(name, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 3),
+                    Text(specialization, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textSecondary, fontSize: 10.5, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    const Row(mainAxisAlignment: MainAxisAlignment.end, children: [Icon(Icons.star_rounded, color: AppColors.secondary, size: 15), SizedBox(width: 3), Text('محامٍ موثق', style: TextStyle(color: AppColors.textSecondary, fontSize: 9.5, fontWeight: FontWeight.w700))]),
+                  ],
+                ),
               ),
-              const SizedBox(width: 7),
-              const Icon(Icons.chevron_left_rounded, color: AppColors.textSecondary),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_left_rounded, color: AppColors.outline, size: 21),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  const _EmptyState({required this.icon, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-      child: Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.outlineVariant)),
-        child: Column(children: [Icon(icon, color: AppColors.textSecondary, size: 28), const SizedBox(height: 7), Text(text, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary))]),
       ),
     );
   }
@@ -402,38 +366,42 @@ class _NotificationBell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'التنبيهات',
-      child: Material(
-        color: AppColors.surface,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: SizedBox(
-            width: 44,
-            height: 44,
-            child: Stack(
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(onPressed: onTap, tooltip: 'الإشعارات', icon: const Icon(Icons.notifications_none_rounded, color: AppColors.primary)),
+        if (unreadCount > 0)
+          Positioned(
+            top: 5,
+            right: 5,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(color: AppColors.error, borderRadius: BorderRadius.circular(99), border: Border.all(color: AppColors.background, width: 1.5)),
               alignment: Alignment.center,
-              children: [
-                const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimary, size: 24),
-                if (unreadCount > 0)
-                  Positioned(
-                    top: 2,
-                    right: 1,
-                    child: Container(
-                      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(color: AppColors.error, borderRadius: BorderRadius.circular(99), border: Border.all(color: AppColors.surface, width: 1.5)),
-                      child: Text(unreadCount > 99 ? '99+' : '$unreadCount', style: const TextStyle(color: AppColors.textOnPrimary, fontSize: 8, fontWeight: FontWeight.w900)),
-                    ),
-                  ),
-              ],
+              child: Text(unreadCount > 99 ? '99+' : '$unreadCount', style: const TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w900)),
             ),
           ),
-        ),
+      ],
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _EmptyState({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+      child: Column(
+        children: [
+          Icon(icon, color: AppColors.outline, size: 38),
+          const SizedBox(height: 8),
+          Text(text, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
