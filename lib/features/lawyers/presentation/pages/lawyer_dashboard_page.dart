@@ -32,7 +32,6 @@ class LawyerDashboardPage extends ConsumerWidget {
         leading: const Padding(padding: EdgeInsetsDirectional.only(start: 14), child: LawyerMoreMenuButton()),
         title: const Text('الرئيسية', style: TextStyle(fontWeight: FontWeight.w900)),
         centerTitle: true,
-        actions: [IconButton(tooltip: 'تعديل الملف المهني', onPressed: () => context.push('/lawyer-profile-edit'), icon: const Icon(Icons.edit_outlined))],
       ),
       body: bookings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -58,7 +57,7 @@ class LawyerDashboardPage extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(18, 8, 18, 32),
               children: [
-                _ProfileHero(name: name, specialization: specialization, license: license, avatarUrl: avatar, onTap: () => context.push('/lawyer-profile-edit')),
+                _ProfileHero(name: name, specialization: specialization, license: license, avatarUrl: avatar),
                 const SizedBox(height: 12),
                 Row(children: [
                   Expanded(child: _MetricCard(value: '$active', label: 'استشارات نشطة', icon: Icons.forum_rounded, background: AppColors.tertiary, foreground: Colors.white)),
@@ -67,8 +66,6 @@ class LawyerDashboardPage extends ConsumerWidget {
                 ]),
                 const SizedBox(height: 9),
                 _MoneyCard(total: total),
-                const SizedBox(height: 14),
-                _ProfessionalProfileCard(onTap: () => context.push('/lawyer-profile-edit')),
                 const SizedBox(height: 16),
                 Row(children: [
                   const Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
@@ -94,8 +91,7 @@ class _ProfileHero extends StatelessWidget {
   final String specialization;
   final String? license;
   final String? avatarUrl;
-  final VoidCallback onTap;
-  const _ProfileHero({required this.name, required this.specialization, required this.license, required this.avatarUrl, required this.onTap});
+  const _ProfileHero({required this.name, required this.specialization, required this.license, required this.avatarUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -104,29 +100,26 @@ class _ProfileHero extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft, colors: [AppColors.primary, AppColors.primaryContainer]),
+          gradient: const LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft, colors: [AppColors.primaryDark, AppColors.primary, AppColors.secondary]),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.primaryLight.withValues(alpha: .32)),
+          border: Border.all(color: AppColors.goldTransparentStrong),
         ),
         child: Column(children: [
-          GestureDetector(
-            onTap: onTap,
-            child: Container(
-              width: 92,
-              height: 92,
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: .12), border: Border.all(color: Colors.white.withValues(alpha: .70), width: 2)),
-              child: CircleAvatar(
-                backgroundColor: AppColors.surfaceContainerHighest,
-                backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty ? NetworkImage(avatarUrl!) : null,
-                child: avatarUrl == null || avatarUrl!.isEmpty ? Text(name.substring(0, 1), style: const TextStyle(color: AppColors.primary, fontSize: 34, fontWeight: FontWeight.w900)) : null,
-              ),
+          Container(
+            width: 92,
+            height: 92,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.goldTransparent, border: Border.all(color: AppColors.goldSoft, width: 2)),
+            child: CircleAvatar(
+              backgroundColor: AppColors.surfaceContainerHighest,
+              backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty ? NetworkImage(avatarUrl!) : null,
+              child: avatarUrl == null || avatarUrl!.isEmpty ? Text(name.substring(0, 1), style: const TextStyle(color: AppColors.primary, fontSize: 34, fontWeight: FontWeight.w900)) : null,
             ),
           ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: Colors.white.withValues(alpha: .12), borderRadius: BorderRadius.circular(99)),
+            decoration: BoxDecoration(color: AppColors.goldTransparent, borderRadius: BorderRadius.circular(99)),
             child: const Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.gavel_rounded, color: Colors.white, size: 15),
               SizedBox(width: 5),
@@ -136,12 +129,12 @@ class _ProfileHero extends StatelessWidget {
           const SizedBox(height: 5),
           Text(name, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w900, height: 1.2)),
           const SizedBox(height: 4),
-          Text(specialization, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white.withValues(alpha: .84), fontSize: 12.5, fontWeight: FontWeight.w700, height: 1.4)),
+          Text(specialization, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white.withValues(alpha: .90), fontSize: 12.5, fontWeight: FontWeight.w700, height: 1.4)),
           if (license != null && license!.trim().isNotEmpty) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(color: AppColors.tertiary.withValues(alpha: .76), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: AppColors.tertiary.withValues(alpha: .88), borderRadius: BorderRadius.circular(12)),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.verified_user_outlined, color: Colors.white, size: 15),
                 const SizedBox(width: 5),
@@ -149,16 +142,6 @@ class _ProfileHero extends StatelessWidget {
               ]),
             ),
           ],
-          const SizedBox(height: 6),
-          TextButton.icon(
-            onPressed: onTap,
-            style: ButtonStyle(
-              foregroundColor: const WidgetStatePropertyAll(Colors.white),
-              overlayColor: WidgetStatePropertyAll(Colors.white.withValues(alpha: .10)),
-            ),
-            icon: const Icon(Icons.edit_rounded, size: 17),
-            label: const Text('عرض وتعديل الملف', style: TextStyle(fontWeight: FontWeight.w800)),
-          ),
         ]),
       ),
     );
@@ -208,41 +191,6 @@ class _MoneyCard extends StatelessWidget {
               Text('${total.toStringAsFixed(0)} د.ع', textAlign: TextAlign.right, style: const TextStyle(color: AppColors.primary, fontSize: 23, fontWeight: FontWeight.w900)),
             ])),
           ]),
-        ),
-      );
-}
-
-class _ProfessionalProfileCard extends StatelessWidget {
-  final VoidCallback onTap;
-  const _ProfessionalProfileCard({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => HoverLift(
-        borderRadius: 20,
-        child: Material(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(20),
-            hoverColor: AppColors.primary.withValues(alpha: .05),
-            focusColor: AppColors.primary.withValues(alpha: .07),
-            splashColor: AppColors.primary.withValues(alpha: .10),
-            onTap: onTap,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.outlineVariant)),
-              child: Row(children: [
-                Container(width: 46, height: 46, decoration: BoxDecoration(color: AppColors.secondaryContainer, borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.badge_outlined, color: AppColors.primary)),
-                const SizedBox(width: 12),
-                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  Text('ملفي المهني', textAlign: TextAlign.right, style: TextStyle(color: AppColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w900)),
-                  SizedBox(height: 4),
-                  Text('تعديل البيانات والتخصص والباقات وأوقات التوفر', textAlign: TextAlign.right, style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                ])),
-                const Icon(Icons.chevron_left_rounded, color: AppColors.textSecondary),
-              ]),
-            ),
-          ),
         ),
       );
 }
