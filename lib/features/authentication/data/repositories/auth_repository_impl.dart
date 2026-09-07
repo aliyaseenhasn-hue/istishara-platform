@@ -76,7 +76,8 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override Future<void> signInWithPhone(String phone) async { try { await _supabase.auth.signInWithOtp(phone: phone); } catch (e) { throw _friendlyNetworkError(e); } }
 
-  @override Future<void> signInWithGoogle() async {
+  @override
+  Future<void> signInWithGoogle() async {
     try {
       final redirectUrl = kIsWeb ? Uri.parse('${Uri.base.origin}${Uri.base.path.startsWith('/istishara-platform') ? '/istishara-platform/' : '/'}') : Uri.parse('io.supabase.astshara://login-callback/');
       await _supabase.auth.signInWithOAuth(OAuthProvider.google, redirectTo: redirectUrl.toString(), queryParams: {'prompt': 'select_account'});
@@ -110,8 +111,6 @@ class AuthRepositoryImpl implements AuthRepository {
       final accessToken = data['access_token'];
       final refreshToken = data['refresh_token'];
       if (accessToken is String && accessToken.isNotEmpty && refreshToken is String && refreshToken.isNotEmpty) {
-        // Use both tokens returned by the Edge Function. This avoids an unnecessary
-        // refresh-token exchange and is safer with Supabase refresh-token rotation.
         final response = await _supabase.auth.setSession(refreshToken, accessToken: accessToken);
         if (response.session == null || _supabase.auth.currentUser == null) throw Exception('تم التحقق من Telegram لكن تعذر تثبيت جلسة الدخول في التطبيق');
         await refreshUser();
@@ -145,7 +144,33 @@ class AuthRepositoryImpl implements AuthRepository {
       if (onboardingCompleted != null) data['onboarding_completed'] = onboardingCompleted;
       if (walletNumber != null) data['wallet_number'] = walletNumber.trim();
       if (data.isEmpty) return;
-      await _supabase.from('profiles').upsert({...data, 'auth_id': user.id, 'id': user.id, 'updated_at': DateTime.now().toIso8601String()}, onConflict: 'auth_id');
+
+      final existing = await _supabase
+          .from('profiles')
+          .select('id, role')
+          .eq('auth_id', user.id)
+          .maybeSingle();
+
+      if (existing != null) {
+        // Role changes are security-sensitive and must not be performed by a normal
+        // profile update. New registrations get their safe initial role from the
+        // database auth trigger.
+        data.remove('role');
+        if (data.isNotEmpty) {
+          await _supabase
+              .from('profiles')
+              .update({...data, 'updated_at': DateTime.now().toIso8601String()})
+              .eq('auth_id', user.id);
+        }
+      } else {
+        // Never provide profiles.id here. The database default generates the
+        // independent profile UUID; auth_id is the canonical link to auth.users.
+        await _supabase.from('profiles').insert({
+          ...data,
+          'auth_id': user.id,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      }
       await refreshUser();
     } catch (e) { throw _friendlyNetworkError(e); }
   }
