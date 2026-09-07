@@ -96,7 +96,7 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 8, 18, 7),
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 4),
               sliver: SliverToBoxAdapter(child: _SectionTitle(title: 'محامون مقترحون', action: 'عرض الكل', onTap: () => context.push('/lawyers'))),
             ),
             lawyers.when(
