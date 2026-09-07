@@ -51,13 +51,13 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
               sliver: SliverToBoxAdapter(
                 child: _ClientProfileHeader(name: name, avatarUrl: avatarUrl),
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
               sliver: SliverToBoxAdapter(
                 child: bookings.when(
                   loading: () => const _StatsLoading(),
@@ -70,9 +70,15 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 9),
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 7),
               sliver: SliverToBoxAdapter(
                 child: _SectionTitle(title: 'التخصصات القانونية', action: 'عرض الكل', onTap: () => context.push('/lawyers')),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
+              sliver: SliverToBoxAdapter(
+                child: _LawyerSearchButton(onTap: () => context.push('/lawyers')),
               ),
             ),
             SliverPadding(
@@ -97,18 +103,8 @@ class HomePage extends ConsumerWidget {
                 ),
               ),
             ),
-            // Keep the transition from specialization cards to the consultation actions compact.
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 6, 18, 0),
-              sliver: SliverToBoxAdapter(
-                child: _ConsultationActions(
-                  onConsult: () => context.push('/lawyers'),
-                  onSearch: () => context.push('/lawyers'),
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 22, 18, 8),
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 7),
               sliver: SliverToBoxAdapter(
                 child: _SectionTitle(title: 'محامون مقترحون', action: 'عرض الكل', onTap: () => context.push('/lawyers')),
               ),
@@ -252,6 +248,29 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
+class _LawyerSearchButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _LawyerSearchButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 46,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: const Icon(Icons.search_rounded, size: 19),
+        label: const Text('ابحث عن محامٍ', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          backgroundColor: AppColors.surface,
+          side: const BorderSide(color: AppColors.outline),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+    );
+  }
+}
+
 class _AnimatedCategoryCard extends StatelessWidget {
   final int index;
   final String title;
@@ -285,48 +304,6 @@ class _AnimatedCategoryCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _ConsultationActions extends StatelessWidget {
-  final VoidCallback onConsult;
-  final VoidCallback onSearch;
-  const _ConsultationActions({required this.onConsult, required this.onSearch});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: AppColors.primaryContainer.withValues(alpha: .07), borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.primaryContainer.withValues(alpha: .14))),
-      child: Row(
-        textDirection: TextDirection.rtl,
-        children: [
-          Expanded(
-            child: SizedBox(
-              height: 44,
-              child: FilledButton.icon(
-                onPressed: onConsult,
-                icon: const Icon(Icons.forum_outlined, size: 18),
-                label: const Text('استشر محامياً', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
-                style: FilledButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.textOnPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))),
-              ),
-            ),
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: SizedBox(
-              height: 44,
-              child: OutlinedButton.icon(
-                onPressed: onSearch,
-                icon: const Icon(Icons.search_rounded, size: 18),
-                label: const Text('ابحث عن محامٍ', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
-                style: OutlinedButton.styleFrom(foregroundColor: AppColors.primary, side: const BorderSide(color: AppColors.outline), backgroundColor: AppColors.surface, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
