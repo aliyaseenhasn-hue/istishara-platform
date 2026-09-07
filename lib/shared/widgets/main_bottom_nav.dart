@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 
-/// الشريط السفلي الثابت. الإشعارات تبقى في أعلى التطبيق.
-/// التغيير هنا بصري وتنظيمي فقط؛ المسارات وترتيب التبويبات كما هي.
+/// الشريط السفلي الثابت.
+/// التغيير هنا تنظيمي بصري فقط: إجراءات المحامي الإضافية تُجمع داخل «المزيد»
+/// بدل عرضها جميعاً بشكل دائم، مع الإبقاء على نفس المسارات والوظائف.
 class MainBottomNav extends ConsumerWidget {
   final int currentIndex;
   final bool isLawyer;
@@ -69,8 +70,11 @@ class MainBottomNav extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (isLawyer) ...[
-                _QuickActionsRow(actions: _lawyerQuickActions, direction: direction),
-                const SizedBox(height: 8),
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: _MoreButton(actions: _lawyerQuickActions),
+                ),
+                const SizedBox(height: 6),
                 Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: .7)),
                 const SizedBox(height: 5),
               ],
@@ -113,62 +117,49 @@ class MainBottomNav extends ConsumerWidget {
   }
 }
 
-class _QuickActionsRow extends StatelessWidget {
+class _MoreButton extends StatelessWidget {
   final List<_QuickAction> actions;
-  final TextDirection direction;
 
-  const _QuickActionsRow({required this.actions, required this.direction});
+  const _MoreButton({required this.actions});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      textDirection: direction,
-      children: actions
+    return PopupMenuButton<_QuickAction>(
+      tooltip: 'المزيد',
+      onSelected: (action) => context.go(action.route),
+      itemBuilder: (context) => actions
           .map(
-            (action) => Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(14),
-                  child: Ink(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.secondary.withValues(alpha: .12)),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () => context.go(action.route),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 7),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(action.icon, size: 18, color: AppColors.secondaryDark),
-                            const SizedBox(height: 3),
-                            Text(
-                              action.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w600,
-                                height: 1.15,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+            (action) => PopupMenuItem<_QuickAction>(
+              value: action,
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: Row(
+                  children: [
+                    Icon(action.icon, size: 20, color: AppColors.primary),
+                    const SizedBox(width: 10),
+                    Text(action.label, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ],
                 ),
               ),
             ),
           )
           .toList(growable: false),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: AppColors.secondaryContainer.withValues(alpha: .55),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: AppColors.secondary.withValues(alpha: .14)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.more_horiz_rounded, size: 19, color: AppColors.primary),
+            SizedBox(width: 5),
+            Text('المزيد', style: TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w800)),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -185,6 +176,12 @@ class _QuickAction {
   final String label;
   final String route;
   const _QuickAction(this.icon, this.label, this.route);
+
+  @override
+  bool operator ==(Object other) => other is _QuickAction && other.route == route;
+
+  @override
+  int get hashCode => route.hashCode;
 }
 
 class _NavDestination extends StatelessWidget {
