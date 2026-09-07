@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/config/supabase_config.dart';
+import '../../../../core/services/private_storage_reference.dart';
 
 class SpecializationChangeRequestsPage extends ConsumerStatefulWidget {
   const SpecializationChangeRequestsPage({super.key});
@@ -35,6 +36,10 @@ class _SpecializationChangeRequestsPageState extends ConsumerState<Specializatio
           .maybeSingle();
       request['lawyer_name'] = profile?['full_name'] ?? 'محامي';
       request['license_number'] = profile?['license_number'];
+      request['union_id_card_url'] = await PrivateStorageReference.resolve(
+        SupabaseConfig.client,
+        request['union_id_card_url']?.toString(),
+      );
       result.add(request);
     }
     return result;
