@@ -52,9 +52,7 @@ class HomePage extends ConsumerWidget {
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
-              sliver: SliverToBoxAdapter(
-                child: _ClientProfileHeader(name: name, avatarUrl: avatarUrl),
-              ),
+              sliver: SliverToBoxAdapter(child: _ClientProfileHeader(name: name, avatarUrl: avatarUrl)),
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
@@ -62,25 +60,19 @@ class HomePage extends ConsumerWidget {
                 child: bookings.when(
                   loading: () => const _StatsLoading(),
                   error: (_, __) => const _ClientStats(total: 0, completed: 0),
-                  data: (items) => _ClientStats(
-                    total: items.length,
-                    completed: items.where((b) => b.status == 'مكتمل').length,
-                  ),
+                  data: (items) => _ClientStats(total: items.length, completed: items.where((b) => b.status == 'مكتمل').length),
                 ),
               ),
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 7),
-              sliver: SliverToBoxAdapter(
-                child: _SectionTitle(title: 'التخصصات القانونية', action: 'عرض الكل', onTap: () => context.push('/lawyers')),
-              ),
+              sliver: SliverToBoxAdapter(child: _SectionTitle(title: 'التخصصات القانونية', action: 'عرض الكل', onTap: () => context.push('/lawyers'))),
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
-              sliver: SliverToBoxAdapter(
-                child: _LawyerSearchButton(onTap: () => context.push('/lawyers')),
-              ),
+              sliver: SliverToBoxAdapter(child: _LawyerSearchButton(onTap: () => context.push('/lawyers'))),
             ),
+            // Responsive grid: two columns on phones, more columns when space allows.
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 18),
               sliver: SliverGrid(
@@ -95,8 +87,8 @@ class HomePage extends ConsumerWidget {
                   ),
                   childCount: categories.length,
                 ),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 250,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
                   childAspectRatio: 1.42,
@@ -104,10 +96,8 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 7),
-              sliver: SliverToBoxAdapter(
-                child: _SectionTitle(title: 'محامون مقترحون', action: 'عرض الكل', onTap: () => context.push('/lawyers')),
-              ),
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 7),
+              sliver: SliverToBoxAdapter(child: _SectionTitle(title: 'محامون مقترحون', action: 'عرض الكل', onTap: () => context.push('/lawyers'))),
             ),
             lawyers.when(
               loading: () => const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(28), child: Center(child: CircularProgressIndicator()))),
@@ -242,7 +232,7 @@ class _SectionTitle extends StatelessWidget {
       textDirection: TextDirection.rtl,
       children: [
         Expanded(child: Text(title, textAlign: TextAlign.right, style: const TextStyle(color: AppColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w900))),
-        TextButton(onPressed: onTap, child: const Text('عرض الكل', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 12))),
+        TextButton(onPressed: onTap, child: Text(action, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 12))),
       ],
     );
   }
@@ -334,12 +324,7 @@ class _SuggestedLawyerCard extends StatelessWidget {
           child: Row(
             textDirection: TextDirection.rtl,
             children: [
-              CircleAvatar(
-                radius: 25,
-                backgroundColor: AppColors.secondaryContainer,
-                backgroundImage: hasAvatar ? NetworkImage(lawyer.avatarUrl!) : null,
-                child: hasAvatar ? null : const Icon(Icons.person_outline_rounded, color: AppColors.primary),
-              ),
+              CircleAvatar(radius: 25, backgroundColor: AppColors.secondaryContainer, backgroundImage: hasAvatar ? NetworkImage(lawyer.avatarUrl!) : null, child: hasAvatar ? null : const Icon(Icons.person_outline_rounded, color: AppColors.primary)),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -349,16 +334,13 @@ class _SuggestedLawyerCard extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(specialization, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textSecondary, fontSize: 10.5, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 5),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        const Icon(Icons.star_rounded, color: AppColors.ctaGold, size: 15),
-                        const SizedBox(width: 3),
-                        Text('${lawyer.rating.toStringAsFixed(1)}', style: const TextStyle(color: AppColors.textPrimary, fontSize: 10.5, fontWeight: FontWeight.w800)),
-                        const SizedBox(width: 8),
-                        Text('${lawyer.reviewCount} تقييم', style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
-                      ],
-                    ),
+                    Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                      const Icon(Icons.star_rounded, color: AppColors.ctaGold, size: 15),
+                      const SizedBox(width: 3),
+                      Text('${lawyer.rating.toStringAsFixed(1)}', style: const TextStyle(color: AppColors.textPrimary, fontSize: 10.5, fontWeight: FontWeight.w800)),
+                      const SizedBox(width: 8),
+                      Text('${lawyer.reviewCount} تقييم', style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+                    ]),
                   ],
                 ),
               ),
@@ -382,15 +364,16 @@ class _NotificationBell extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        IconButton(onPressed: onTap, icon: const Icon(Icons.notifications_none_rounded, color: AppColors.primary)),
+        IconButton(onPressed: onTap, tooltip: 'الإشعارات', icon: const Icon(Icons.notifications_none_rounded, color: AppColors.primary)),
         if (unreadCount > 0)
           Positioned(
             top: 2,
             right: 2,
             child: Container(
+              constraints: const BoxConstraints(minWidth: 18),
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
               decoration: BoxDecoration(color: AppColors.ctaGold, borderRadius: BorderRadius.circular(99)),
-              child: Text(unreadCount > 99 ? '99+' : '$unreadCount', style: const TextStyle(color: AppColors.primary, fontSize: 8, fontWeight: FontWeight.w900)),
+              child: Text(unreadCount > 99 ? '99+' : '$unreadCount', textAlign: TextAlign.center, style: const TextStyle(color: AppColors.primary, fontSize: 8, fontWeight: FontWeight.w900)),
             ),
           ),
       ],
