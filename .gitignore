@@ -8,8 +8,10 @@
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
 .DS_Store
-/build
-/.dart_tool
+/build/
+**/build/
+/.dart_tool/
+.dart_tool/
 /captures
 .externalNativeBuild
 .cxx
