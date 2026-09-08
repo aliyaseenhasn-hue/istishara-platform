@@ -59,18 +59,6 @@ class GoRouterRefreshStream extends ChangeNotifier {
   @override void dispose() { _subscription.cancel(); super.dispose(); }
 }
 
-Future<bool> _lawyerHasPendingManualPayment() async {
-  try {
-    final authUser = SupabaseConfig.client.auth.currentUser;
-    if (authUser == null) return false;
-    final profile = await SupabaseConfig.client.from('profiles').select('id').eq('auth_id', authUser.id).maybeSingle();
-    final profileId = profile?['id'] as String?;
-    if (profileId == null) return false;
-    final pending = await SupabaseConfig.client.from('bookings').select('id').eq('lawyer_id', profileId).eq('manual_payment_required', true).isFilter('manual_received_at', null).inFilter('status', ['بانتظار التأكيد', 'قيد مراجعة المحامي']).limit(1).maybeSingle();
-    return pending != null;
-  } catch (_) { return false; }
-}
-
 @riverpod
 GoRouter router(RouterRef ref) {
   final authState = ref.watch(authStateChangesProvider);
@@ -93,8 +81,6 @@ GoRouter router(RouterRef ref) {
       final onboarding = location == '/lawyer-onboarding';
       final pending = location == '/lawyer-pending';
       final paymentResult = location == '/payment-result';
-      final manualPaymentGate = location == '/manual-payment-required';
-      final manualPayment = location == '/manual-payment';
       final admin = location.startsWith('/admin') && location != '/admin-login';
       final publicRoute = location == '/' || location == '/how-it-works' || location == '/privacy' || location == '/terms' || location == '/contact' || location == '/faq' || location == '/lawyers' || location == '/legal-categories' || location == '/help-center';
       final lawyerProfileRoute = location.startsWith('/lawyers/') || location.startsWith('/lawyer-details/');
@@ -117,7 +103,6 @@ GoRouter router(RouterRef ref) {
       if (user.role == 'lawyer') {
         if (!user.isVerified) return location == '/lawyer-setup' || pending ? null : '/lawyer-pending';
         if (location == '/lawyers' || location.startsWith('/lawyer-details/') || location.startsWith('/lawyers/')) return '/lawyer-home';
-        if (!manualPaymentGate && !manualPayment && await _lawyerHasPendingManualPayment()) return '/manual-payment-required';
       }
 
       if (login || signup || otp || (complete && user.isOnboardingComplete)) {
@@ -169,8 +154,7 @@ GoRouter router(RouterRef ref) {
         }),
         GoRoute(path: '/manual-payment-required', builder: (c, s) => const ManualPaymentRequiredPage()),
         GoRoute(path: '/manual-payment', builder: (c, s) { final b = s.extra as Booking?; return b == null ? const ManualPaymentRequiredPage() : ManualPaymentPage(booking: b); }),
-        GoRoute(path: '/chat/:id', builder: (c, s) => ChatPage(conversationId: s.pathParameters['id']!),
-        ),
+        GoRoute(path: '/chat/:id', builder: (c, s) => ChatPage(conversationId: s.pathParameters['id']!)),
         GoRoute(path: '/upload-payment', builder: (c, s) { final b = s.extra as Booking?; return b == null ? const BookingsListPage() : PaymentUploadPage(booking: b); }),
         GoRoute(path: '/payment-result', builder: (c, s) => PaymentResultPage(status: s.uri.queryParameters['status'], bookingId: s.uri.queryParameters['booking_id'])),
         GoRoute(path: '/profile', builder: (c, s) => const ProfilePage()),
