@@ -93,6 +93,38 @@ class _SignupPageState extends ConsumerState<SignupPage> with WidgetsBindingObse
     return '964$phone';
   }
 
+  Uri? _telegramAppUri() {
+    final url = _telegramUrl;
+    final token = _telegramToken;
+    if (url == null || url.isEmpty || token == null || token.isEmpty) return null;
+    final webUri = Uri.tryParse(url);
+    if (webUri == null || webUri.host != 't.me' || webUri.pathSegments.isEmpty) return null;
+    final username = webUri.pathSegments.first.trim();
+    final start = webUri.queryParameters['start'];
+    if (username.isEmpty || start == null || start.isEmpty || start != token) return null;
+    return Uri(
+      scheme: 'tg',
+      host: 'resolve',
+      queryParameters: {'domain': username, 'start': token},
+    );
+  }
+
+  Future<void> _openTelegramApp() async {
+    final appUri = _telegramAppUri();
+    if (appUri == null) {
+      _showError(Exception('رابط Telegram غير صالح. ابدأ محاولة جديدة.'));
+      return;
+    }
+    try {
+      final opened = await launchUrl(appUri, mode: LaunchMode.externalApplication);
+      if (!opened) {
+        throw Exception('تعذر فتح تطبيق Telegram مباشرة. تأكد من تثبيت Telegram ثم حاول مرة أخرى.');
+      }
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
   Future<void> _googleSignup() async {
     try {
       await ref.read(authControllerProvider.notifier).signInWithGoogle();
@@ -125,8 +157,7 @@ class _SignupPageState extends ConsumerState<SignupPage> with WidgetsBindingObse
       _telegramUrl = url;
       _telegramTimer?.cancel();
       _telegramTimer = Timer.periodic(const Duration(seconds: 1), (_) => _pollTelegramStatus());
-      final opened = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-      if (!opened) throw Exception('تعذر فتح Telegram. تأكد من تثبيت التطبيق ثم حاول مرة أخرى.');
+      await _openTelegramApp();
       if (mounted) await _showTelegramDialog();
     } catch (e) {
       _cancelTelegram();
@@ -162,9 +193,7 @@ class _SignupPageState extends ConsumerState<SignupPage> with WidgetsBindingObse
         }
         _showError(Exception('انتهت صلاحية طلب Telegram. حاول مرة أخرى.'));
       }
-    } catch (_) {
-      // Transient polling errors are retried automatically by the timer.
-    }
+    } catch (_) {}
   }
 
   Future<void> _showTelegramDialog() async {
@@ -198,7 +227,7 @@ class _SignupPageState extends ConsumerState<SignupPage> with WidgetsBindingObse
               ),
               if (!ready)
                 FilledButton.icon(
-                  onPressed: _telegramChecking || _telegramAutoCompleting || _telegramUrl == null ? null : () => launchUrl(Uri.parse(_telegramUrl!), mode: LaunchMode.externalApplication),
+                  onPressed: _telegramChecking || _telegramAutoCompleting || _telegramUrl == null ? null : _openTelegramApp,
                   icon: const Icon(Icons.telegram),
                   label: const Text('فتح Telegram'),
                 ),
@@ -335,7 +364,7 @@ class _SignupForm extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = Theme.of(context).colorScheme;
     return Form(key: formKey, child: Card(child: Padding(padding: const EdgeInsets.all(24), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Text('إنشاء حساب', textAlign: TextAlign.right, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
+      const Text('إنشاء حساب', textAlign: TextAlign.right, style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
       const SizedBox(height: 20),
       TextFormField(controller: nameController, decoration: const InputDecoration(labelText: 'الاسم الكامل', prefixIcon: Icon(Icons.person_outline_rounded)), validator: (v) => v == null || v.trim().length < 3 ? 'أدخل الاسم الكامل' : null),
       const SizedBox(height: 16),
