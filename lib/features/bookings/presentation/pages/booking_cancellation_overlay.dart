@@ -116,30 +116,6 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
     }
   }
 
-  Future<void> _review(bool approved) async {
-    if (_actionLoading) return;
-    try {
-      setState(() => _actionLoading = true);
-      await SupabaseConfig.client.rpc(
-        'review_booking',
-        params: {'p_booking_id': widget.booking.id, 'p_approved': approved},
-      );
-      ref.invalidate(lawyerBookingsProvider);
-      ref.invalidate(userBookingsProvider);
-      ref.invalidate(bookingDetailsProvider(widget.booking.id));
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(approved ? 'تمت الموافقة على الحجز بنجاح' : 'تم رفض الحجز بنجاح')),
-      );
-      Navigator.of(context).pop();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))));
-    } finally {
-      if (mounted) setState(() => _actionLoading = false);
-    }
-  }
-
   Future<void> _cancelForClient() async {
     if (_actionLoading) return;
     final confirmed = await showDialog<bool>(
@@ -201,41 +177,6 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
     return Stack(
       children: [
         BookingDetailsPage(booking: widget.booking),
-        if (isLawyer && needsReview && !_loading)
-          Positioned(
-            left: 12,
-            right: 12,
-            bottom: 16,
-            child: SafeArea(
-              child: Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(16),
-                color: Theme.of(context).colorScheme.surface,
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: _actionLoading ? null : () => _review(true),
-                          icon: _actionLoading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.check_circle_outline),
-                          label: const Text('الموافقة'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _actionLoading ? null : () => _review(false),
-                          icon: const Icon(Icons.cancel_outlined),
-                          label: const Text('رفض الطلب'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
         if (isLawyer && !_loading && !needsReview && eligibleCancellation)
           Positioned(
             left: 16,
