@@ -60,7 +60,7 @@ class LawyerDetailsPage extends ConsumerWidget {
                               Text(specializationText, textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14, height: 1.4)),
                               if (!isOwnProfile) ...[
                                 const SizedBox(height: 14),
-                                FollowLawyerButton(lawyerId: lawyer.id),
+                                FollowLawyerButton(lawyerId: lawyer.profileId),
                               ],
                               if (isOwnProfile && licenseClass != null && licenseClass.trim().isNotEmpty) ...[
                                 const SizedBox(height: 12),
