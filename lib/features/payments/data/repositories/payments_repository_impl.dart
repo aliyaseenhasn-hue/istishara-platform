@@ -49,6 +49,8 @@ class PaymentsRepositoryImpl implements PaymentsRepository {
         .from('payments')
         .select()
         .eq('booking_id', bookingId)
+        .order('created_at', ascending: false)
+        .limit(1)
         .maybeSingle();
 
     if (response == null) return null;
