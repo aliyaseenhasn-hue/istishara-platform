@@ -31,10 +31,14 @@ function json(body: unknown, status = 200) {
 }
 
 function routeForNotification(record: NotificationRecord): string {
-  // Keep notification targets relative to the PWA scope. This is required
-  // when the Flutter Web app is deployed under a GitHub Pages sub-path.
   if (record.reference_type === "conversation" && record.reference_id) {
     return `./chat/${encodeURIComponent(record.reference_id)}`;
+  }
+  if (
+    (record.reference_type === "lawyer" || record.reference_type === "lawyer_profile") &&
+    record.reference_id
+  ) {
+    return `./lawyer-details/${encodeURIComponent(record.reference_id)}`;
   }
   if (record.type === "chat") return "./chats";
   if (record.reference_type === "booking") return "./bookings";
@@ -83,8 +87,6 @@ export default {
 
     if (!subscriptions?.length) return json({ sent: 0, removed: 0 });
 
-    // The service worker owns icon/badge resolution so paths remain valid
-    // for the deployed PWA scope rather than the site root.
     const notification = JSON.stringify({
       title: record.title || "استشارة",
       body: record.body || "لديك إشعار جديد",
