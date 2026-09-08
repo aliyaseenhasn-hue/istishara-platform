@@ -25,7 +25,10 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
 
   ({String search, String role, String status}) get filter => (search: query, role: role, status: status);
 
-  void refresh() => setState(() {});
+  void refresh() {
+    ref.invalidate(adminUsersProvider(filter));
+    setState(() {});
+  }
 
   @override
   void dispose() {
