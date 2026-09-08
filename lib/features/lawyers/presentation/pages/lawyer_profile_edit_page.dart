@@ -134,13 +134,6 @@ class _LawyerProfileEditPageState extends ConsumerState<LawyerProfileEditPage> {
     context.go('/lawyer-home');
   }
 
-  Future<void> _saveAndContinue() async {
-    _formKey.currentState?.save();
-    if (_hasProfileChanges && !await _persist()) return;
-    if (!mounted) return;
-    context.push('/lawyer-availability');
-  }
-
   void _cancel() {
     if (_isLoading) return;
     if (context.canPop()) {
@@ -353,33 +346,17 @@ class _LawyerProfileEditPageState extends ConsumerState<LawyerProfileEditPage> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
           decoration: const BoxDecoration(color: AppColors.surface, boxShadow: [BoxShadow(color: Color(0x14000000), blurRadius: 16, offset: Offset(0, -4))]),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _isLoading ? null : _cancel,
-                  icon: const Icon(Icons.close_rounded),
-                  label: const Text('إلغاء', style: TextStyle(fontWeight: FontWeight.w900)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: const BorderSide(color: AppColors.error),
-                    backgroundColor: AppColors.surface,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: FilledButton.icon(
-                  onPressed: _isLoading ? null : _saveAndContinue,
-                  icon: const Icon(Icons.schedule_rounded),
-                  label: const Text('أوقات التوفر', style: TextStyle(fontWeight: FontWeight.w900)),
-                  style: FilledButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                ),
-              ),
-            ],
+          child: OutlinedButton.icon(
+            onPressed: _isLoading ? null : _cancel,
+            icon: const Icon(Icons.close_rounded),
+            label: const Text('إلغاء', style: TextStyle(fontWeight: FontWeight.w900)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.error,
+              side: const BorderSide(color: AppColors.error),
+              backgroundColor: AppColors.surface,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
           ),
         ),
       ),
