@@ -17,7 +17,7 @@ class BookingsListPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: scheme.surface,
-      appBar: AppBar(title: Text(isLawyer ? 'استشارات العملاء' : 'استشاراتي'), centerTitle: true, surfaceTintColor: Colors.transparent),
+      appBar: AppBar(title: Text(isLawyer ? 'استشارات طالبي الاستشارة' : 'استشاراتي'), centerTitle: true, surfaceTintColor: Colors.transparent),
       body: bookingsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => Center(
@@ -70,7 +70,7 @@ class BookingsListPage extends ConsumerWidget {
                 final rpcName = lawyerInfoAsync?.valueOrNull?['full_name']?.toString().trim();
                 final bookingName = booking.lawyerName?.trim();
                 final displayName = isLawyer
-                    ? clientNameAsync!.maybeWhen(data: (name) => name != null && name.trim().isNotEmpty ? name.trim() : 'اسم العميل غير متوفر', loading: () => 'جاري تحميل الاسم...', orElse: () => 'اسم العميل غير متوفر')
+                    ? clientNameAsync!.maybeWhen(data: (name) => name != null && name.trim().isNotEmpty ? name.trim() : 'اسم طالب الاستشارة غير متوفر', loading: () => 'جاري تحميل الاسم...', orElse: () => 'اسم طالب الاستشارة غير متوفر')
                     : (bookingName != null && bookingName.isNotEmpty ? bookingName : (rpcName != null && rpcName.isNotEmpty ? rpcName : 'اسم المحامي غير متوفر'));
                 final lawyerAvatar = lawyerInfoAsync?.valueOrNull?['avatar_url']?.toString();
 
