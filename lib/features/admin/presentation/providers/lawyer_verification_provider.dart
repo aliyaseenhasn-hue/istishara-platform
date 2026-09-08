@@ -12,42 +12,38 @@ part 'lawyer_verification_provider.g.dart';
 class LawyerVerification extends _$LawyerVerification {
   @override
   FutureOr<List<LawyerProfile>> build() async {
-    try {
-      final lawyerResponse = await SupabaseConfig.client
-          .from('lawyer_profiles')
-          .select()
-          .eq('verified', false);
+    final lawyerResponse = await SupabaseConfig.client
+        .from('lawyer_profiles')
+        .select()
+        .eq('verified', false)
+        .eq('verification_status', 'pending');
 
-      final List<LawyerProfile> lawyers = [];
+    final List<LawyerProfile> lawyers = [];
 
-      for (var json in (lawyerResponse as List)) {
-        var lawyer = LawyerProfileModel.fromJson(json).toEntity();
+    for (var json in (lawyerResponse as List)) {
+      var lawyer = LawyerProfileModel.fromJson(json).toEntity();
 
-        final profileResponse = await SupabaseConfig.client
-            .from('profiles')
-            .select('full_name')
-            .eq('id', lawyer.profileId)
-            .maybeSingle();
+      final profileResponse = await SupabaseConfig.client
+          .from('profiles')
+          .select('full_name')
+          .eq('id', lawyer.profileId)
+          .maybeSingle();
 
-        final fullName = profileResponse != null
-            ? profileResponse['full_name']
-            : 'محامي مجهول';
-        final resolvedIdCardUrl = await PrivateStorageReference.resolve(
-          SupabaseConfig.client,
-          lawyer.idCardUrl,
-        );
-        lawyer = lawyer.copyWith(
-          fullName: fullName,
-          idCardUrl: resolvedIdCardUrl,
-        );
-        lawyers.add(lawyer);
-      }
-
-      return lawyers;
-    } catch (e) {
-      debugPrint('Critical Error in LawyerVerification: $e');
-      return [];
+      final fullName = profileResponse != null
+          ? profileResponse['full_name']
+          : 'محامي مجهول';
+      final resolvedIdCardUrl = await PrivateStorageReference.resolve(
+        SupabaseConfig.client,
+        lawyer.idCardUrl,
+      );
+      lawyer = lawyer.copyWith(
+        fullName: fullName,
+        idCardUrl: resolvedIdCardUrl,
+      );
+      lawyers.add(lawyer);
     }
+
+    return lawyers;
   }
 
   Future<void> approveLawyer(String profileId) async {
@@ -55,13 +51,18 @@ class LawyerVerification extends _$LawyerVerification {
     state = await AsyncValue.guard(() async {
       await SupabaseConfig.client
           .from('lawyer_profiles')
-          .update({'verified': true}).eq('profile_id', profileId);
+          .update({
+            'verified': true,
+            'verification_status': 'approved',
+            'rejection_reason': null,
+          })
+          .eq('profile_id', profileId)
+          .eq('verification_status', 'pending');
 
       await _sendNotification(
         profileId: profileId,
-        title: 'تم توثيق حسابك بنجاح ✅',
-        body:
-            'مرحباً بك! لقد تمت الموافقة على انضمامك، يمكنك الآن البدء في استقبال الاستشارات وتعديل ملفك المهني.',
+        title: 'تم توثيق حسابك بنجاح',
+        body: 'تمت الموافقة على ملفك المهني، ويمكنك الآن استقبال الاستشارات وإدارة ملفك.',
       );
 
       ref.invalidate(lawyersListProvider);
@@ -69,20 +70,29 @@ class LawyerVerification extends _$LawyerVerification {
     });
   }
 
-  Future<void> rejectLawyer(String profileId) async {
+  Future<void> rejectLawyer(String profileId, {String? reason}) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await _sendNotification(
-        profileId: profileId,
-        title: 'بخصوص طلب الانضمام ⚖️',
-        body:
-            'نعتذر منك، لم نتمكن من توثيق حسابك حالياً. يرجى التأكد من صحة الوثائق المرفوعة والمحاولة مرة أخرى.',
-      );
-
+      final normalizedReason = reason?.trim();
       await SupabaseConfig.client
           .from('lawyer_profiles')
-          .delete()
-          .eq('profile_id', profileId);
+          .update({
+            'verified': false,
+            'verification_status': 'rejected',
+            'rejection_reason': normalizedReason == null || normalizedReason.isEmpty
+                ? 'تحتاج بيانات أو وثائق الملف إلى تعديل قبل إعادة الإرسال.'
+                : normalizedReason,
+          })
+          .eq('profile_id', profileId)
+          .eq('verification_status', 'pending');
+
+      await _sendNotification(
+        profileId: profileId,
+        title: 'يحتاج طلب التوثيق إلى تعديل',
+        body: normalizedReason == null || normalizedReason.isEmpty
+            ? 'راجع بياناتك ووثائقك المهنية وعدّلها ثم أعد إرسال الطلب للمراجعة.'
+            : 'سبب المراجعة: $normalizedReason. عدّل بياناتك ثم أعد إرسال الطلب.',
+      );
 
       return build();
     });
