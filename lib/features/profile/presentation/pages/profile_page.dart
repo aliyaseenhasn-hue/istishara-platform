@@ -39,7 +39,7 @@ class ProfilePage extends ConsumerWidget {
           ]),
           const SizedBox(height: 22),
           _section(context, 'الحساب والإعدادات', [
-            _tile(context, Icons.person_outline_rounded, 'المعلومات الشخصية', 'الصورة والاسم ورقم الهاتف وبيانات التواصل', () => _showEditProfileDialog(context, ref)),
+            _tile(context, Icons.person_outline_rounded, 'المعلومات الشخصية', 'الصورة والاسم ورقم واتساب وبيانات التواصل', () => _showEditProfileDialog(context, ref)),
             if (user.role == 'lawyer')
               _tile(context, Icons.badge_outlined, 'المعلومات المهنية', 'التخصص والباقات وأوقات التوفر والبيانات المهنية', () => context.push('/lawyer-profile-edit')),
             Card(elevation: 0, margin: const EdgeInsets.only(bottom: 10), color: scheme.surface, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17), side: BorderSide(color: scheme.outlineVariant)), child: SwitchListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2), secondary: _iconBox(context, isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded), title: Text('مظهر التطبيق', style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w700)), subtitle: Text(isDark ? 'الوضع الداكن' : 'الوضع الفاتح', style: TextStyle(color: scheme.onSurfaceVariant)), value: isDark, activeThumbColor: AppColors.gold, activeTrackColor: AppColors.goldSoft, onChanged: (v) => ref.read(themeModeProvider.notifier).setMode(v ? ThemeMode.dark : ThemeMode.light))),
@@ -116,7 +116,7 @@ class ProfilePage extends ConsumerWidget {
           children: [
             Text('سياسة الخصوصية', textAlign: TextAlign.right, style: TextStyle(color: scheme.primary, fontSize: 22, fontWeight: FontWeight.w900)),
             const SizedBox(height: 14),
-            _privacySection(context, 'البيانات التي نجمعها', 'قد تشمل الاسم ورقم الهاتف وواتساب والمدينة وبيانات الحساب وصورة الملف الشخصي وبيانات الحجوزات والملفات التي يختار المستخدم رفعها.'),
+            _privacySection(context, 'البيانات التي نجمعها', 'قد تشمل الاسم ورقم واتساب والمدينة وبيانات الحساب وصورة الملف الشخصي وبيانات الحجوزات والملفات التي يختار المستخدم رفعها.'),
             _privacySection(context, 'لماذا نستخدمها؟', 'لتشغيل الحسابات والحجوزات والاستشارات والمدفوعات والتواصل والإشعارات ومنع إساءة استخدام المنصة.'),
             _privacySection(context, 'مشاركة البيانات', 'تظهر بيانات التواصل المرتبطة بالاستشارة وفق حالة الحجز والصلاحيات المعتمدة في التطبيق، وقد تُشارك البيانات التقنية اللازمة مع مزودي الخدمات الذين تعتمد عليهم المنصة.'),
             _privacySection(context, 'حذف الحساب', 'يمكن طلب حذف الحساب من داخل التطبيق، مع الاحتفاظ بما يلزم قانونياً أو تشغيلياً من السجلات المرتبطة بالحجوزات والمدفوعات والنزاعات.'),
@@ -147,7 +147,6 @@ class ProfilePage extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref, {
     String? fullName,
-    String? phone,
     String? whatsapp,
     String? city,
   }) async {
@@ -159,16 +158,15 @@ class ProfilePage extends ConsumerWidget {
       if (user == null) return;
 
       final normalizedName = fullName?.trim();
-      final normalizedPhone = phone?.trim();
       final normalizedWhatsapp = whatsapp?.trim();
-      if (normalizedName != null || normalizedPhone != null || normalizedWhatsapp != null || city != null) {
-        if (normalizedName == null || normalizedName.isEmpty || normalizedPhone == null || normalizedPhone.isEmpty) {
-          throw Exception('الاسم الكامل ورقم الهاتف مطلوبان');
+      if (normalizedName != null || normalizedWhatsapp != null || city != null) {
+        if (normalizedName == null || normalizedName.isEmpty || normalizedWhatsapp == null || normalizedWhatsapp.isEmpty) {
+          throw Exception('الاسم الكامل ورقم واتساب مطلوبان');
         }
         await SupabaseConfig.client.rpc('update_own_profile_contact', params: {
           'p_full_name': normalizedName,
-          'p_phone': normalizedPhone,
-          'p_whatsapp_number': normalizedWhatsapp == null || normalizedWhatsapp.isEmpty ? normalizedPhone : normalizedWhatsapp,
+          'p_phone': normalizedWhatsapp,
+          'p_whatsapp_number': normalizedWhatsapp,
           'p_city': city?.trim().isEmpty == true ? null : city?.trim(),
         });
       }
@@ -195,11 +193,10 @@ class ProfilePage extends ConsumerWidget {
     final user = ref.read(authStateChangesProvider).value;
     if (user == null) return;
     try {
-      final row = await SupabaseConfig.client.from('profiles').select('full_name,phone,whatsapp_number,city').eq('auth_id', user.id).maybeSingle();
+      final row = await SupabaseConfig.client.from('profiles').select('full_name,whatsapp_number,city').eq('auth_id', user.id).maybeSingle();
       if (!context.mounted) return;
       final nameController = TextEditingController(text: row?['full_name']?.toString() ?? user.fullName ?? '');
-      final phoneController = TextEditingController(text: row?['phone']?.toString() ?? user.phone ?? '');
-      final whatsappController = TextEditingController(text: row?['whatsapp_number']?.toString() ?? row?['phone']?.toString() ?? user.phone ?? '');
+      final whatsappController = TextEditingController(text: row?['whatsapp_number']?.toString() ?? user.phone ?? '');
       final governorateController = TextEditingController(text: row?['city']?.toString() ?? '');
       var saving = false;
       await showDialog<void>(
@@ -226,7 +223,6 @@ class ProfilePage extends ConsumerWidget {
                                   context,
                                   ref,
                                   fullName: nameController.text,
-                                  phone: phoneController.text,
                                   whatsapp: whatsappController.text,
                                   city: governorateController.text,
                                 ),
@@ -239,13 +235,11 @@ class ProfilePage extends ConsumerWidget {
                 const SizedBox(height: 14),
                 TextField(controller: nameController, decoration: const InputDecoration(labelText: 'الاسم الكامل', prefixIcon: Icon(Icons.person_outline))),
                 const SizedBox(height: 10),
-                TextField(controller: phoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'رقم الهاتف', hintText: '+9647xxxxxxxxx', prefixIcon: Icon(Icons.phone_android_outlined))),
-                const SizedBox(height: 10),
                 TextField(controller: whatsappController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'رقم واتساب للتواصل', hintText: '+9647xxxxxxxxx', prefixIcon: Icon(Icons.chat_outlined))),
                 const SizedBox(height: 10),
                 TextField(controller: governorateController, decoration: const InputDecoration(labelText: 'المحافظة', prefixIcon: Icon(Icons.location_on_outlined))),
                 const SizedBox(height: 10),
-                const Align(alignment: Alignment.centerRight, child: Text('يمكنك إدارة الصورة والاسم ورقم الهاتف وبيانات التواصل من هنا.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary))),
+                const Align(alignment: Alignment.centerRight, child: Text('يمكنك إدارة الصورة والاسم ورقم واتساب والمحافظة من هنا.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary))),
               ]),
             ),
             actions: [
@@ -253,18 +247,17 @@ class ProfilePage extends ConsumerWidget {
               ElevatedButton(
                 onPressed: saving ? null : () async {
                   final name = nameController.text.trim();
-                  final phone = phoneController.text.trim();
                   final whatsapp = whatsappController.text.trim();
-                  if (name.isEmpty || phone.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الاسم الكامل ورقم الهاتف مطلوبان')));
+                  if (name.isEmpty || whatsapp.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الاسم الكامل ورقم واتساب مطلوبان')));
                     return;
                   }
                   setState(() => saving = true);
                   try {
                     await SupabaseConfig.client.rpc('update_own_profile_contact', params: {
                       'p_full_name': name,
-                      'p_phone': phone,
-                      'p_whatsapp_number': whatsapp.isEmpty ? phone : whatsapp,
+                      'p_phone': whatsapp,
+                      'p_whatsapp_number': whatsapp,
                       'p_city': governorateController.text.trim().isEmpty ? null : governorateController.text.trim(),
                     });
                     await ref.read(authRepositoryProvider).refreshUser();
@@ -283,7 +276,6 @@ class ProfilePage extends ConsumerWidget {
         ),
       );
       nameController.dispose();
-      phoneController.dispose();
       whatsappController.dispose();
       governorateController.dispose();
     } catch (e) {
