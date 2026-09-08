@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
@@ -51,6 +52,7 @@ class _LawyerSetupPageState extends ConsumerState<LawyerSetupPage> {
     }
     final user = ref.read(authStateChangesProvider).value;
     if (user == null) return;
+
     await ref.read(lawyerSetupControllerProvider.notifier).completeProfile(
       authUid: user.id,
       fullName: user.fullName ?? '',
@@ -62,7 +64,23 @@ class _LawyerSetupPageState extends ConsumerState<LawyerSetupPage> {
       profilePhotoBytes: _profilePhotoBytes,
       idCardBytes: _idCardBytes,
     );
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث البيانات بنجاح')));
+    if (!mounted) return;
+
+    final result = ref.read(lawyerSetupControllerProvider);
+    if (result.hasError) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تعذر إرسال الملف: ${result.error.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تم حفظ البيانات وإرسال الملف للمراجعة.')),
+    );
+    context.go('/lawyer-pending');
   }
 
   InputDecoration _input(String label, {String? hint, IconData? icon}) => InputDecoration(
@@ -105,7 +123,7 @@ class _LawyerSetupPageState extends ConsumerState<LawyerSetupPage> {
             _sectionTitle('الصورة الشخصية', 'استخدم صورة مهنية واضحة لزيادة الثقة.'),
             const SizedBox(height: 12),
             Center(child: GestureDetector(
-              onTap: () => _pickImage('profile'),
+              onTap: state.isLoading ? null : () => _pickImage('profile'),
               child: Container(
                 width: 112,
                 height: 112,
@@ -118,20 +136,20 @@ class _LawyerSetupPageState extends ConsumerState<LawyerSetupPage> {
             const SizedBox(height: 24),
             _sectionTitle('بيانات المهنة', 'هذه البيانات تستخدم للتحقق من أهليتك كمحامٍ.'),
             const SizedBox(height: 12),
-            TextFormField(controller: _licenseController, decoration: _input('رقم هوية النقابة', hint: 'أدخل الرقم كما هو في الهوية', icon: Icons.badge_outlined), validator: (v) => v?.trim().isEmpty ?? true ? 'رقم هوية النقابة مطلوب' : null),
+            TextFormField(controller: _licenseController, enabled: !state.isLoading, decoration: _input('رقم هوية النقابة', hint: 'أدخل الرقم كما هو في الهوية', icon: Icons.badge_outlined), validator: (v) => v?.trim().isEmpty ?? true ? 'رقم هوية النقابة مطلوب' : null),
             const SizedBox(height: 14),
-            TextFormField(controller: _bioController, maxLines: 5, maxLength: 1000, decoration: _input('نبذة تعريفية', hint: 'اكتب نبذة مختصرة عن خبرتك وتخصصك...', icon: Icons.description_outlined), validator: (v) => v?.trim().isEmpty ?? true ? 'النبذة التعريفية مطلوبة' : null),
+            TextFormField(controller: _bioController, enabled: !state.isLoading, maxLines: 5, maxLength: 1000, decoration: _input('نبذة تعريفية', hint: 'اكتب نبذة مختصرة عن خبرتك وتخصصك...', icon: Icons.description_outlined), validator: (v) => v?.trim().isEmpty ?? true ? 'النبذة التعريفية مطلوبة' : null),
             const SizedBox(height: 14),
             Row(children: [
-              Expanded(child: TextFormField(controller: _experienceController, decoration: _input('سنوات الخبرة', icon: Icons.workspace_premium_outlined), keyboardType: TextInputType.number, validator: (v) => v?.trim().isEmpty ?? true ? 'مطلوب' : null)),
+              Expanded(child: TextFormField(controller: _experienceController, enabled: !state.isLoading, decoration: _input('سنوات الخبرة', icon: Icons.workspace_premium_outlined), keyboardType: TextInputType.number, validator: (v) => v?.trim().isEmpty ?? true ? 'مطلوب' : null)),
               const SizedBox(width: 12),
-              Expanded(child: TextFormField(controller: _priceController, decoration: _input('السعر (د.ع)', icon: Icons.payments_outlined), keyboardType: TextInputType.number, validator: (v) { final p = double.tryParse(v?.trim() ?? ''); return p == null || p <= 0 ? 'حدد السعر' : null; })),
+              Expanded(child: TextFormField(controller: _priceController, enabled: !state.isLoading, decoration: _input('السعر (د.ع)', icon: Icons.payments_outlined), keyboardType: TextInputType.number, validator: (v) { final p = double.tryParse(v?.trim() ?? ''); return p == null || p <= 0 ? 'حدد السعر' : null; })),
             ]),
             const SizedBox(height: 24),
             _sectionTitle('وثيقة التحقق', 'صورة هوية النقابة إلزامية لإرسال الملف إلى المراجعة.'),
             const SizedBox(height: 12),
             InkWell(
-              onTap: () => _pickImage('id'),
+              onTap: state.isLoading ? null : () => _pickImage('id'),
               borderRadius: BorderRadius.circular(20),
               child: Container(
                 height: 170,
