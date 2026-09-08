@@ -31,8 +31,8 @@ class AppTheme {
       onSecondaryContainer: AppColors.onSecondaryContainer,
       tertiary: AppColors.tertiary,
       onTertiary: AppColors.onTertiary,
-      tertiaryContainer: Color(0xFFE7EEE9),
-      onTertiaryContainer: Color(0xFF3F5747),
+      tertiaryContainer: AppColors.goldLight,
+      onTertiaryContainer: AppColors.goldDark,
       surface: AppColors.background,
       surfaceDim: AppColors.surfaceDim,
       surfaceBright: AppColors.surfaceBright,
@@ -101,7 +101,7 @@ class AppTheme {
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 20)),
           shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
           textStyle: WidgetStatePropertyAll(GoogleFonts.ibmPlexSansArabic(fontSize: 14, height: 20 / 14, fontWeight: FontWeight.w700)),
-          overlayColor: const WidgetStatePropertyAll(Color(0x14243B53)),
+          overlayColor: const WidgetStatePropertyAll(Color(0x14245A78)),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -109,7 +109,7 @@ class AppTheme {
           foregroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.disabled) ? AppColors.textSecondary : AppColors.primary),
           textStyle: WidgetStatePropertyAll(GoogleFonts.ibmPlexSansArabic(fontSize: 14, fontWeight: FontWeight.w700)),
           minimumSize: const WidgetStatePropertyAll(Size.fromHeight(44)),
-          overlayColor: const WidgetStatePropertyAll(Color(0x14243B53)),
+          overlayColor: const WidgetStatePropertyAll(Color(0x14245A78)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -146,9 +146,9 @@ class AppTheme {
       floatingActionButtonTheme: const FloatingActionButtonThemeData(backgroundColor: AppColors.secondary, foregroundColor: Colors.white),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.surface,
-        indicatorColor: AppColors.secondaryContainer,
+        indicatorColor: AppColors.goldLight,
         labelTextStyle: WidgetStatePropertyAll(GoogleFonts.ibmPlexSansArabic(fontSize: 12, fontWeight: FontWeight.w600)),
-        iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(color: states.contains(WidgetState.selected) ? AppColors.secondaryDark : AppColors.textSecondary)),
+        iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(color: states.contains(WidgetState.selected) ? AppColors.primaryDark : AppColors.textSecondary)),
       ),
     );
 
