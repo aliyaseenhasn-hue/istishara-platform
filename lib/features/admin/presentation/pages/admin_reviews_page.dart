@@ -25,7 +25,7 @@ class _AdminReviewsPageState extends State<AdminReviewsPage> {
       c.from('lawyer_profiles').select('id').eq('verified', false),
       c.from('cancellation_requests').select('id').eq('status', 'بانتظار مراجعة الإدارة'),
       c.from('specialization_change_requests').select('id').eq('status', 'pending'),
-      c.from('payments').select('id').eq('status', 'pending'),
+      c.from('payments').select('id').eq('status', 'قيد معالجة الدفع').eq('payment_method', 'bank_transfer'),
       c.rpc('admin_list_no_show_reviews'),
     ]);
     final noShowRows = List<Map<String, dynamic>>.from(results[4] as List);
@@ -76,7 +76,7 @@ class _AdminReviewsPageState extends State<AdminReviewsPage> {
             (title: 'توثيق المحامين', subtitle: 'مراجعة بيانات ووثائق المحامين واعتمادها', icon: Icons.verified_user_outlined, count: counts['verifications'] ?? 0, route: '/admin/lawyer-verifications', accent: AppColors.primary),
             (title: 'طلبات إلغاء الحجوزات', subtitle: 'مراجعة الإلغاء والغرامات والتعويضات', icon: Icons.event_busy_outlined, count: counts['cancellations'] ?? 0, route: '/admin/cancellation-requests', accent: AppColors.warning),
             (title: 'تغيير التخصص', subtitle: 'مراجعة طلبات تغيير التخصص والوثائق المرفقة', icon: Icons.badge_outlined, count: counts['specializations'] ?? 0, route: '/admin/specialization-change-requests', accent: AppColors.secondaryDark),
-            (title: 'مراجعة الدفعات', subtitle: 'متابعة الدفعات المعلقة وحالات التحقق', icon: Icons.payments_outlined, count: counts['payments'] ?? 0, route: '/admin/payments', accent: AppColors.teal),
+            (title: 'مراجعة الدفعات', subtitle: 'التحقق من إيصالات التحويل اليدوي قبل اعتماد المبلغ', icon: Icons.payments_outlined, count: counts['payments'] ?? 0, route: '/admin/payments', accent: AppColors.teal),
             (title: 'عدم الحضور', subtitle: 'فحص بلاغات عدم الحضور واتخاذ القرار الإداري', icon: Icons.person_off_outlined, count: counts['noShow'] ?? 0, route: '/admin/no-show-reviews', accent: AppColors.error),
           ];
           final totalPending = items.fold<int>(0, (sum, item) => sum + item.count);
