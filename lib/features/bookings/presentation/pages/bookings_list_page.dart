@@ -8,6 +8,61 @@ import '../providers/bookings_provider.dart';
 class BookingsListPage extends ConsumerWidget {
   const BookingsListPage({super.key});
 
+  static bool _canArchive(String status) {
+    final value = status.trim();
+    return const {'مكتمل', 'ملغي', 'مسترد', 'مرفوض'}.contains(value);
+  }
+
+  static bool _needsLawyerReview(String status) {
+    final value = status.trim();
+    if (value.contains('رفض') || value.contains('إلغاء') || value == 'مكتمل' || value == 'قيد التنفيذ' || value == 'مؤكد' || value == 'مقبول') {
+      return false;
+    }
+    return value.contains('انتظار') || value.contains('معلق') || value.contains('جديد') || value.contains('طلب') || value.isEmpty;
+  }
+
+  static String _formatDate(DateTime date) {
+    final local = date.toLocal();
+    return '${local.year}/${local.month.toString().padLeft(2, '0')}/${local.day.toString().padLeft(2, '0')} - ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _archiveBooking(
+    BuildContext context,
+    WidgetRef ref, {
+    required String bookingId,
+    required bool isLawyer,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('حذف الاستشارة من القائمة؟'),
+        content: const Text('سيتم إخفاء الاستشارة من قائمتك فقط مع الاحتفاظ بسجلها وبياناتها في النظام.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.delete_outline_rounded),
+            label: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    await ref.read(bookingsControllerProvider.notifier).archiveBooking(bookingId, isLawyer: isLawyer);
+    if (!context.mounted) return;
+    final state = ref.read(bookingsControllerProvider);
+    if (state.hasError) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر حذف الاستشارة حالياً.')),
+      );
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تم حذف الاستشارة من القائمة.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
@@ -97,6 +152,7 @@ class BookingsListPage extends ConsumerWidget {
 
                 final bookingIndex = isLawyer ? index - 1 : index;
                 final booking = bookings[bookingIndex];
+                final canArchive = _canArchive(booking.status);
 
                 return Consumer(builder: (context, ref, child) {
                   final clientNameAsync = isLawyer ? ref.watch(bookingClientNameProvider(booking.id)) : null;
@@ -121,6 +177,9 @@ class BookingsListPage extends ConsumerWidget {
                       consultationType: booking.consultationType ?? 'استشارة قانونية',
                       scheduledAt: booking.scheduledAt,
                       onTap: () => context.push('/booking-details', extra: booking),
+                      onDelete: canArchive
+                          ? () => _archiveBooking(context, ref, bookingId: booking.id, isLawyer: true)
+                          : null,
                     );
                   }
 
@@ -134,33 +193,46 @@ class BookingsListPage extends ConsumerWidget {
                       onTap: () => context.push('/booking-details', extra: booking),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          CircleAvatar(
-                            radius: 26,
-                            backgroundColor: scheme.surfaceContainerHigh,
-                            backgroundImage: lawyerAvatar != null && lawyerAvatar.isNotEmpty ? NetworkImage(lawyerAvatar) : null,
-                            child: lawyerAvatar == null || lawyerAvatar.isEmpty ? Icon(Icons.person_outline, color: scheme.primary) : null,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Row(children: [
-                                Expanded(child: Text(displayName, textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: scheme.onSurface))),
-                                const SizedBox(width: 8),
-                                _StatusChip(status: booking.status),
+                        child: Column(children: [
+                          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            CircleAvatar(
+                              radius: 26,
+                              backgroundColor: scheme.surfaceContainerHigh,
+                              backgroundImage: lawyerAvatar != null && lawyerAvatar.isNotEmpty ? NetworkImage(lawyerAvatar) : null,
+                              child: lawyerAvatar == null || lawyerAvatar.isEmpty ? Icon(Icons.person_outline, color: scheme.primary) : null,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Row(children: [
+                                  Expanded(child: Text(displayName, textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: scheme.onSurface))),
+                                  const SizedBox(width: 8),
+                                  _StatusChip(status: booking.status),
+                                ]),
+                                const SizedBox(height: 6),
+                                Text(booking.consultationType ?? 'استشارة قانونية', textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13)),
+                                const SizedBox(height: 5),
+                                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                  Icon(Icons.schedule_rounded, size: 15, color: scheme.onSurfaceVariant),
+                                  const SizedBox(width: 4),
+                                  Flexible(child: Text(_formatDate(booking.scheduledAt), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12))),
+                                ]),
                               ]),
-                              const SizedBox(height: 6),
-                              Text(booking.consultationType ?? 'استشارة قانونية', textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13)),
-                              const SizedBox(height: 5),
-                              Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                                Icon(Icons.schedule_rounded, size: 15, color: scheme.onSurfaceVariant),
-                                const SizedBox(width: 4),
-                                Flexible(child: Text(_formatDate(booking.scheduledAt), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12))),
-                              ]),
-                            ]),
-                          ),
-                          const SizedBox(width: 6),
-                          Padding(padding: const EdgeInsets.only(top: 16), child: Icon(Icons.chevron_left_rounded, color: scheme.onSurfaceVariant)),
+                            ),
+                            const SizedBox(width: 6),
+                            Padding(padding: const EdgeInsets.only(top: 16), child: Icon(Icons.chevron_left_rounded, color: scheme.onSurfaceVariant)),
+                          ]),
+                          if (canArchive) ...[
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton.icon(
+                                onPressed: () => _archiveBooking(context, ref, bookingId: booking.id, isLawyer: false),
+                                icon: Icon(Icons.delete_outline_rounded, color: scheme.error),
+                                label: Text('حذف من القائمة', style: TextStyle(color: scheme.error, fontWeight: FontWeight.w700)),
+                              ),
+                            ),
+                          ],
                         ]),
                       ),
                     ),
@@ -172,19 +244,6 @@ class BookingsListPage extends ConsumerWidget {
         },
       ),
     );
-  }
-
-  static bool _needsLawyerReview(String status) {
-    final value = status.trim();
-    if (value.contains('رفض') || value.contains('إلغاء') || value == 'مكتمل' || value == 'قيد التنفيذ' || value == 'مؤكد' || value == 'مقبول') {
-      return false;
-    }
-    return value.contains('انتظار') || value.contains('معلق') || value.contains('جديد') || value.contains('طلب') || value.isEmpty;
-  }
-
-  static String _formatDate(DateTime date) {
-    final local = date.toLocal();
-    return '${local.year}/${local.month.toString().padLeft(2, '0')}/${local.day.toString().padLeft(2, '0')} - ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
   }
 }
 
@@ -234,6 +293,7 @@ class _IncomingBookingCard extends StatelessWidget {
   final String consultationType;
   final DateTime scheduledAt;
   final VoidCallback onTap;
+  final VoidCallback? onDelete;
 
   const _IncomingBookingCard({
     required this.name,
@@ -241,6 +301,7 @@ class _IncomingBookingCard extends StatelessWidget {
     required this.consultationType,
     required this.scheduledAt,
     required this.onTap,
+    this.onDelete,
   });
 
   @override
@@ -306,15 +367,31 @@ class _IncomingBookingCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: onTap,
-              icon: const Icon(Icons.visibility_outlined, size: 19),
-              label: const Text('عرض التفاصيل'),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            Row(children: [
+              if (onDelete != null) ...[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onDelete,
+                    icon: Icon(Icons.delete_outline_rounded, color: scheme.error),
+                    label: Text('حذف', style: TextStyle(color: scheme.error, fontWeight: FontWeight.w800)),
+                    style: OutlinedButton.styleFrom(side: BorderSide(color: scheme.error.withValues(alpha: .55)), padding: const EdgeInsets.symmetric(vertical: 13)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                flex: 2,
+                child: FilledButton.icon(
+                  onPressed: onTap,
+                  icon: const Icon(Icons.visibility_outlined, size: 19),
+                  label: const Text('عرض التفاصيل'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
               ),
-            ),
+            ]),
           ]),
         ),
       ),
