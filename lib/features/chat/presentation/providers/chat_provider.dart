@@ -64,6 +64,8 @@ final chatOtherPartyProfileIdProvider =
 });
 
 /// Chat is available only after a real booking is confirmed/in progress/completed.
+/// New conversations are scoped to the booking. A legacy pair conversation is
+/// used only as a fallback for bookings created before per-booking chat existed.
 final chatAvailabilityForLawyerProvider =
     FutureProvider.family<String?, String>((ref, lawyerProfileId) async {
   final authUser = SupabaseConfig.client.auth.currentUser;
@@ -88,14 +90,27 @@ final chatAvailabilityForLawyerProvider =
       .maybeSingle();
   if (booking == null) return null;
 
-  final conversation = await SupabaseConfig.client
+  final bookingId = booking['id']?.toString();
+  if (bookingId == null) return null;
+
+  final exact = await SupabaseConfig.client
+      .from('conversations')
+      .select('id')
+      .eq('booking_id', bookingId)
+      .maybeSingle();
+  final exactId = exact?['id']?.toString();
+  if (exactId != null) return exactId;
+
+  final legacy = await SupabaseConfig.client
       .from('conversations')
       .select('id')
       .eq('user_id', currentProfileId)
       .eq('lawyer_id', lawyerProfileId)
+      .isFilter('booking_id', null)
+      .order('created_at', ascending: false)
       .limit(1)
       .maybeSingle();
-  return conversation?['id']?.toString();
+  return legacy?['id']?.toString();
 });
 
 @riverpod
