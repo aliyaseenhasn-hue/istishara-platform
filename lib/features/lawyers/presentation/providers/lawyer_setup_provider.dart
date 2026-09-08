@@ -45,6 +45,11 @@ class LawyerSetupController extends _$LawyerSetupController {
         onboardingCompleted: false,
       );
 
+      // Phone/OTP accounts can already have a safe default `user` profile from
+      // the auth trigger. Promote only through the guarded server RPC so the
+      // client never writes security-sensitive role fields directly.
+      await SupabaseConfig.client.rpc('register_self_as_lawyer');
+
       final profileRow = await SupabaseConfig.client
           .from('profiles')
           .select('id')
@@ -81,8 +86,6 @@ class LawyerSetupController extends _$LawyerSetupController {
         id: '',
         profileId: profileId,
         fullName: fullName,
-        // يبقى الحقل في النموذج وقاعدة البيانات للتوافق مع السجلات القديمة فقط.
-        // لا يتم جمعه أو عرضه أو استخدامه للتواصل المباشر داخل التطبيق.
         whatsapp: null,
         idCardUrl: idCardUrl,
         verified: false,
