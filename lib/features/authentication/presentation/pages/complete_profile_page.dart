@@ -245,7 +245,7 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
         const SizedBox(height: 16),
         Row(
           children: [
-            Expanded(child: _RoleCard(title: 'عميل', subtitle: 'أطلب استشارة', icon: Icons.person_search_rounded, selected: _selectedRole == 'user', onTap: () => setState(() => _selectedRole = 'user'))),
+            Expanded(child: _RoleCard(title: 'طالب استشارة', subtitle: 'أطلب استشارة', icon: Icons.person_search_rounded, selected: _selectedRole == 'user', onTap: () => setState(() => _selectedRole = 'user'))),
             const SizedBox(width: 12),
             Expanded(child: _RoleCard(title: 'محامي', subtitle: 'أقدم استشارات', icon: Icons.gavel_rounded, selected: _selectedRole == 'lawyer', onTap: () => setState(() => _selectedRole = 'lawyer'))),
           ],
