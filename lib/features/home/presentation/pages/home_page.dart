@@ -129,47 +129,47 @@ class _ClientProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return HoverLift(
-      borderRadius: 20,
+      borderRadius: 22,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         decoration: BoxDecoration(
           gradient: const LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft, colors: [AppColors.primaryDark, AppColors.primary, AppColors.secondary]),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(color: AppColors.goldTransparentStrong),
         ),
         child: Row(
           textDirection: TextDirection.rtl,
           children: [
             Container(
-              width: 66,
-              height: 66,
+              width: 74,
+              height: 74,
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.goldTransparent, border: Border.all(color: AppColors.goldSoft, width: 1.5)),
               child: CircleAvatar(
                 backgroundColor: AppColors.surfaceContainerHighest,
                 backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty ? NetworkImage(avatarUrl!) : null,
-                child: avatarUrl == null || avatarUrl!.isEmpty ? const Icon(Icons.person_outline_rounded, color: AppColors.primary, size: 30) : null,
+                child: avatarUrl == null || avatarUrl!.isEmpty ? const Icon(Icons.person_outline_rounded, color: AppColors.primary, size: 34) : null,
               ),
             ),
-            const SizedBox(width: 11),
+            const SizedBox(width: 13),
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                     decoration: BoxDecoration(color: AppColors.goldTransparent, borderRadius: BorderRadius.circular(99)),
                     child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.person_pin_circle_outlined, color: Colors.white, size: 13),
+                      Icon(Icons.person_pin_circle_outlined, color: Colors.white, size: 14),
                       SizedBox(width: 4),
-                      Text('طالب استشارة', style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w900)),
+                      Text('طالب استشارة', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900)),
                     ]),
                   ),
+                  const SizedBox(height: 5),
+                  Text(name, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900, height: 1.18)),
                   const SizedBox(height: 3),
-                  Text(name, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, height: 1.15)),
-                  const SizedBox(height: 2),
-                  Text('اطلب استشارتك القانونية بسهولة وأمان', textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white.withValues(alpha: .90), fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text('اطلب استشارتك القانونية بسهولة وأمان', textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white.withValues(alpha: .90), fontSize: 11.5, fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
