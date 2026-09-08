@@ -40,6 +40,12 @@ class _AdminReviewsPageState extends State<AdminReviewsPage> {
 
   void _refresh() => setState(() => _future = _counts());
 
+  void _openSection(BuildContext context, String route) {
+    context.push(route).then((_) {
+      if (mounted) _refresh();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -120,7 +126,7 @@ class _AdminReviewsPageState extends State<AdminReviewsPage> {
                 const SizedBox(height: 18),
                 const Text('أقسام المراجعة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
                 const SizedBox(height: 10),
-                ...items.map((item) => _ReviewCard(item: item, onTap: () => context.push(item.route))),
+                ...items.map((item) => _ReviewCard(item: item, onTap: () => _openSection(context, item.route))),
               ],
             ),
           );
