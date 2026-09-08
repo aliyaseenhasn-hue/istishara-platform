@@ -40,7 +40,8 @@ class AppColors {
   static const Color surfaceBright = Color(0xFFFFFFFF);
   static const Color surfaceVariant = Color(0xFFF0F3F2);
   static const Color cardBackground = surface;
-  static const Color surfaceContainerLowest = Color(0xFFFFFFFF);
+  // Soft blue-grey tint makes legal cards visibly distinct without becoming loud.
+  static const Color surfaceContainerLowest = Color(0xFFF1F5F8);
   static const Color surfaceContainerLow = Color(0xFFF4F6F5);
   static const Color surfaceContainer = Color(0xFFEDF1F0);
   static const Color surfaceContainerHigh = Color(0xFFE6EBE9);
