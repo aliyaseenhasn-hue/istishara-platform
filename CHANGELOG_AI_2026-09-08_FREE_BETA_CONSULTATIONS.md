@@ -33,4 +33,4 @@
 
 ## Commit
 
-التزام التنفيذ: `91e163f` (`feat: add server-controlled free beta consultations`).
+التزام التنفيذ: `21d789399047e4e42678d9e162cb3635e3478d44` (`feat: add server-controlled free beta consultations`).
