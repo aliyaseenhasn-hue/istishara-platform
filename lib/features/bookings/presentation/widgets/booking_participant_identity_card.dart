@@ -70,7 +70,7 @@ class BookingParticipantIdentityCard extends ConsumerWidget {
         ? data?['client_avatar_url']?.toString().trim()
         : data?['lawyer_avatar_url']?.toString().trim();
     final label = isLawyer ? 'طالب الاستشارة' : 'المحامي';
-    final initial = name.isNotEmpty ? name.characters.first : (isLawyer ? 'ط' : 'م');
+    final initial = name.isNotEmpty ? name.substring(0, 1) : (isLawyer ? 'ط' : 'م');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
