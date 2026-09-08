@@ -51,11 +51,11 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 15),
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
               sliver: SliverToBoxAdapter(child: _ClientProfileHeader(name: name, avatarUrl: avatarUrl)),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 2),
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
               sliver: SliverToBoxAdapter(
                 child: bookings.when(
                   loading: () => const _StatsLoading(),
@@ -65,7 +65,7 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 3),
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 3),
               sliver: SliverToBoxAdapter(child: _SectionTitle(title: 'التخصصات القانونية', action: 'عرض الكل', onTap: () => context.push('/lawyers'))),
             ),
             SliverPadding(
