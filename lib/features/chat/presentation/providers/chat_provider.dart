@@ -8,19 +8,37 @@ import '../../domain/repositories/chat_repository.dart';
 part 'chat_provider.g.dart';
 
 @riverpod
-ChatRepository chatRepository(ChatRepositoryRef ref) => ChatRepositoryImpl(SupabaseConfig.client);
+ChatRepository chatRepository(ChatRepositoryRef ref) =>
+    ChatRepositoryImpl(SupabaseConfig.client);
 
 @riverpod
-Stream<List<Message>> chatMessages(ChatMessagesRef ref, String conversationId) =>
+Stream<List<Message>> chatMessages(
+  ChatMessagesRef ref,
+  String conversationId,
+) =>
     ref.watch(chatRepositoryProvider).subscribeToMessages(conversationId);
 
-final chatOtherPartyNameProvider = FutureProvider.family<String?, String>((ref, conversationId) async {
+final chatAccessProvider = FutureProvider.family<bool, String>((ref, conversationId) async {
   final authState = ref.watch(authStateChangesProvider).value;
-  if (authState == null) return null;
-  return ref.read(chatRepositoryProvider).getOtherPartyName(conversationId, authState.id);
+  if (authState == null) return false;
+  final result = await SupabaseConfig.client.rpc(
+    'can_access_conversation',
+    params: {'p_conversation_id': conversationId},
+  );
+  return result == true;
 });
 
-final chatOtherPartyProfileIdProvider = FutureProvider.family<String?, String>((ref, conversationId) async {
+final chatOtherPartyNameProvider =
+    FutureProvider.family<String?, String>((ref, conversationId) async {
+  final authState = ref.watch(authStateChangesProvider).value;
+  if (authState == null) return null;
+  return ref
+      .read(chatRepositoryProvider)
+      .getOtherPartyName(conversationId, authState.id);
+});
+
+final chatOtherPartyProfileIdProvider =
+    FutureProvider.family<String?, String>((ref, conversationId) async {
   final authState = ref.watch(authStateChangesProvider).value;
   if (authState == null) return null;
   final conversation = await SupabaseConfig.client
@@ -46,7 +64,8 @@ final chatOtherPartyProfileIdProvider = FutureProvider.family<String?, String>((
 });
 
 /// Chat is available only after a real booking is confirmed/in progress/completed.
-final chatAvailabilityForLawyerProvider = FutureProvider.family<String?, String>((ref, lawyerProfileId) async {
+final chatAvailabilityForLawyerProvider =
+    FutureProvider.family<String?, String>((ref, lawyerProfileId) async {
   final authUser = SupabaseConfig.client.auth.currentUser;
   if (authUser == null) return null;
 
@@ -98,12 +117,22 @@ class ChatController extends _$ChatController {
   Future<void> markRead(String conversationId) async {
     final id = await _profileId();
     if (id == null) return;
-    await ref.read(chatRepositoryProvider).markConversationRead(conversationId, id);
+    await ref
+        .read(chatRepositoryProvider)
+        .markConversationRead(conversationId, id);
   }
 
   Future<void> send(String conversationId, String content) async {
     final id = await _profileId();
-    if (id == null) return;
-    await ref.read(chatRepositoryProvider).sendMessage(conversationId, id, content);
+    if (id == null) {
+      throw Exception('تعذر تحديد حساب المستخدم');
+    }
+    final allowed = await ref.read(chatAccessProvider(conversationId).future);
+    if (!allowed) {
+      throw Exception('المحادثة متاحة فقط بعد تأكيد الحجز');
+    }
+    await ref
+        .read(chatRepositoryProvider)
+        .sendMessage(conversationId, id, content);
   }
 }
