@@ -35,6 +35,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   Future<void> _setupPresence() async {
+    final allowed = await ref.read(chatAccessProvider(widget.conversationId).future);
+    if (!allowed || !mounted) return;
+
     final currentUser = SupabaseConfig.client.auth.currentUser;
     if (currentUser == null || !mounted) return;
     final profile = await SupabaseConfig.client
@@ -48,7 +51,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     final channel = SupabaseConfig.client.channel('chat-presence:${widget.conversationId}');
     _presenceChannel = channel;
     void refreshPresence() {
-      final otherId = ref.read(chatOtherPartyProfileIdProvider(widget.conversationId)).valueOrNull;
+      final otherId = ref
+          .read(chatOtherPartyProfileIdProvider(widget.conversationId))
+          .valueOrNull;
       if (otherId == null || !mounted) return;
       var online = false;
       for (final state in channel.presenceState()) {
@@ -70,7 +75,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         .onPresenceLeave((_) => refreshPresence())
         .subscribe((status, _) async {
           if (status == RealtimeSubscribeStatus.subscribed) {
-            await channel.track({'profile_id': _currentProfileId, 'online_at': DateTime.now().toUtc().toIso8601String()});
+            await channel.track({
+              'profile_id': _currentProfileId,
+              'online_at': DateTime.now().toUtc().toIso8601String(),
+            });
             refreshPresence();
           }
         });
@@ -88,13 +96,17 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     if (text.isEmpty || _sending) return;
     setState(() => _sending = true);
     try {
-      await ref.read(chatControllerProvider.notifier).send(widget.conversationId, text);
+      await ref
+          .read(chatControllerProvider.notifier)
+          .send(widget.conversationId, text);
       _messageController.clear();
       if (mounted) setState(() {});
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+          ),
         );
       }
     } finally {
@@ -104,10 +116,70 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    final messagesAsync = ref.watch(chatMessagesProvider(widget.conversationId));
-    final otherPartyNameAsync = ref.watch(chatOtherPartyNameProvider(widget.conversationId));
-    final currentProfileIdAsync = ref.watch(currentProfileIdProvider);
     final scheme = Theme.of(context).colorScheme;
+    final accessAsync = ref.watch(chatAccessProvider(widget.conversationId));
+
+    if (accessAsync.isLoading) {
+      return Scaffold(
+        backgroundColor: scheme.surface,
+        appBar: AppBar(title: const Text('المحادثة')),
+        body: const LoadingWidget(),
+      );
+    }
+
+    if (accessAsync.hasError || accessAsync.valueOrNull != true) {
+      return Scaffold(
+        backgroundColor: scheme.surface,
+        appBar: AppBar(title: const Text('المحادثة')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.lock_outline_rounded,
+                    size: 34,
+                    color: scheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'المحادثة غير متاحة حالياً',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: scheme.onSurface,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'تُفتح المحادثة بين طالب الاستشارة والمحامي فقط بعد تأكيد الحجز.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.55,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final messagesAsync = ref.watch(chatMessagesProvider(widget.conversationId));
+    final otherPartyNameAsync =
+        ref.watch(chatOtherPartyNameProvider(widget.conversationId));
+    final currentProfileIdAsync = ref.watch(currentProfileIdProvider);
 
     return Scaffold(
       backgroundColor: scheme.surface,
@@ -140,7 +212,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: scheme.onSurface),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: scheme.onSurface,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Row(
@@ -156,7 +232,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       const SizedBox(width: 5),
                       Text(
                         _otherPartyOnline ? 'متصل الآن' : 'غير متصل',
-                        style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -173,11 +252,19 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       ),
       body: Column(
         children: [
-          Container(height: 1, color: scheme.outlineVariant.withValues(alpha: .45)),
+          Container(
+            height: 1,
+            color: scheme.outlineVariant.withValues(alpha: .45),
+          ),
           Expanded(
             child: messagesAsync.when(
               data: (messages) => ListView.builder(
-                padding: const EdgeInsets.fromLTRB(AppSizes.p20, 20, AppSizes.p20, 12),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSizes.p20,
+                  20,
+                  AppSizes.p20,
+                  12,
+                ),
                 itemCount: messages.length,
                 itemBuilder: (context, index) {
                   final msg = messages[index];
@@ -185,12 +272,19 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   return _MessageBubble(
                     message: msg.content,
                     isMe: isMe,
-                    time: msg.createdAt != null ? AppTimeFormat.time12(msg.createdAt!) : '...',
+                    time: msg.createdAt != null
+                        ? AppTimeFormat.time12(msg.createdAt!)
+                        : '...',
                   );
                 },
               ),
               loading: () => const LoadingWidget(),
-              error: (err, stack) => Center(child: Text('خطأ: $err', style: TextStyle(color: scheme.error))),
+              error: (_, __) => Center(
+                child: Text(
+                  'تعذر تحميل الرسائل. حاول مرة أخرى.',
+                  style: TextStyle(color: scheme.error),
+                ),
+              ),
             ),
           ),
           _buildInputArea(context),
@@ -207,7 +301,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       decoration: BoxDecoration(
         color: scheme.surface,
-        border: Border(top: BorderSide(color: scheme.outlineVariant.withValues(alpha: .7))),
+        border: Border(
+          top: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: .7),
+          ),
+        ),
       ),
       child: SafeArea(
         child: Row(
@@ -219,14 +317,19 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 decoration: BoxDecoration(
                   color: scheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: scheme.outlineVariant.withValues(alpha: .7)),
+                  border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: .7),
+                  ),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     IconButton(
                       onPressed: () {},
-                      icon: Icon(Icons.add_circle_outline_rounded, color: scheme.onSurfaceVariant),
+                      icon: Icon(
+                        Icons.add_circle_outline_rounded,
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
                     Expanded(
                       child: TextField(
@@ -238,7 +341,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                           hintText: 'اكتب رسالتك هنا...',
                           hintStyle: TextStyle(color: scheme.onSurfaceVariant),
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 14,
+                          ),
                         ),
                       ),
                     ),
@@ -253,13 +359,30 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               decoration: BoxDecoration(
                 color: AppColors.gold,
                 shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: AppColors.gold.withValues(alpha: .22), blurRadius: 12, offset: const Offset(0, 5))],
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.gold.withValues(alpha: .22),
+                    blurRadius: 12,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
               child: IconButton(
                 onPressed: hasText && !_sending ? _send : null,
                 icon: _sending
-                    ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.textOnPrimary))
-                    : Icon(hasText ? Icons.send_rounded : Icons.mic_none_rounded, color: AppColors.textOnPrimary, size: 21),
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.textOnPrimary,
+                        ),
+                      )
+                    : Icon(
+                        hasText ? Icons.send_rounded : Icons.mic_none_rounded,
+                        color: AppColors.textOnPrimary,
+                        size: 21,
+                      ),
               ),
             ),
           ],
@@ -274,7 +397,11 @@ class _MessageBubble extends StatelessWidget {
   final bool isMe;
   final String time;
 
-  const _MessageBubble({required this.message, required this.isMe, required this.time});
+  const _MessageBubble({
+    required this.message,
+    required this.isMe,
+    required this.time,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -285,25 +412,37 @@ class _MessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Column(
-        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
-            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .78),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * .78,
+            ),
             decoration: BoxDecoration(
               color: bubbleColor,
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(18),
                 topRight: const Radius.circular(18),
-                bottomLeft: isMe ? const Radius.circular(18) : const Radius.circular(4),
-                bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(18),
+                bottomLeft:
+                    isMe ? const Radius.circular(18) : const Radius.circular(4),
+                bottomRight:
+                    isMe ? const Radius.circular(4) : const Radius.circular(18),
               ),
               border: isMe ? null : Border.all(color: scheme.outlineVariant),
             ),
-            child: Text(message, textDirection: TextDirection.rtl, style: TextStyle(color: textColor, fontSize: 14, height: 1.45)),
+            child: Text(
+              message,
+              textDirection: TextDirection.rtl,
+              style: TextStyle(color: textColor, fontSize: 14, height: 1.45),
+            ),
           ),
           const SizedBox(height: 4),
-          Text(time, style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
+          Text(
+            time,
+            style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
+          ),
         ],
       ),
     );
