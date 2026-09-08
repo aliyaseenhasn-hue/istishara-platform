@@ -73,7 +73,7 @@ class HomePage extends ConsumerWidget {
               sliver: SliverToBoxAdapter(child: _LawyerSearchButton(onTap: () => context.push('/lawyers'))),
             ),
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
+              padding: const EdgeInsets.fromLTRB(18, 3, 18, 7),
               sliver: SliverGrid(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) => _AnimatedCategoryCard(
@@ -86,11 +86,11 @@ class HomePage extends ConsumerWidget {
                   ),
                   childCount: categories.length,
                 ),
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 250,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 6,
-                  childAspectRatio: 1.66,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 14,
+                  childAspectRatio: .74,
                 ),
               ),
             ),
@@ -303,32 +303,80 @@ class _AnimatedCategoryCard extends StatelessWidget {
     return Icons.account_balance_outlined;
   }
 
+  Color _accentColor() {
+    const colors = <Color>[
+      Color(0xFF8E24AA),
+      Color(0xFF43A047),
+      Color(0xFF1E88E5),
+      Color(0xFFFB8C00),
+      Color(0xFFE53935),
+      Color(0xFF795548),
+      Color(0xFFFF9800),
+      Color(0xFFD81B60),
+    ];
+    return colors[index % colors.length];
+  }
+
   @override
   Widget build(BuildContext context) {
+    final accent = _accentColor();
     return TweenAnimationBuilder<double>(
       key: ValueKey(title),
       tween: Tween(begin: 0, end: 1),
       duration: Duration(milliseconds: 300 + (index * 40)),
       curve: Curves.easeOutCubic,
-      builder: (context, value, child) => Opacity(opacity: value, child: Transform.translate(offset: Offset(0, 8 * (1 - value)), child: child)),
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.translate(offset: Offset(0, 8 * (1 - value)), child: child),
+      ),
       child: HoverLift(
+        lift: 3,
+        borderRadius: 18,
         child: Material(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
+          color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
-            hoverColor: AppColors.primary.withValues(alpha: .05),
-            focusColor: AppColors.primary.withValues(alpha: .07),
-            splashColor: AppColors.primary.withValues(alpha: .10),
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.outlineVariant)),
-              child: Row(textDirection: TextDirection.rtl, children: [
-                Container(width: 34, height: 34, decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: .09), borderRadius: BorderRadius.circular(10)), alignment: Alignment.center, child: Icon(_iconFor(title), color: AppColors.primary, size: 18)),
-                const SizedBox(width: 7),
-                Expanded(child: Text(title, textAlign: TextAlign.right, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textPrimary, fontSize: 11.5, fontWeight: FontWeight.w800, height: 1.2))),
-              ]),
+            borderRadius: BorderRadius.circular(18),
+            splashColor: accent.withValues(alpha: .08),
+            hoverColor: accent.withValues(alpha: .035),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: .075),
+                          blurRadius: 18,
+                          offset: const Offset(0, 7),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(_iconFor(title), color: accent, size: 34),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 30,
+                  child: Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
