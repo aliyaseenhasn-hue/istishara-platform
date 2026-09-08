@@ -15,6 +15,9 @@ class Booking {
   final String? documentUrl;
   final String? whatsappNumber;
   final bool lawyerApproved;
+  final bool paymentRequired;
+  final DateTime? paymentWaivedAt;
+  final String? paymentWaiverReason;
   final bool manualPaymentRequired;
   final double? manualReceivedAmount;
   final DateTime? manualReceivedAt;
@@ -36,13 +39,18 @@ class Booking {
     this.documentUrl,
     this.whatsappNumber,
     this.lawyerApproved = false,
+    this.paymentRequired = true,
+    this.paymentWaivedAt,
+    this.paymentWaiverReason,
     this.manualPaymentRequired = false,
     this.manualReceivedAmount,
     this.manualReceivedAt,
   });
 
   bool get isInOffice => consultationMode == 'في المكتب';
+  bool get isFreeBeta => !paymentRequired && paymentWaiverReason == 'free_beta';
   bool get isManualPaymentPending => isInOffice &&
+      paymentRequired &&
       manualPaymentRequired &&
       (manualReceivedAmount == null || manualReceivedAmount! <= 0);
 
@@ -52,6 +60,8 @@ class Booking {
     DateTime? startedAt, String? lawyerName, String? userName,
     String? consultationType, String? consultationMode, String? description,
     String? documentUrl, String? whatsappNumber, bool? lawyerApproved,
+    bool? paymentRequired, DateTime? paymentWaivedAt,
+    String? paymentWaiverReason,
     bool? manualPaymentRequired, double? manualReceivedAmount,
     DateTime? manualReceivedAt,
   }) {
@@ -72,6 +82,9 @@ class Booking {
       documentUrl: documentUrl ?? this.documentUrl,
       whatsappNumber: whatsappNumber ?? this.whatsappNumber,
       lawyerApproved: lawyerApproved ?? this.lawyerApproved,
+      paymentRequired: paymentRequired ?? this.paymentRequired,
+      paymentWaivedAt: paymentWaivedAt ?? this.paymentWaivedAt,
+      paymentWaiverReason: paymentWaiverReason ?? this.paymentWaiverReason,
       manualPaymentRequired: manualPaymentRequired ?? this.manualPaymentRequired,
       manualReceivedAmount: manualReceivedAmount ?? this.manualReceivedAmount,
       manualReceivedAt: manualReceivedAt ?? this.manualReceivedAt,

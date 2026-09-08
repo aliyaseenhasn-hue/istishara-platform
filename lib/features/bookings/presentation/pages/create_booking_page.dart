@@ -122,7 +122,9 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
       return;
     }
     await context.push(
-      _consultationMode == 'في المكتب' ? '/booking-details' : '/upload-payment',
+      booking.paymentRequired && _consultationMode != 'في المكتب'
+          ? '/upload-payment'
+          : '/booking-details',
       extra: booking,
     );
   }
@@ -131,6 +133,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(bookingsControllerProvider);
     final slots = ref.watch(availableSlotsProvider(widget.lawyer.profileId));
+    final releaseSettings = ref.watch(appReleaseSettingsProvider);
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(title: const Text('طلب استشارة')),
@@ -146,6 +149,18 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                   children: [
                     _LawyerSummary(lawyer: widget.lawyer),
                     const SizedBox(height: 14),
+                    releaseSettings.when(
+                      data: (settings) => settings['free_beta_enabled'] == true
+                          ? _FreeBetaNotice(
+                              text: settings['beta_notice']?.toString() ??
+                                  'الاستشارات مجانية خلال الفترة التجريبية، ولن يتم تحصيل أي مبلغ.',
+                            )
+                          : const SizedBox.shrink(),
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
+                    if (releaseSettings.valueOrNull?['free_beta_enabled'] == true)
+                      const SizedBox(height: 14),
                     _buildStepContent(slots),
                   ],
                 ),
@@ -267,6 +282,37 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     final date = '${slot.startsAt.day}/${slot.startsAt.month}/${slot.startsAt.year}';
     final time = TimeOfDay.fromDateTime(slot.startsAt).format(context);
     return '$date $time';
+  }
+}
+
+class _FreeBetaNotice extends StatelessWidget {
+  final String text;
+  const _FreeBetaNotice({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.science_outlined, color: scheme.onSecondaryContainer),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              textAlign: TextAlign.right,
+              style: TextStyle(color: scheme.onSecondaryContainer, height: 1.45, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

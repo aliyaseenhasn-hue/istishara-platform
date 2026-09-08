@@ -16,8 +16,12 @@ Deno.serve(async(req:Request)=>{
     const {data:userData,error:authError}=await client.auth.getUser(); if(authError||!userData.user) throw new Error("المستخدم غير مسجل دخول");
     const {data:profile,error:profileError}=await admin.from("profiles").select("id").eq("auth_id",userData.user.id).maybeSingle(); if(profileError) throw profileError; if(!profile) throw new Error("ملف المستخدم غير مكتمل");
     const body=await req.json(),bookingId=body?.booking_id; if(!bookingId) throw new Error("معرّف الحجز مطلوب");
-    const {data:booking,error:be}=await admin.from("bookings").select("id,user_id,price,status,lawyer_approved").eq("id",bookingId).maybeSingle();
+    const {data:booking,error:be}=await admin.from("bookings").select("id,user_id,price,status,lawyer_approved,payment_required").eq("id",bookingId).maybeSingle();
     if(be) throw be; if(!booking||booking.user_id!==profile.id) throw new Error("لا تملك صلاحية الدفع لهذا الحجز");
+    if(booking.payment_required===false) throw new Error("هذه الاستشارة مجانية ضمن النسخة التجريبية ولا تتطلب دفعاً");
+    const {data:releaseSettings,error:settingsError}=await admin.from("app_release_settings").select("payments_enabled").eq("id",true).maybeSingle();
+    if(settingsError) throw settingsError;
+    if(releaseSettings?.payments_enabled!==true) throw new Error("الدفع الإلكتروني غير متاح خلال الفترة التجريبية");
     if(booking.status!=="قيد انتظار الدفع" && booking.status!=="قيد معالجة الدفع") throw new Error("الحجز غير متاح للدفع في حالته الحالية");
     if(booking.price==null||Number(booking.price)<=0) throw new Error("قيمة الحجز غير صالحة للدفع");
 
