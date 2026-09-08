@@ -35,35 +35,23 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
   Future<List<Map<String, dynamic>>> _loadSlots() async {
     final lawyerId = await _profileId();
     if (lawyerId == null) return <Map<String, dynamic>>[];
-
     final rawSlots = await SupabaseConfig.client
         .from('lawyer_availability_slots')
-        .select('id, starts_at, ends_at, is_available')
+        .select('id, starts_at, ends_at, is_available, duration_minutes, price')
         .eq('lawyer_id', lawyerId)
         .order('starts_at', ascending: false);
-    final slots = (rawSlots as List)
-        .map((row) => Map<String, dynamic>.from(row as Map))
-        .toList();
+    final slots = (rawSlots as List).map((row) => Map<String, dynamic>.from(row as Map)).toList();
 
     _pendingCancellationBookings.clear();
     try {
       final requests = await SupabaseConfig.client.rpc('get_my_cancellation_requests');
       final list = requests is List ? requests : const <dynamic>[];
-      _pendingCancellationBookings.addAll(
-        list
-            .whereType<Map>()
-            .where((row) => row['status']?.toString() == 'بانتظار مراجعة الإدارة')
-            .map((row) => row['booking_id'].toString()),
-      );
+      _pendingCancellationBookings.addAll(list.whereType<Map>().where((row) => row['status']?.toString() == 'بانتظار مراجعة الإدارة').map((row) => row['booking_id'].toString()));
     } catch (_) {}
 
     if (slots.isEmpty) return slots;
-    final starts = slots
-        .map((s) => DateTime.tryParse(s['starts_at']?.toString() ?? ''))
-        .whereType<DateTime>()
-        .toList();
+    final starts = slots.map((s) => DateTime.tryParse(s['starts_at']?.toString() ?? '')).whereType<DateTime>().toList();
     if (starts.isEmpty) return slots;
-
     final minStart = starts.reduce((a, b) => a.isBefore(b) ? a : b).subtract(const Duration(minutes: 2)).toUtc().toIso8601String();
     final maxStart = starts.reduce((a, b) => a.isAfter(b) ? a : b).add(const Duration(minutes: 2)).toUtc().toIso8601String();
 
@@ -74,31 +62,22 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
           .eq('lawyer_id', lawyerId)
           .gte('scheduled_at', minStart)
           .lte('scheduled_at', maxStart)
-          .order('scheduled_at', ascending: true);
-      final bookings = (rawBookings as List)
-          .map((row) => Map<String, dynamic>.from(row as Map))
-          .toList();
-      const terminalStatuses = {'ملغي', 'ملغى', 'مسترد', 'مكتمل'};
-
+          .order('scheduled_at');
+      final bookings = (rawBookings as List).map((row) => Map<String, dynamic>.from(row as Map)).toList();
+      const terminal = {'ملغي', 'ملغى', 'مسترد', 'مكتمل'};
       for (final slot in slots) {
         final slotStart = DateTime.tryParse(slot['starts_at']?.toString() ?? '');
         if (slotStart == null) continue;
-        Map<String, dynamic>? best;
-        var bestSeconds = double.infinity;
         for (final booking in bookings) {
-          if (terminalStatuses.contains(booking['status']?.toString())) continue;
+          if (terminal.contains(booking['status']?.toString())) continue;
           final bookingStart = DateTime.tryParse(booking['scheduled_at']?.toString() ?? '');
           if (bookingStart == null) continue;
-          final seconds = bookingStart.difference(slotStart).inSeconds.abs().toDouble();
-          if (seconds <= 120 && seconds < bestSeconds) {
-            best = booking;
-            bestSeconds = seconds;
+          if (bookingStart.difference(slotStart).inSeconds.abs() <= 120) {
+            slot['booking_id'] = booking['id']?.toString();
+            slot['booking_status'] = booking['status']?.toString();
+            slot['consultation_status'] = booking['consultation_status']?.toString();
+            break;
           }
-        }
-        if (best != null) {
-          slot['booking_id'] = best['id']?.toString();
-          slot['booking_status'] = best['status']?.toString();
-          slot['consultation_status'] = best['consultation_status']?.toString();
         }
       }
     } catch (e) {
@@ -109,116 +88,116 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
 
   void _refresh() => setState(() => _slotsFuture = _loadSlots());
 
+  Future<void> _deleteSlot(String id) async {
+    try {
+      await SupabaseConfig.client.from('lawyer_availability_slots').delete().eq('id', id);
+      if (mounted) _refresh();
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر حذف الموعد حالياً.')));
+    }
+  }
+
   Future<void> _requestCancellation(Map<String, dynamic> slot) async {
     final bookingId = slot['booking_id']?.toString();
-    if (!mounted || bookingId == null || bookingId.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('لا يوجد حجز فعلي مرتبط بهذا الموعد.'), backgroundColor: AppColors.error),
-        );
-      }
-      return;
-    }
-    if (_pendingCancellationBookings.contains(bookingId) || _submittingCancellationBookings.contains(bookingId)) return;
-
+    if (bookingId == null || bookingId.isEmpty || _submittingCancellationBookings.contains(bookingId)) return;
     final controller = TextEditingController();
     final reason = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('طلب إلغاء الحجز'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('يرجى توضيح سبب إلغاء الحجز. سيتم إرسال الطلب إلى الإدارة للمراجعة.'),
-            const SizedBox(height: 14),
-            TextField(
-              controller: controller,
-              maxLines: 5,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'سبب الإلغاء', hintText: 'اكتب سبب الإلغاء هنا'),
-            ),
-          ],
-        ),
+        content: TextField(controller: controller, maxLines: 4, decoration: const InputDecoration(labelText: 'سبب الإلغاء')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
-          FilledButton(
-            onPressed: () {
-              if (controller.text.trim().isEmpty) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('سبب الإلغاء إلزامي')));
-                return;
-              }
-              Navigator.pop(dialogContext, controller.text.trim());
-            },
-            child: const Text('إرسال طلب الإلغاء'),
-          ),
+          FilledButton(onPressed: () { final value = controller.text.trim(); if (value.isNotEmpty) Navigator.pop(dialogContext, value); }, child: const Text('إرسال')),
         ],
       ),
     );
     controller.dispose();
     if (reason == null || !mounted) return;
-
     setState(() => _submittingCancellationBookings.add(bookingId));
     try {
-      await SupabaseConfig.client.rpc(
-        'request_booking_cancellation',
-        params: {'p_booking_id': bookingId, 'p_reason': reason},
-      );
+      await SupabaseConfig.client.rpc('request_booking_cancellation', params: {'p_booking_id': bookingId, 'p_reason': reason});
       if (!mounted) return;
       setState(() => _pendingCancellationBookings.add(bookingId));
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلب إلغاء الحجز إلى الإدارة للمراجعة.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلب الإلغاء إلى الإدارة.')));
       _refresh();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', '')), backgroundColor: AppColors.error),
-        );
-      }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر إرسال طلب الإلغاء حالياً.')));
     } finally {
       if (mounted) setState(() => _submittingCancellationBookings.remove(bookingId));
     }
   }
 
-  Future<void> _deleteSlot(String id) async {
-    try {
-      await SupabaseConfig.client.from('lawyer_availability_slots').delete().eq('id', id);
-      if (mounted) _refresh();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تعذر حذف الموعد: $e'), backgroundColor: AppColors.error),
-        );
-      }
-    }
-  }
-
   Future<void> _addSlot() async {
-    final date = await showDatePicker(
-      context: context,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 90)),
-      initialDate: DateTime.now().add(const Duration(days: 1)),
-    );
+    final date = await showDatePicker(context: context, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 90)), initialDate: DateTime.now().add(const Duration(days: 1)));
     if (date == null || !mounted) return;
     final time = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 10, minute: 0));
-    if (time == null) return;
+    if (time == null || !mounted) return;
+
+    int duration = 30;
+    final priceController = TextEditingController();
+    final details = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('تفاصيل الموعد'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('حدد مدة الاستشارة والسعر الخاص بهذا الموعد.'),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<int>(
+                initialValue: duration,
+                decoration: const InputDecoration(labelText: 'مدة الاستشارة'),
+                items: const [15, 30, 45, 60, 90, 120].map((m) => DropdownMenuItem(value: m, child: Text('$m دقيقة'))).toList(),
+                onChanged: (value) { if (value != null) setDialogState(() => duration = value); },
+              ),
+              const SizedBox(height: 14),
+              TextField(controller: priceController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'السعر', suffixText: 'د.ع', hintText: 'مثال: 25000')),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+            FilledButton(
+              onPressed: () {
+                final price = double.tryParse(priceController.text.trim().replaceAll(',', ''));
+                if (price == null || price <= 0) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('يرجى إدخال سعر صحيح أكبر من صفر')));
+                  return;
+                }
+                Navigator.pop(dialogContext, {'duration': duration, 'price': price});
+              },
+              child: const Text('حفظ الموعد'),
+            ),
+          ],
+        ),
+      ),
+    );
+    priceController.dispose();
+    if (details == null || !mounted) return;
+
     final start = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    final durationMinutes = details['duration'] as int;
+    final price = details['price'] as double;
     final lawyerId = await _profileId();
     if (lawyerId == null) return;
+
     try {
       await SupabaseConfig.client.from('lawyer_availability_slots').insert({
         'lawyer_id': lawyerId,
         'starts_at': start.toUtc().toIso8601String(),
-        'ends_at': start.add(const Duration(minutes: 30)).toUtc().toIso8601String(),
+        'ends_at': start.add(Duration(minutes: durationMinutes)).toUtc().toIso8601String(),
+        'duration_minutes': durationMinutes,
+        'price': price,
         'is_available': true,
       });
-      if (mounted) _refresh();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تعذر إضافة الموعد: $e'), backgroundColor: AppColors.error),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت إضافة الموعد مع المدة والسعر.')));
+      _refresh();
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر إضافة الموعد. تحقق من البيانات وحاول مرة أخرى.')));
     }
   }
 
@@ -226,68 +205,41 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
     final scheme = Theme.of(context).colorScheme;
     final start = DateTime.tryParse(slot['starts_at']?.toString() ?? '')?.toLocal();
     if (start == null) return const SizedBox.shrink();
+    final duration = int.tryParse('${slot['duration_minutes'] ?? 30}') ?? 30;
+    final price = double.tryParse('${slot['price'] ?? ''}');
     final isPast = start.isBefore(DateTime.now());
     final available = slot['is_available'] == true;
     final bookingId = slot['booking_id']?.toString();
     final isBooked = !isPast && !available && bookingId != null && bookingId.isNotEmpty;
-    final isBlocked = !isPast && !available && !isBooked;
     final pending = isBooked && _pendingCancellationBookings.contains(bookingId);
     final submitting = isBooked && _submittingCancellationBookings.contains(bookingId);
-    final statusText = isPast ? 'موعد سابق' : (isBooked ? 'محجوز' : (isBlocked ? 'غير متاح' : 'متاح للحجز'));
-    final statusColor = isPast ? scheme.onSurfaceVariant : (isBooked ? AppColors.warning : (isBlocked ? scheme.onSurfaceVariant : AppColors.success));
+    final statusText = isPast ? 'موعد سابق' : (isBooked ? 'محجوز' : (available ? 'متاح للحجز' : 'غير متاح'));
+    final statusColor = isPast ? scheme.onSurfaceVariant : (isBooked ? AppColors.warning : (available ? AppColors.success : scheme.onSurfaceVariant));
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(15),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(isPast ? Icons.history_rounded : (isBooked ? Icons.event_busy_rounded : Icons.event_available_rounded), color: statusColor, size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(DateFormat('EEEE، d MMMM yyyy', 'ar').format(start), textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 5),
-                      Text('${AppTimeFormat.time12(start)} • مدة الاستشارة 30 دقيقة', textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
-                      const SizedBox(height: 6),
-                      Text(statusText, textAlign: TextAlign.right, style: TextStyle(color: statusColor, fontWeight: FontWeight.w700, fontSize: 12)),
-                    ],
-                  ),
-                ),
-                if (!isBooked && (isPast || available))
-                  IconButton(
-                    tooltip: 'حذف الموعد',
-                    onPressed: () => _deleteSlot(slot['id'].toString()),
-                    icon: Icon(Icons.delete_outline_rounded, color: scheme.error),
-                  ),
-              ],
-            ),
-            if (isBooked)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: pending
-                      ? Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
-                          child: const Text('طلب الإلغاء بانتظار مراجعة الإدارة', style: TextStyle(fontWeight: FontWeight.w700)),
-                        )
-                      : OutlinedButton.icon(
-                          onPressed: submitting ? null : () => _requestCancellation(slot),
-                          icon: submitting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.event_busy_outlined),
-                          label: const Text('طلب إلغاء الحجز'),
-                        ),
-                ),
-              ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            Icon(isBooked ? Icons.event_busy_rounded : Icons.event_available_rounded, color: statusColor, size: 28),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text(DateFormat('EEEE، d MMMM yyyy', 'ar').format(start), textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              Text('${AppTimeFormat.time12(start)} • $duration دقيقة${price == null ? '' : ' • ${price.toStringAsFixed(0)} د.ع'}', textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+              const SizedBox(height: 6),
+              Text(statusText, textAlign: TextAlign.right, style: TextStyle(color: statusColor, fontWeight: FontWeight.w700, fontSize: 12)),
+            ])),
+            if (!isBooked && (isPast || available)) IconButton(onPressed: () => _deleteSlot(slot['id'].toString()), icon: Icon(Icons.delete_outline_rounded, color: scheme.error)),
+          ]),
+          if (isBooked) ...[
+            const SizedBox(height: 12),
+            pending
+                ? Container(padding: const EdgeInsets.all(12), alignment: Alignment.center, decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)), child: const Text('طلب الإلغاء بانتظار مراجعة الإدارة'))
+                : OutlinedButton.icon(onPressed: submitting ? null : () => _requestCancellation(slot), icon: submitting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.event_busy_outlined), label: const Text('طلب إلغاء الحجز')),
           ],
-        ),
+        ]),
       ),
     );
   }
@@ -301,23 +253,10 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
         future: _slotsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (snapshot.hasError) return Center(child: Text('تعذر تحميل المواعيد: ${snapshot.error}', textAlign: TextAlign.center));
+          if (snapshot.hasError) return const Center(child: Text('تعذر تحميل المواعيد.'));
           final slots = snapshot.data ?? const <Map<String, dynamic>>[];
-          if (slots.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('أضف موعداً واحداً على الأقل حتى تتمكن من استقبال الطلبات.', textAlign: TextAlign.center),
-              ),
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () async => _refresh(),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
-              children: slots.map(_slotCard).toList(),
-            ),
-          );
+          if (slots.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('أضف موعداً وحدد مدة الاستشارة والسعر حتى يتمكن طالب الاستشارة من اختيار ما يناسبه.', textAlign: TextAlign.center)));
+          return RefreshIndicator(onRefresh: () async => _refresh(), child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 130), children: slots.map(_slotCard).toList()));
         },
       ),
       bottomNavigationBar: FutureBuilder<List<Map<String, dynamic>>>(
@@ -326,30 +265,12 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
           final slots = snapshot.data ?? const <Map<String, dynamic>>[];
           final hasFutureAvailable = slots.any((slot) {
             final start = DateTime.tryParse(slot['starts_at']?.toString() ?? '');
-            return start != null && start.isAfter(DateTime.now()) && slot['is_available'] == true;
+            return start != null && start.isAfter(DateTime.now()) && slot['is_available'] == true && slot['price'] != null;
           });
           return SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
-              child: FilledButton.icon(
-                onPressed: hasFutureAvailable
-                    ? () {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إكمال إعداد استقبال الاستشارات بنجاح')));
-                        Future<void>.delayed(const Duration(milliseconds: 700), () {
-                          if (!context.mounted) return;
-                          context.go('/lawyer-home');
-                        });
-                      }
-                    : null,
-                icon: const Icon(Icons.check_circle_outline_rounded),
-                label: const Text('حفظ وإكمال', style: TextStyle(fontWeight: FontWeight.w800)),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  foregroundColor: AppColors.gold,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-              ),
+              child: FilledButton.icon(onPressed: hasFutureAvailable ? () => context.go('/lawyer-home') : null, icon: const Icon(Icons.check_circle_outline_rounded), label: const Text('إكمال إعداد التوفر')),
             ),
           );
         },
