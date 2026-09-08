@@ -51,11 +51,11 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 11),
               sliver: SliverToBoxAdapter(child: _ClientProfileHeader(name: name, avatarUrl: avatarUrl)),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 5, 18, 0),
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
               sliver: SliverToBoxAdapter(
                 child: bookings.when(
                   loading: () => const _StatsLoading(),
@@ -65,15 +65,15 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 4, 18, 2),
+              padding: const EdgeInsets.fromLTRB(18, 6, 18, 3),
               sliver: SliverToBoxAdapter(child: _SectionTitle(title: 'التخصصات القانونية', action: 'عرض الكل', onTap: () => context.push('/lawyers'))),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 0, 18, 5),
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 9),
               sliver: SliverToBoxAdapter(child: _LawyerSearchButton(onTap: () => context.push('/lawyers'))),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 5, 18, 10),
+              padding: const EdgeInsets.fromLTRB(18, 9, 18, 12),
               sliver: SliverGrid(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) => _AnimatedCategoryCard(
@@ -95,7 +95,7 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
+              padding: const EdgeInsets.fromLTRB(18, 2, 18, 3),
               sliver: SliverToBoxAdapter(child: _SectionTitle(title: 'محامون مقترحون', action: 'عرض الكل', onTap: () => context.push('/lawyers'))),
             ),
             lawyers.when(
@@ -106,7 +106,7 @@ class HomePage extends ConsumerWidget {
                   : SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) => Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
                           child: _SuggestedLawyerCard(lawyer: items[index] as LawyerProfile),
                         ),
                         childCount: items.length > 6 ? 6 : items.length,
@@ -138,11 +138,7 @@ class _ClientProfileHeader extends StatelessWidget {
           borderRadius: BorderRadius.circular(26),
           border: Border.all(color: AppColors.goldTransparentStrong),
           boxShadow: [
-            BoxShadow(
-              color: AppColors.primaryDark.withValues(alpha: .14),
-              blurRadius: 18,
-              offset: const Offset(0, 7),
-            ),
+            BoxShadow(color: AppColors.primaryDark.withValues(alpha: .14), blurRadius: 18, offset: const Offset(0, 7)),
           ],
         ),
         child: Row(
@@ -198,7 +194,7 @@ class _ClientStats extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(children: [
       Expanded(child: _ClientStatCard(value: total, label: 'الاستشارات', icon: Icons.forum_outlined, background: AppColors.tertiary, foreground: Colors.white)),
-      const SizedBox(width: 7),
+      const SizedBox(width: 9),
       Expanded(child: _ClientStatCard(value: completed, label: 'مكتملة', icon: Icons.verified_outlined, background: AppColors.success, foreground: Colors.white)),
     ]);
   }
@@ -217,7 +213,7 @@ class _ClientStatCard extends StatelessWidget {
     return HoverLift(
       lift: 2,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 9),
+        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 10),
         decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(15)),
         child: Row(textDirection: TextDirection.rtl, children: [
           Container(width: 32, height: 32, decoration: BoxDecoration(color: foreground.withValues(alpha: .12), borderRadius: BorderRadius.circular(10)), alignment: Alignment.center, child: Icon(icon, color: foreground, size: 18)),
@@ -235,9 +231,7 @@ class _ClientStatCard extends StatelessWidget {
 class _StatsLoading extends StatelessWidget {
   const _StatsLoading();
   @override
-  Widget build(BuildContext context) {
-    return const _ClientStats(total: '—', completed: '—');
-  }
+  Widget build(BuildContext context) => const _ClientStats(total: '—', completed: '—');
 }
 
 class _SectionTitle extends StatelessWidget {
@@ -254,12 +248,7 @@ class _SectionTitle extends StatelessWidget {
         Expanded(child: Text(title, textAlign: TextAlign.right, style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w900))),
         TextButton(
           onPressed: onTap,
-          style: TextButton.styleFrom(
-            minimumSize: const Size(0, 30),
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity.compact,
-          ),
+          style: TextButton.styleFrom(minimumSize: const Size(0, 30), padding: const EdgeInsets.symmetric(horizontal: 6), tapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact),
           child: const Text('عرض الكل', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 11.5)),
         ),
       ]),
@@ -313,16 +302,7 @@ class _AnimatedCategoryCard extends StatelessWidget {
   }
 
   Color _accentColor() {
-    const colors = <Color>[
-      Color(0xFF8E24AA),
-      Color(0xFF43A047),
-      Color(0xFF1E88E5),
-      Color(0xFFFB8C00),
-      Color(0xFFE53935),
-      Color(0xFF795548),
-      Color(0xFFFF9800),
-      Color(0xFFD81B60),
-    ];
+    const colors = <Color>[Color(0xFF8E24AA), Color(0xFF43A047), Color(0xFF1E88E5), Color(0xFFFB8C00), Color(0xFFE53935), Color(0xFF795548), Color(0xFFFF9800), Color(0xFFD81B60)];
     return colors[index % colors.length];
   }
 
@@ -334,10 +314,7 @@ class _AnimatedCategoryCard extends StatelessWidget {
       tween: Tween(begin: 0, end: 1),
       duration: Duration(milliseconds: 300 + (index * 40)),
       curve: Curves.easeOutCubic,
-      builder: (context, value, child) => Opacity(
-        opacity: value,
-        child: Transform.translate(offset: Offset(0, 8 * (1 - value)), child: child),
-      ),
+      builder: (context, value, child) => Opacity(opacity: value, child: Transform.translate(offset: Offset(0, 8 * (1 - value)), child: child)),
       child: HoverLift(
         lift: 3,
         borderRadius: 18,
@@ -348,45 +325,11 @@ class _AnimatedCategoryCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
             splashColor: accent.withValues(alpha: .08),
             hoverColor: accent.withValues(alpha: .035),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: .075),
-                          blurRadius: 18,
-                          offset: const Offset(0, 7),
-                        ),
-                      ],
-                    ),
-                    alignment: Alignment.center,
-                    child: Icon(_iconFor(title), color: accent, size: 34),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 30,
-                  child: Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      height: 1.2,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Expanded(child: Container(width: double.infinity, decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(18), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .075), blurRadius: 18, offset: const Offset(0, 7))]), alignment: Alignment.center, child: Icon(_iconFor(title), color: accent, size: 34))),
+              const SizedBox(height: 8),
+              SizedBox(height: 30, child: Text(title, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textPrimary, fontSize: 11, fontWeight: FontWeight.w700, height: 1.2))),
+            ]),
           ),
         ),
       ),
@@ -419,20 +362,20 @@ class _SuggestedLawyerCard extends StatelessWidget {
           splashColor: AppColors.primary.withValues(alpha: .10),
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(11),
             decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.outlineVariant)),
             child: Row(textDirection: TextDirection.rtl, children: [
               CircleAvatar(radius: 22, backgroundColor: AppColors.primary.withValues(alpha: .10), backgroundImage: hasAvatar ? NetworkImage(lawyer.avatarUrl!) : null, child: hasAvatar ? null : const Icon(Icons.person_outline_rounded, color: AppColors.primary)),
-              const SizedBox(width: 9),
+              const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                   const Icon(Icons.verified_user_outlined, color: AppColors.primary, size: 14),
                   const SizedBox(width: 4),
                   Flexible(child: Text(name, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w900))),
                 ]),
-                const SizedBox(height: 2),
-                Text(specialization, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 3),
+                Text(specialization, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 5),
                 Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                   const Icon(Icons.star_rounded, color: AppColors.tertiary, size: 14),
                   const SizedBox(width: 3),
@@ -461,16 +404,7 @@ class _NotificationBell extends StatelessWidget {
     return Stack(clipBehavior: Clip.none, children: [
       IconButton(onPressed: onTap, tooltip: 'الإشعارات', visualDensity: VisualDensity.compact, icon: const Icon(Icons.notifications_none_rounded, color: AppColors.primary)),
       if (unreadCount > 0)
-        Positioned(
-          top: 2,
-          right: 2,
-          child: Container(
-            constraints: const BoxConstraints(minWidth: 18),
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-            decoration: BoxDecoration(color: AppColors.tertiary, borderRadius: BorderRadius.circular(99)),
-            child: Text(unreadCount > 99 ? '99+' : '$unreadCount', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900)),
-          ),
-        ),
+        Positioned(top: 2, right: 2, child: Container(constraints: const BoxConstraints(minWidth: 18), padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2), decoration: BoxDecoration(color: AppColors.tertiary, borderRadius: BorderRadius.circular(99)), child: Text(unreadCount > 99 ? '99+' : '$unreadCount', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900)))),
     ]);
   }
 }
@@ -482,13 +416,6 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Column(children: [
-        Icon(icon, color: AppColors.textSecondary, size: 32),
-        const SizedBox(height: 6),
-        Text(text, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w700)),
-      ]),
-    );
+    return Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: Column(children: [Icon(icon, color: AppColors.textSecondary, size: 32), const SizedBox(height: 6), Text(text, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w700))]));
   }
 }
