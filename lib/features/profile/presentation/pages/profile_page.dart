@@ -143,14 +143,37 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  Future<void> _updateAvatar(BuildContext context, WidgetRef ref) async {
+  Future<void> _updateAvatar(
+    BuildContext context,
+    WidgetRef ref, {
+    String? fullName,
+    String? phone,
+    String? whatsapp,
+    String? city,
+  }) async {
     try {
       final picker = ImagePicker();
       final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 1200);
       if (image == null) return;
-      final bytes = await image.readAsBytes();
       final user = ref.read(authStateChangesProvider).value;
       if (user == null) return;
+
+      final normalizedName = fullName?.trim();
+      final normalizedPhone = phone?.trim();
+      final normalizedWhatsapp = whatsapp?.trim();
+      if (normalizedName != null || normalizedPhone != null || normalizedWhatsapp != null || city != null) {
+        if (normalizedName == null || normalizedName.isEmpty || normalizedPhone == null || normalizedPhone.isEmpty) {
+          throw Exception('الاسم الكامل ورقم الهاتف مطلوبان');
+        }
+        await SupabaseConfig.client.rpc('update_own_profile_contact', params: {
+          'p_full_name': normalizedName,
+          'p_phone': normalizedPhone,
+          'p_whatsapp_number': normalizedWhatsapp == null || normalizedWhatsapp.isEmpty ? normalizedPhone : normalizedWhatsapp,
+          'p_city': city?.trim().isEmpty == true ? null : city?.trim(),
+        });
+      }
+
+      final bytes = await image.readAsBytes();
       final ext = image.name.split('.').last.toLowerCase();
       final contentType = switch (ext) {'png' => 'image/png', 'webp' => 'image/webp', _ => 'image/jpeg'};
       final path = '${user.id}/profile_${DateTime.now().millisecondsSinceEpoch}.$ext';
@@ -158,7 +181,11 @@ class ProfilePage extends ConsumerWidget {
       final url = SupabaseConfig.client.storage.from('avatars').getPublicUrl(path);
       await SupabaseConfig.client.from('profiles').update({'avatar_url': url}).eq('auth_id', user.id);
       await ref.read(authRepositoryProvider).refreshUser();
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث الصورة الشخصية')));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(normalizedName == null ? 'تم تحديث الصورة الشخصية' : 'تم تحديث الصورة والمعلومات الشخصية بنجاح')),
+        );
+      }
     } catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر تحديث الصورة: ${e.toString().replaceFirst('Exception: ', '')}'), backgroundColor: AppColors.error));
     }
@@ -191,7 +218,22 @@ class ProfilePage extends ConsumerWidget {
                   child: Row(children: [
                     CircleAvatar(radius: 28, backgroundColor: AppColors.surfaceVariant, backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty ? NetworkImage(user.avatarUrl!) : null, child: user.avatarUrl == null || user.avatarUrl!.isEmpty ? const Icon(Icons.person_rounded, color: AppColors.primary) : null),
                     const SizedBox(width: 12),
-                    Expanded(child: OutlinedButton.icon(onPressed: saving ? null : () => _updateAvatar(context, ref), icon: const Icon(Icons.photo_camera_outlined), label: const Text('تغيير الصورة الشخصية'))),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: saving
+                            ? null
+                            : () => _updateAvatar(
+                                  context,
+                                  ref,
+                                  fullName: nameController.text,
+                                  phone: phoneController.text,
+                                  whatsapp: whatsappController.text,
+                                  city: governorateController.text,
+                                ),
+                        icon: const Icon(Icons.photo_camera_outlined),
+                        label: const Text('تغيير الصورة الشخصية'),
+                      ),
+                    ),
                   ]),
                 ),
                 const SizedBox(height: 14),
