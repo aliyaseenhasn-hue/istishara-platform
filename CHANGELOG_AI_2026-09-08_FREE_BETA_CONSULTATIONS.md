@@ -6,7 +6,7 @@
 
 ## الملفات والتغييرات
 
-- `supabase/migrations/20260908123000_add_free_beta_consultations.sql`
+- `supabase/migrations/20260908112040_add_free_beta_consultations.sql`
   - أضاف إعداد إصدار خادميًا قابلًا للتغيير، وحقولًا ثابتة تحدد ما إذا كان كل حجز يتطلب الدفع.
   - جعل الحجز المجاني ينتظر موافقة المحامي ثم يصبح مؤكدًا، بلا سجل دفع أو أثر مالي.
   - منع بدء الدفع أو تسجيله لحجز مجاني، وحافظ على تحقق الملكية وآلة حالات الحجز.
@@ -33,4 +33,4 @@
 
 ## Commit
 
-التزام التنفيذ: `21d789399047e4e42678d9e162cb3635e3478d44` (`feat: add server-controlled free beta consultations`).
+التزام التنفيذ: `91e163f` (`feat: add server-controlled free beta consultations`).
