@@ -26,7 +26,13 @@ class LawyerSetupController extends _$LawyerSetupController {
     Uint8List? idCardBytes,
   }) async {
     if (fullName.isEmpty) {
-      throw Exception('البيانات المطلوبة غير كاملة');
+      state = AsyncValue.error(Exception('البيانات المطلوبة غير كاملة'), StackTrace.current);
+      return;
+    }
+
+    if (idCardBytes == null || idCardBytes.isEmpty) {
+      state = AsyncValue.error(Exception('صورة هوية النقابة إلزامية'), StackTrace.current);
+      return;
     }
 
     ref.read(globalLoadingProvider.notifier).setLoading(true);
@@ -36,8 +42,6 @@ class LawyerSetupController extends _$LawyerSetupController {
       final lawyersRepo = ref.read(lawyersRepositoryProvider);
       final authRepo = ref.read(authRepositoryProvider);
 
-      debugPrint('--- بدء عملية إكمال الملف للمحامي ---');
-
       await authRepo.updateProfile(
         fullName: fullName,
         email: email,
@@ -45,9 +49,6 @@ class LawyerSetupController extends _$LawyerSetupController {
         onboardingCompleted: false,
       );
 
-      // Phone/OTP accounts can already have a safe default `user` profile from
-      // the auth trigger. Promote only through the guarded server RPC so the
-      // client never writes security-sensitive role fields directly.
       await SupabaseConfig.client.rpc('register_self_as_lawyer');
 
       final profileRow = await SupabaseConfig.client
@@ -57,29 +58,24 @@ class LawyerSetupController extends _$LawyerSetupController {
           .maybeSingle();
 
       if (profileRow == null) {
-        throw Exception('لم يتم العثور على سجل Profile للمستخدم');
+        throw Exception('لم يتم العثور على سجل المستخدم');
       }
       final profileId = profileRow['id'] as String;
 
       String? avatarUrl;
-      String? idCardUrl;
-
       if (profilePhotoBytes != null && profilePhotoBytes.isNotEmpty) {
         try {
           final fileName = 'avatar_${profileId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
           avatarUrl = await lawyersRepo.uploadFile(profilePhotoBytes, fileName, 'avatars');
         } catch (e) {
-          debugPrint('فشل رفع الصورة الشخصية: $e');
+          debugPrint('فشل رفع الصورة الشخصية الاختيارية: $e');
         }
       }
 
-      if (idCardBytes != null && idCardBytes.isNotEmpty) {
-        try {
-          final fileName = 'id_${profileId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-          idCardUrl = await lawyersRepo.uploadFile(idCardBytes, fileName, 'lawyer_documents');
-        } catch (e) {
-          debugPrint('فشل رفع صورة الهوية: $e');
-        }
+      final idFileName = 'id_${profileId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final idCardUrl = await lawyersRepo.uploadFile(idCardBytes, idFileName, 'lawyer_documents');
+      if (idCardUrl.trim().isEmpty) {
+        throw Exception('تعذر حفظ وثيقة التحقق. حاول رفعها مرة أخرى.');
       }
 
       final lawyerProfile = LawyerProfile(
