@@ -30,7 +30,7 @@ class PaymentsController extends _$PaymentsController {
     XFile? receiptFile,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    try {
       final repository = ref.read(paymentsRepositoryProvider);
       String? receiptUrl;
 
@@ -51,6 +51,10 @@ class PaymentsController extends _$PaymentsController {
       );
 
       await repository.createPayment(payment);
-    });
+      state = const AsyncData(null);
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
   }
 }
