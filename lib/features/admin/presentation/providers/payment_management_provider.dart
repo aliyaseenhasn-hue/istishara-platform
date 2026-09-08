@@ -13,29 +13,29 @@ class PaymentManagement extends _$PaymentManagement {
         .from('payments')
         .select()
         .eq('status', 'قيد معالجة الدفع')
+        .eq('payment_method', 'bank_transfer')
         .order('created_at');
 
     return (response as List)
-        .map((json) => PaymentModel.fromJson(json).toEntity())
+        .map((json) => PaymentModel.fromJson(Map<String, dynamic>.from(json as Map)).toEntity())
         .toList();
   }
 
   @override
-  FutureOr<List<Payment>> build() async {
-    return _fetchPendingPayments();
-  }
+  FutureOr<List<Payment>> build() async => _fetchPendingPayments();
 
-  Future<void> approvePayment(Payment payment) async {
+  Future<void> approvePayment(Payment payment, {String? note}) async {
     ref.read(globalLoadingProvider.notifier).setLoading(true);
     state = const AsyncLoading();
     try {
-      await SupabaseConfig.client
-          .from('payments')
-          .update({'status': 'تم الدفع'})
-          .eq('id', payment.id);
-
-      // لا نستدعي build() من داخل AsyncValue.guard؛ ذلك قد يعيد تشغيل
-      // دورة بناء الـ AsyncNotifier نفسها ويتسبب في Future already completed.
+      await SupabaseConfig.client.rpc(
+        'admin_review_manual_payment',
+        params: {
+          'p_payment_id': payment.id,
+          'p_approved': true,
+          'p_note': note?.trim().isEmpty == true ? null : note?.trim(),
+        },
+      );
       state = AsyncData(await _fetchPendingPayments());
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -44,21 +44,28 @@ class PaymentManagement extends _$PaymentManagement {
     }
   }
 
-  Future<void> rejectPayment(Payment payment) async {
+  Future<void> rejectPayment(Payment payment, {String? note}) async {
     ref.read(globalLoadingProvider.notifier).setLoading(true);
     state = const AsyncLoading();
     try {
-      await SupabaseConfig.client
-          .from('payments')
-          .update({'status': 'فشل الدفع'})
-          .eq('id', payment.id);
-
-      // إعادة تحميل القائمة مباشرة بدلاً من استدعاء build() بشكل متداخل.
+      await SupabaseConfig.client.rpc(
+        'admin_review_manual_payment',
+        params: {
+          'p_payment_id': payment.id,
+          'p_approved': false,
+          'p_note': note?.trim().isEmpty == true ? null : note?.trim(),
+        },
+      );
       state = AsyncData(await _fetchPendingPayments());
     } catch (e, st) {
       state = AsyncError(e, st);
     } finally {
       ref.read(globalLoadingProvider.notifier).setLoading(false);
     }
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(_fetchPendingPayments);
   }
 }
