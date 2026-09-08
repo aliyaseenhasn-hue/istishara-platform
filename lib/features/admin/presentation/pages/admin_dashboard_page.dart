@@ -28,7 +28,7 @@ class AdminDashboardPage extends ConsumerWidget {
       body: statsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => _errorView(ref),
-        data: (stats) => _dashboard(context, stats),
+        data: (stats) => _dashboard(context, ref, stats),
       ),
     );
   }
@@ -43,7 +43,11 @@ class AdminDashboardPage extends ConsumerWidget {
         ]),
       );
 
-  Widget _dashboard(BuildContext context, Map<String, dynamic> stats) => SingleChildScrollView(
+  void _openSection(BuildContext context, WidgetRef ref, String route) {
+    context.push(route).then((_) => ref.read(adminStatsProvider.notifier).refresh());
+  }
+
+  Widget _dashboard(BuildContext context, WidgetRef ref, Map<String, dynamic> stats) => SingleChildScrollView(
         padding: const EdgeInsets.all(AppSizes.p20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Container(
@@ -86,12 +90,12 @@ class AdminDashboardPage extends ConsumerWidget {
           const SizedBox(height: 24),
           const Text('الإجراءات الإدارية', textAlign: TextAlign.right, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
           const SizedBox(height: 12),
-          _buildAdminActionCard('مركز المراجعات', 'كل الطلبات التي تحتاج قراراً إدارياً', Icons.fact_check_outlined, AppColors.primary, () => context.push('/admin/reviews'), emphasized: true),
-          _buildAdminActionCard('مراجعة عدم الحضور', 'التحقق من البلاغات وعرض تفاصيل الحجز قبل القرار', Icons.person_off_outlined, AppColors.error, () => context.push('/admin/no-show-reviews')),
-          _buildAdminActionCard('طلبات إلغاء الحجوزات', 'الإلغاء والغرامات والتعويضات', Icons.event_busy_outlined, AppColors.warning, () => context.push('/admin/cancellation-requests')),
-          _buildAdminActionCard('طلبات توثيق المحامين', 'مراجعة واعتماد بيانات المحامين', Icons.verified_user_outlined, AppColors.secondaryDark, () => context.push('/admin/lawyer-verifications')),
-          _buildAdminActionCard('إدارة المستخدمين', 'البحث في الحسابات ومراجعة حالتها', Icons.people_alt_outlined, AppColors.primary, () => context.push('/admin/users')),
-          _buildAdminActionCard('الإدارة المالية', 'العمولات والأرصدة والسحوبات وسجل العمليات', Icons.account_balance_wallet_outlined, AppColors.teal, () => context.push('/admin/financial')),
+          _buildAdminActionCard('مركز المراجعات', 'كل الطلبات التي تحتاج قراراً إدارياً', Icons.fact_check_outlined, AppColors.primary, () => _openSection(context, ref, '/admin/reviews'), emphasized: true),
+          _buildAdminActionCard('مراجعة عدم الحضور', 'التحقق من البلاغات وعرض تفاصيل الحجز قبل القرار', Icons.person_off_outlined, AppColors.error, () => _openSection(context, ref, '/admin/no-show-reviews')),
+          _buildAdminActionCard('طلبات إلغاء الحجوزات', 'الإلغاء والغرامات والتعويضات', Icons.event_busy_outlined, AppColors.warning, () => _openSection(context, ref, '/admin/cancellation-requests')),
+          _buildAdminActionCard('طلبات توثيق المحامين', 'مراجعة واعتماد بيانات المحامين', Icons.verified_user_outlined, AppColors.secondaryDark, () => _openSection(context, ref, '/admin/lawyer-verifications')),
+          _buildAdminActionCard('إدارة المستخدمين', 'البحث في الحسابات ومراجعة حالتها', Icons.people_alt_outlined, AppColors.primary, () => _openSection(context, ref, '/admin/users')),
+          _buildAdminActionCard('الإدارة المالية', 'العمولات والأرصدة والسحوبات وسجل العمليات', Icons.account_balance_wallet_outlined, AppColors.teal, () => _openSection(context, ref, '/admin/financial')),
         ]),
       );
 
