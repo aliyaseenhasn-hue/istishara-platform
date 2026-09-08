@@ -155,6 +155,7 @@ class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
           final accountName = settings['account_name']?.toString().trim() ?? '';
           final accountNumber = settings['account_number']?.toString().trim() ?? '';
           final instructions = settings['instructions']?.toString().trim() ?? '';
+          final canSubmit = enabled && !_submitting && _receipt != null;
 
           return SafeArea(
             child: SingleChildScrollView(
@@ -252,27 +253,74 @@ class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
                                 ),
                             ],
                           ),
-                          if (instructions.isNotEmpty) ...[
-                            const Divider(height: 24),
-                            Text(
-                              instructions,
-                              style: TextStyle(color: scheme.onSurfaceVariant, height: 1.55),
-                            ),
-                          ],
                         ],
                       ),
                     ),
                   ),
                   const SizedBox(height: 14),
                   Container(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(16),
+                      color: scheme.tertiaryContainer,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: scheme.tertiary.withValues(alpha: .35)),
                     ),
-                    child: Text(
-                      'حوّل المبلغ الكامل إلى حساب المنصة، ثم ارفع صورة الإيصال وأدخل رقم العملية. لا يُعتبر الدفع مؤكداً إلا بعد مراجعة الإدارة.',
-                      style: TextStyle(color: scheme.onSurfaceVariant, height: 1.55),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: scheme.tertiary.withValues(alpha: .14),
+                                borderRadius: BorderRadius.circular(13),
+                              ),
+                              child: Icon(Icons.priority_high_rounded, color: scheme.tertiary),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'تعليمات مهمة قبل تأكيد الدفع',
+                                style: textTheme.titleMedium?.copyWith(
+                                  color: scheme.onTertiaryContainer,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 13),
+                        _InstructionLine(number: '1', text: 'حوّل مبلغ الاستشارة كاملاً إلى حساب المنصة الموضح أعلاه.'),
+                        const SizedBox(height: 8),
+                        _InstructionLine(number: '2', text: 'احتفظ بصورة واضحة للإيصال بعد إتمام التحويل.'),
+                        const SizedBox(height: 8),
+                        _InstructionLine(number: '3', text: 'ارفع صورة الإيصال وأدخل رقم عملية التحويل الظاهر فيه.'),
+                        const SizedBox(height: 8),
+                        _InstructionLine(number: '4', text: 'اضغط «تم الدفع وإرسال الإيصال». لن يعتبر الدفع مؤكداً إلا بعد مراجعة الإدارة.'),
+                        if (instructions.isNotEmpty) ...[
+                          const SizedBox(height: 13),
+                          Divider(color: scheme.tertiary.withValues(alpha: .25)),
+                          const SizedBox(height: 8),
+                          Text(
+                            'تعليمات إضافية من الإدارة',
+                            style: TextStyle(
+                              color: scheme.onTertiaryContainer,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            instructions,
+                            style: TextStyle(
+                              color: scheme.onTertiaryContainer,
+                              height: 1.6,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -302,6 +350,21 @@ class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                     ),
                   ),
+                  if (_receipt == null && enabled) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.lock_outline_rounded, size: 17, color: scheme.onSurfaceVariant),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'زر تأكيد الدفع سيتفعّل بعد رفع صورة الإيصال.',
+                            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12.5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   if (_error != null) ...[
                     const SizedBox(height: 12),
                     Container(
@@ -318,15 +381,21 @@ class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
                   ],
                   const SizedBox(height: 16),
                   FilledButton.icon(
-                    onPressed: enabled && !_submitting ? () => _submit(settings) : null,
+                    onPressed: canSubmit ? () => _submit(settings) : null,
                     icon: _submitting
                         ? const SizedBox(
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(Icons.verified_outlined),
-                    label: Text(_submitting ? 'جاري إرسال الإثبات...' : 'تم الدفع وإرسال الإيصال'),
+                        : Icon(_receipt == null ? Icons.lock_outline_rounded : Icons.verified_outlined),
+                    label: Text(
+                      _submitting
+                          ? 'جاري إرسال الإثبات...'
+                          : _receipt == null
+                              ? 'ارفع الإيصال أولاً'
+                              : 'تم الدفع وإرسال الإيصال',
+                    ),
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(56),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -344,6 +413,50 @@ class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
           );
         },
       ),
+    );
+  }
+}
+
+class _InstructionLine extends StatelessWidget {
+  final String number;
+  final String text;
+
+  const _InstructionLine({required this.number, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: scheme.tertiary,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Text(
+            number,
+            style: TextStyle(color: scheme.onTertiary, fontWeight: FontWeight.w900, fontSize: 12),
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              text,
+              style: TextStyle(
+                color: scheme.onTertiaryContainer,
+                height: 1.55,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
