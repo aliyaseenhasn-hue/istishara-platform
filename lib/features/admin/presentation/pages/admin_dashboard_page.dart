@@ -8,14 +8,172 @@ import '../providers/admin_provider.dart';
 
 class AdminDashboardPage extends ConsumerWidget {
   const AdminDashboardPage({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(adminStatsProvider);
-    return Scaffold(backgroundColor: AppColors.background, appBar: AppBar(title: const Text('لوحة تحكم الإدارة'), backgroundColor: AppColors.primary, foregroundColor: Colors.white, actions: [IconButton(onPressed: () => ref.read(adminStatsProvider.notifier).refresh(), icon: const Icon(Icons.refresh)), IconButton(onPressed: () => ref.read(authControllerProvider.notifier).logout(), icon: const Icon(Icons.logout))]), body: statsAsync.when(loading: () => const Center(child: CircularProgressIndicator()), error: (_, __) => _errorView(ref), data: (stats) => _dashboard(context, stats)));
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('لوحة الإدارة'),
+        centerTitle: true,
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        actions: [
+          IconButton(onPressed: () => ref.read(adminStatsProvider.notifier).refresh(), icon: const Icon(Icons.refresh_rounded), tooltip: 'تحديث'),
+          IconButton(onPressed: () => ref.read(authControllerProvider.notifier).logout(), icon: const Icon(Icons.logout_rounded), tooltip: 'تسجيل الخروج'),
+        ],
+      ),
+      body: statsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, __) => _errorView(ref),
+        data: (stats) => _dashboard(context, stats),
+      ),
+    );
   }
-  Widget _errorView(WidgetRef ref) => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.error_outline, color: AppColors.error, size: 48), const SizedBox(height: 16), const Text('تعذر تحميل الإحصائيات'), const SizedBox(height: 16), ElevatedButton(onPressed: () => ref.invalidate(adminStatsProvider), child: const Text('إعادة المحاولة'))]));
-  Widget _dashboard(BuildContext context, Map<String, dynamic> stats) => SingleChildScrollView(padding: const EdgeInsets.all(AppSizes.p20), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [const Text('نظرة عامة', textAlign: TextAlign.right, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary)), const SizedBox(height: AppSizes.p16), GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.4, children: [_buildStatCard('إجمالي المستخدمين', stats['total_users'].toString(), Icons.people, AppColors.primary), _buildStatCard('إجمالي المحامين', stats['total_lawyers'].toString(), Icons.gavel, AppColors.secondaryDark), _buildStatCard('طلبات التوثيق', stats['pending_verifications'].toString(), Icons.verified_user, AppColors.teal), _buildStatCard('الحجوزات النشطة', stats['active_bookings'].toString(), Icons.calendar_today, AppColors.success)]), const SizedBox(height: AppSizes.p32), _buildRevenueCard((stats['total_revenue'] as num?)?.toDouble() ?? 0), const SizedBox(height: AppSizes.p32), const Text('إدارة النظام', textAlign: TextAlign.right, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary)), const SizedBox(height: AppSizes.p16), _buildAdminActionCard('الإدارة المالية', 'العمولات وأرصدة المحامين وطلبات السحب وسجل العمليات', Icons.account_balance_wallet_outlined, AppColors.teal, () => context.push('/admin/financial')), _buildAdminActionCard('إدارة المستخدمين', 'البحث في الحسابات ومراجعة حالتها وبياناتها', Icons.people_alt_outlined, AppColors.primary, () => context.push('/admin/users')), _buildAdminActionCard('مركز جميع المراجعات', 'مكان موحد لكل الطلبات التي تحتاج قراراً إدارياً', Icons.fact_check_outlined, AppColors.primary, () => context.push('/admin/reviews')), _buildAdminActionCard('طلبات توثيق المحامين', 'الوصول المباشر لطلبات التوثيق المعلقة', Icons.verified_user_outlined, AppColors.secondaryDark, () => context.push('/admin/lawyer-verifications')), _buildAdminActionCard('الحجوزات الملغاة', 'مراجعة طلبات الإلغاء والغرامات والتعويضات', Icons.event_busy_outlined, AppColors.secondaryDark, () => context.push('/admin/cancellation-requests'))]));
-  Widget _buildStatCard(String title, String value, IconData icon, Color accent) => Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.outlineVariant), boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: .05), blurRadius: 16, offset: const Offset(0, 5))]), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 44, height: 44, alignment: Alignment.center, decoration: BoxDecoration(color: accent.withValues(alpha: .10), borderRadius: BorderRadius.circular(13)), child: Icon(icon, color: accent, size: 24)), const SizedBox(height: 8), Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primary)), Text(title, style: const TextStyle(fontSize: 12, color: AppColors.outline), textAlign: TextAlign.center)]));
-  Widget _buildRevenueCard(double amount) => Container(width: double.infinity, padding: const EdgeInsets.all(24), decoration: BoxDecoration(gradient: const LinearGradient(colors: [AppColors.primary, AppColors.primaryContainer], begin: Alignment.topRight, end: Alignment.bottomLeft), borderRadius: BorderRadius.circular(20)), child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [const Text('إجمالي الإيرادات', textAlign: TextAlign.right, style: TextStyle(color: Colors.white70, fontSize: 14)), const SizedBox(height: 12), Text('$amount د.ع', textAlign: TextAlign.right, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)), const SizedBox(height: 8), const Text('القيمة الإجمالية المسجلة في النظام', textAlign: TextAlign.right, style: TextStyle(color: Colors.white70, fontSize: 12))]));
-  Widget _buildAdminActionCard(String title, String subtitle, IconData icon, Color color, VoidCallback onTap) => Padding(padding: const EdgeInsets.only(bottom: 12), child: Card(child: ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), leading: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: color.withValues(alpha: .08), borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: color)), title: Text(title, textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: Text(subtitle, textAlign: TextAlign.right, style: const TextStyle(fontSize: 12)), trailing: const Icon(Icons.arrow_forward_ios, size: 14), onTap: onTap)));
+
+  Widget _errorView(WidgetRef ref) => Center(
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 48),
+          const SizedBox(height: 14),
+          const Text('تعذر تحميل لوحة الإدارة', style: TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 14),
+          FilledButton.icon(onPressed: () => ref.invalidate(adminStatsProvider), icon: const Icon(Icons.refresh_rounded), label: const Text('إعادة المحاولة')),
+        ]),
+      );
+
+  Widget _dashboard(BuildContext context, Map<String, dynamic> stats) => SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSizes.p20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [AppColors.primaryDark, AppColors.primary], begin: Alignment.topRight, end: Alignment.bottomLeft),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: const Row(children: [
+              Icon(Icons.admin_panel_settings_outlined, color: Colors.white, size: 34),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('إدارة منصة استشارة', style: TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900)),
+                  SizedBox(height: 4),
+                  Text('المستخدمون، المراجعات، الحجوزات والعمليات المالية في مكان واحد', style: TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.45)),
+                ]),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 22),
+          const Text('نظرة عامة', textAlign: TextAlign.right, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
+          const SizedBox(height: 12),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.38,
+            children: [
+              _buildStatCard('إجمالي المستخدمين', stats['total_users'].toString(), Icons.people_alt_outlined, AppColors.primary),
+              _buildStatCard('إجمالي المحامين', stats['total_lawyers'].toString(), Icons.gavel_rounded, AppColors.secondaryDark),
+              _buildStatCard('طلبات التوثيق', stats['pending_verifications'].toString(), Icons.verified_user_outlined, AppColors.warning),
+              _buildStatCard('الحجوزات النشطة', stats['active_bookings'].toString(), Icons.calendar_month_outlined, AppColors.success),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildRevenueCard((stats['total_revenue'] as num?)?.toDouble() ?? 0),
+          const SizedBox(height: 24),
+          const Text('الإجراءات الإدارية', textAlign: TextAlign.right, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
+          const SizedBox(height: 12),
+          _buildAdminActionCard('مركز المراجعات', 'كل الطلبات التي تحتاج قراراً إدارياً', Icons.fact_check_outlined, AppColors.primary, () => context.push('/admin/reviews'), emphasized: true),
+          _buildAdminActionCard('مراجعة عدم الحضور', 'التحقق من البلاغات وعرض تفاصيل الحجز قبل القرار', Icons.person_off_outlined, AppColors.error, () => context.push('/admin/no-show-reviews')),
+          _buildAdminActionCard('طلبات إلغاء الحجوزات', 'الإلغاء والغرامات والتعويضات', Icons.event_busy_outlined, AppColors.warning, () => context.push('/admin/cancellation-requests')),
+          _buildAdminActionCard('طلبات توثيق المحامين', 'مراجعة واعتماد بيانات المحامين', Icons.verified_user_outlined, AppColors.secondaryDark, () => context.push('/admin/lawyer-verifications')),
+          _buildAdminActionCard('إدارة المستخدمين', 'البحث في الحسابات ومراجعة حالتها', Icons.people_alt_outlined, AppColors.primary, () => context.push('/admin/users')),
+          _buildAdminActionCard('الإدارة المالية', 'العمولات والأرصدة والسحوبات وسجل العمليات', Icons.account_balance_wallet_outlined, AppColors.teal, () => context.push('/admin/financial')),
+        ]),
+      );
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color accent) => Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.outlineVariant),
+          boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: .035), blurRadius: 12, offset: const Offset(0, 4))],
+        ),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: accent.withValues(alpha: .10), borderRadius: BorderRadius.circular(13)),
+            child: Icon(icon, color: accent, size: 23),
+          ),
+          const SizedBox(height: 8),
+          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
+          const SizedBox(height: 2),
+          Text(title, style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
+        ]),
+      );
+
+  Widget _buildRevenueCard(double amount) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.outlineVariant),
+        ),
+        child: Row(children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(color: AppColors.acceptedBg, borderRadius: BorderRadius.circular(15)),
+            child: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.success, size: 26),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('إجمالي الإيرادات المسجلة', style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 5),
+              Text('${amount.toStringAsFixed(0)} د.ع', style: const TextStyle(color: AppColors.textPrimary, fontSize: 23, fontWeight: FontWeight.w900)),
+            ]),
+          ),
+        ]),
+      );
+
+  Widget _buildAdminActionCard(String title, String subtitle, IconData icon, Color color, VoidCallback onTap, {bool emphasized = false}) => Container(
+        margin: const EdgeInsets.only(bottom: 11),
+        decoration: BoxDecoration(
+          color: emphasized ? AppColors.primaryFixed : AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: emphasized ? AppColors.primary.withValues(alpha: .26) : AppColors.outlineVariant),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(color: color.withValues(alpha: .10), borderRadius: BorderRadius.circular(14)),
+                child: Icon(icon, color: color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4)),
+                ]),
+              ),
+              const Icon(Icons.chevron_left_rounded, color: AppColors.textSecondary),
+            ]),
+          ),
+        ),
+      );
 }
