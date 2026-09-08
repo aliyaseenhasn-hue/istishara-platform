@@ -30,20 +30,47 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function routeForNotification(record: NotificationRecord): string {
-  if (record.reference_type === "conversation" && record.reference_id) {
-    return `./chat/${encodeURIComponent(record.reference_id)}`;
+async function routeForNotification(record: NotificationRecord, supabaseAdmin: any): Promise<string> {
+  const refId = record.reference_id?.trim();
+  const refType = record.reference_type?.trim();
+  const type = record.type?.trim();
+
+  if (refType === "conversation" && refId) return `./chat/${encodeURIComponent(refId)}`;
+  if ((refType === "lawyer" || refType === "lawyer_profile") && refId) return `./lawyer-details/${encodeURIComponent(refId)}`;
+  if (refType === "booking" && refId) return `./booking-details?booking_id=${encodeURIComponent(refId)}`;
+
+  if (refType === "cancellation_request" && refId) {
+    const requestResult = await supabaseAdmin
+      .from("cancellation_requests")
+      .select("booking_id")
+      .eq("id", refId)
+      .maybeSingle();
+
+    let role: string | null = null;
+    if (record.user_id) {
+      const profileResult = await supabaseAdmin
+        .from("profiles")
+        .select("role")
+        .eq("id", record.user_id)
+        .maybeSingle();
+      role = profileResult.data?.role?.toString() ?? null;
+    }
+
+    if (role === "admin" || role === "moderator") {
+      return `./admin/cancellation-requests?request_id=${encodeURIComponent(refId)}`;
+    }
+    if (requestResult.data?.booking_id) {
+      return `./booking-details?booking_id=${encodeURIComponent(requestResult.data.booking_id)}`;
+    }
   }
-  if (
-    (record.reference_type === "lawyer" || record.reference_type === "lawyer_profile") &&
-    record.reference_id
-  ) {
-    return `./lawyer-details/${encodeURIComponent(record.reference_id)}`;
-  }
-  if (record.type === "chat") return "./chats";
-  if (record.reference_type === "booking") return "./bookings";
-  if (record.type === "booking") return "./bookings";
-  return "./notifications";
+
+  if (refType === "lawyer_penalty") return "./lawyer-wallet";
+  if (type === "specialization_change_result") return "./lawyer-specialization-change";
+  if (type === "payment") return refId && refType === "booking" ? `./booking-details?booking_id=${encodeURIComponent(refId)}` : "./bookings";
+  if (type === "chat") return "./chats";
+  if (type === "booking") return refId ? `./booking-details?booking_id=${encodeURIComponent(refId)}` : "./bookings";
+
+  return record.id ? `./notifications?notification_id=${encodeURIComponent(record.id)}` : "./notifications";
 }
 
 export default {
@@ -87,10 +114,11 @@ export default {
 
     if (!subscriptions?.length) return json({ sent: 0, removed: 0 });
 
+    const url = await routeForNotification(record, ctx.supabaseAdmin);
     const notification = JSON.stringify({
       title: record.title || "استشارة",
       body: record.body || "لديك إشعار جديد",
-      url: routeForNotification(record),
+      url,
       tag: `astshara-${record.type || "notification"}-${record.id || "new"}`,
       requireInteraction: false,
       notification_id: record.id || null,
@@ -124,6 +152,6 @@ export default {
       }
     }
 
-    return json({ sent, removed });
+    return json({ sent, removed, url });
   }),
 };
