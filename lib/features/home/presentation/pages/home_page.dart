@@ -35,12 +35,32 @@ class HomePage extends ConsumerWidget {
                 child: Row(
                   textDirection: TextDirection.rtl,
                   children: [
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                    Expanded(
+                      child: Row(
+                        textDirection: TextDirection.rtl,
                         children: [
-                          Text('استشارة', style: TextStyle(color: AppColors.primary, fontSize: 19, fontWeight: FontWeight.w900)),
-                          Text('مساحتك للاستشارات القانونية', style: TextStyle(color: AppColors.textSecondary, fontSize: 10.5)),
+                          Container(
+                            width: 46,
+                            height: 46,
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppColors.primary.withValues(alpha: .25)),
+                              boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: .12), blurRadius: 10, offset: const Offset(0, 3))],
+                            ),
+                            child: ClipRRect(borderRadius: BorderRadius.circular(11), child: Image.asset('assets/icons/app_icon.png', fit: BoxFit.cover)),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('استشارة', style: TextStyle(color: AppColors.primary, fontSize: 22, fontWeight: FontWeight.w900)),
+                                Text('مساحتك للاستشارات القانونية', style: TextStyle(color: AppColors.textSecondary, fontSize: 10.5)),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
