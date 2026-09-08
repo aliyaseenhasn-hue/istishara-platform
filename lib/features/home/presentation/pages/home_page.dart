@@ -51,11 +51,11 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 11),
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 15),
               sliver: SliverToBoxAdapter(child: _ClientProfileHeader(name: name, avatarUrl: avatarUrl)),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 2),
               sliver: SliverToBoxAdapter(
                 child: bookings.when(
                   loading: () => const _StatsLoading(),
@@ -65,7 +65,7 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 6, 18, 3),
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 3),
               sliver: SliverToBoxAdapter(child: _SectionTitle(title: 'التخصصات القانونية', action: 'عرض الكل', onTap: () => context.push('/lawyers'))),
             ),
             SliverPadding(
@@ -73,7 +73,7 @@ class HomePage extends ConsumerWidget {
               sliver: SliverToBoxAdapter(child: _LawyerSearchButton(onTap: () => context.push('/lawyers'))),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 9, 18, 12),
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 20),
               sliver: SliverGrid(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) => _AnimatedCategoryCard(
@@ -95,7 +95,7 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 2, 18, 3),
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 5),
               sliver: SliverToBoxAdapter(child: _SectionTitle(title: 'محامون مقترحون', action: 'عرض الكل', onTap: () => context.push('/lawyers'))),
             ),
             lawyers.when(
