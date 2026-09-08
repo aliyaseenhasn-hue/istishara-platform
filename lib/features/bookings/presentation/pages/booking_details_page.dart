@@ -9,6 +9,7 @@ import '../../../payments/presentation/providers/payments_provider.dart';
 import '../../../reviews/presentation/widgets/review_dialog.dart';
 import '../../domain/entities/booking.dart';
 import '../providers/bookings_provider.dart';
+import '../widgets/booking_participant_identity_card.dart';
 
 class BookingDetailsPage extends ConsumerWidget {
   final Booking booking;
@@ -35,6 +36,13 @@ class BookingDetailsPage extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 110),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           _hero(context),
+          const SizedBox(height: 14),
+          BookingParticipantIdentityCard(
+            bookingId: booking.id,
+            isLawyer: isLawyer,
+            clientFallbackName: booking.userName,
+            lawyerFallbackName: details.valueOrNull?['lawyer_name']?.toString() ?? booking.lawyerName,
+          ),
           const SizedBox(height: 14),
           if (isLawyer) ...[
             _section(context, 'بيانات طالب الاستشارة', Icons.person_outline_rounded, clientName.when(
