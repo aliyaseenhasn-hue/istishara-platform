@@ -48,7 +48,6 @@ class _LawyerProfileEditPageState extends ConsumerState<LawyerProfileEditPage> {
 
   bool get _hasProfileChanges => _initialProfileSignature == null || _buildProfileSignature() != _initialProfileSignature;
 
-  @override
   Future<void> _loadProfile() async {
     final user = ref.read(authStateChangesProvider).value;
     if (user == null) return;
