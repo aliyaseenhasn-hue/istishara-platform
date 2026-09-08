@@ -48,14 +48,29 @@ class BookingsRepositoryImpl implements BookingsRepository {
 
   @override
   Future<List<Booking>> getUserBookings(String userId) async {
-    final response = await _supabase.from('bookings').select().eq('user_id', userId).order('created_at', ascending: false);
-    return (response as List).map((json) => BookingModel.fromJson(Map<String, dynamic>.from(json as Map)).toEntity()).toList();
+    final response = await _supabase
+        .from('bookings')
+        .select()
+        .eq('user_id', userId)
+        .isFilter('archived_by_user_at', null)
+        .order('created_at', ascending: false);
+    return (response as List)
+        .map((json) => BookingModel.fromJson(Map<String, dynamic>.from(json as Map)).toEntity())
+        .toList();
   }
 
   @override
   Future<List<Booking>> getLawyerBookings(String lawyerId) async {
-    final response = await _supabase.from('bookings').select().eq('lawyer_id', lawyerId).isFilter('deleted_by_lawyer_at', null).order('created_at', ascending: false);
-    return (response as List).map((json) => BookingModel.fromJson(Map<String, dynamic>.from(json as Map)).toEntity()).toList();
+    final response = await _supabase
+        .from('bookings')
+        .select()
+        .eq('lawyer_id', lawyerId)
+        .isFilter('archived_by_lawyer_at', null)
+        .isFilter('deleted_by_lawyer_at', null)
+        .order('created_at', ascending: false);
+    return (response as List)
+        .map((json) => BookingModel.fromJson(Map<String, dynamic>.from(json as Map)).toEntity())
+        .toList();
   }
 
   @override
