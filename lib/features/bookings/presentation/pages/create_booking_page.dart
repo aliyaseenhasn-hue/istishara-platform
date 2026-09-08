@@ -34,6 +34,8 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
   String? _fileName;
   bool _followingLawyer = false;
 
+  bool get _usesCustomConsultation => widget.isCustom || widget.lawyer.services.isEmpty;
+
   @override
   void initState() {
     super.initState();
@@ -89,12 +91,12 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
 
   bool _validateStep() {
     if (_step == 0) {
-      if (!widget.isCustom && _package == null) {
+      if (!_usesCustomConsultation && _package == null) {
         _showMessage('يرجى اختيار نوع الاستشارة');
         return false;
       }
-      if (widget.isCustom && _customConsultationTypeController.text.trim().isEmpty) {
-        _showMessage('يرجى كتابة نوع الاستشارة');
+      if (_usesCustomConsultation && _customConsultationTypeController.text.trim().isEmpty) {
+        _showMessage('يرجى كتابة موضوع الاستشارة');
         return false;
       }
     }
@@ -123,21 +125,28 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     });
   }
 
+  String _bookingDescription() {
+    final details = _descriptionController.text.trim();
+    if (!_usesCustomConsultation) return details;
+    final subject = _customConsultationTypeController.text.trim();
+    if (details.isEmpty) return 'موضوع الاستشارة: $subject';
+    return 'موضوع الاستشارة: $subject\n\n$details';
+  }
+
   Future<void> _submitBooking() async {
     final user = ref.read(authStateChangesProvider).value;
     if (user == null) {
       _showMessage('يرجى تسجيل الدخول أولاً');
       return;
     }
-    final type = widget.isCustom ? _customConsultationTypeController.text.trim() : _consultationType;
     final booking = await ref.read(bookingsControllerProvider.notifier).createBooking(
       lawyerId: widget.lawyer.profileId,
-      serviceId: _package?.id,
+      serviceId: _usesCustomConsultation ? null : _package?.id,
       scheduledAt: _selectedSlot?.startsAt,
       slotId: _selectedSlot?.id,
-      consultationType: type,
+      consultationType: _consultationType,
       consultationMode: _consultationMode,
-      description: _descriptionController.text.trim(),
+      description: _bookingDescription(),
       documentBytes: _fileBytes,
       documentName: _fileName,
     );
@@ -147,7 +156,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
       _showMessage(error?.toString().replaceFirst('Exception: ', '') ?? 'تعذر إنشاء الحجز');
       return;
     }
-    await context.push(booking.paymentRequired && _consultationMode != 'في المكتب' ? '/upload-payment' : '/booking-details', extra: booking);
+    await context.push(booking.paymentRequired ? '/upload-payment' : '/booking-details', extra: booking);
   }
 
   @override
@@ -238,10 +247,10 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
           subtitle: 'اختر نوع الاستشارة وطريقة تنفيذها.',
           icon: Icons.forum_outlined,
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            if (!widget.isCustom && widget.lawyer.services.isNotEmpty)
+            if (!_usesCustomConsultation)
               ...widget.lawyer.services.map((service) => _SelectablePackage(service: service, selected: _package?.id == service.id, onTap: () => setState(() => _package = service)))
             else
-              TextField(controller: _customConsultationTypeController, decoration: const InputDecoration(labelText: 'نوع الاستشارة', hintText: 'اكتب نوع الاستشارة', prefixIcon: Icon(Icons.balance_outlined))),
+              TextField(controller: _customConsultationTypeController, decoration: const InputDecoration(labelText: 'موضوع الاستشارة', hintText: 'مثال: نزاع إيجار أو قضية جزائية', prefixIcon: Icon(Icons.balance_outlined))),
             const SizedBox(height: 14),
             _SelectField<String>(label: 'طريقة التنفيذ', value: _consultationMode, items: const ['عن بعد', 'في المكتب'], icon: Icons.location_on_outlined, onChanged: (value) => setState(() => _consultationMode = value)),
             const SizedBox(height: 12),
@@ -269,8 +278,9 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
           icon: Icons.fact_check_outlined,
           child: Column(children: [
             _ReviewRow(label: 'المحامي', value: widget.lawyer.fullName ?? 'محامي'),
-            _ReviewRow(label: 'الخدمة', value: widget.isCustom ? 'استشارة مختلفة' : (_package?.title ?? 'غير محددة')),
-            _ReviewRow(label: 'نوع التواصل', value: widget.isCustom ? _customConsultationTypeController.text.trim() : _consultationType),
+            _ReviewRow(label: 'الخدمة', value: _usesCustomConsultation ? 'استشارة مختلفة' : (_package?.title ?? 'غير محددة')),
+            if (_usesCustomConsultation) _ReviewRow(label: 'الموضوع', value: _customConsultationTypeController.text.trim()),
+            _ReviewRow(label: 'نوع التواصل', value: _consultationType),
             _ReviewRow(label: 'طريقة التنفيذ', value: _consultationMode),
             if (_selectedSlot != null) ...[
               _ReviewRow(label: 'الموعد', value: _formatSlot(_selectedSlot!)),
