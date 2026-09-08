@@ -22,7 +22,7 @@ class _AdminReviewsPageState extends State<AdminReviewsPage> {
   Future<Map<String, int>> _counts() async {
     final c = SupabaseConfig.client;
     final results = await Future.wait([
-      c.from('lawyer_profiles').select('id').eq('verified', false),
+      c.from('lawyer_profiles').select('id').eq('verified', false).eq('verification_status', 'pending'),
       c.from('cancellation_requests').select('id').eq('status', 'بانتظار مراجعة الإدارة'),
       c.from('specialization_change_requests').select('id').eq('status', 'pending'),
       c.from('payments').select('id').eq('status', 'قيد معالجة الدفع').eq('payment_method', 'bank_transfer'),
