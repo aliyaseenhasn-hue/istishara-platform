@@ -57,18 +57,25 @@ class BookingParticipantIdentityCard extends ConsumerWidget {
     );
   }
 
+  String? _cleanValue(dynamic value) {
+    if (value == null) return null;
+    final text = value.toString().trim();
+    return text.isEmpty ? null : text;
+  }
+
   Widget _card(BuildContext context, Map<String, dynamic>? data) {
     final scheme = Theme.of(context).colorScheme;
+    final clientName = _cleanValue(data?['client_name']);
+    final lawyerName = _cleanValue(data?['lawyer_name']);
+    final clientFallback = _cleanValue(clientFallbackName);
+    final lawyerFallback = _cleanValue(lawyerFallbackName);
+
     final name = isLawyer
-        ? (data?['client_name']?.toString().trim().isNotEmpty == true
-            ? data!['client_name'].toString().trim()
-            : (clientFallbackName?.trim().isNotEmpty == true ? clientFallbackName!.trim() : 'طالب استشارة'))
-        : (data?['lawyer_name']?.toString().trim().isNotEmpty == true
-            ? data!['lawyer_name'].toString().trim()
-            : (lawyerFallbackName?.trim().isNotEmpty == true ? lawyerFallbackName!.trim() : 'المحامي'));
+        ? (clientName ?? clientFallback ?? 'طالب استشارة')
+        : (lawyerName ?? lawyerFallback ?? 'المحامي');
     final avatarUrl = isLawyer
-        ? data?['client_avatar_url']?.toString().trim()
-        : data?['lawyer_avatar_url']?.toString().trim();
+        ? _cleanValue(data?['client_avatar_url'])
+        : _cleanValue(data?['lawyer_avatar_url']);
     final label = isLawyer ? 'طالب الاستشارة' : 'المحامي';
     final initial = name.isNotEmpty ? name.substring(0, 1) : (isLawyer ? 'ط' : 'م');
 
@@ -85,8 +92,9 @@ class BookingParticipantIdentityCard extends ConsumerWidget {
           CircleAvatar(
             radius: 28,
             backgroundColor: scheme.primaryContainer,
-            backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
-            child: avatarUrl == null || avatarUrl.isEmpty
+            backgroundImage:
+                avatarUrl != null ? NetworkImage(avatarUrl) : null,
+            child: avatarUrl == null
                 ? Text(
                     initial,
                     style: TextStyle(
