@@ -1,157 +1,398 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
+
 import '../../../../core/config/supabase_config.dart';
-import '../../../../shared/widgets/loading_widget.dart';
-import 'package:astshara/features/bookings/domain/entities/booking.dart';
-import 'package:astshara/features/bookings/presentation/providers/bookings_provider.dart';
-import '../../data/services/qicard_payment_service.dart';
+import '../../../bookings/domain/entities/booking.dart';
+import '../../../bookings/presentation/providers/bookings_provider.dart';
+import '../providers/payments_provider.dart';
 
 class PaymentUploadPage extends ConsumerStatefulWidget {
   final Booking booking;
+
   const PaymentUploadPage({super.key, required this.booking});
+
   @override
   ConsumerState<PaymentUploadPage> createState() => _PaymentUploadPageState();
 }
 
-class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> with WidgetsBindingObserver {
-  bool _loading = false;
-  bool _checkingPayment = false;
-  bool _opened = false;
+class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
+  final _transactionController = TextEditingController();
+  late Future<Map<String, dynamic>> _settingsFuture;
+  XFile? _receipt;
+  bool _submitting = false;
   String? _error;
-  Timer? _pollTimer;
-
-  QiCardPaymentService get _paymentService => QiCardPaymentService(SupabaseConfig.client);
 
   @override
-  void initState() { super.initState(); WidgetsBinding.instance.addObserver(this); }
-  @override
-  void dispose() { _pollTimer?.cancel(); WidgetsBinding.instance.removeObserver(this); super.dispose(); }
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) { if (state == AppLifecycleState.resumed) _checkPaymentStatus(showErrors: false); }
-
-  Future<void> _startQiCardPayment() async {
-    if (_loading) return;
-    setState(() { _loading = true; _error = null; });
-    try {
-      final formUrl = await _paymentService.createPayment(bookingId: widget.booking.id);
-      final uri = Uri.tryParse(formUrl);
-      if (uri == null || !(await canLaunchUrl(uri))) throw Exception('تعذر فتح صفحة الدفع');
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!launched) throw Exception('تعذر فتح صفحة الدفع الآمنة لكي كارد');
-      if (!mounted) return;
-      setState(() => _opened = true);
-      _pollTimer?.cancel();
-      _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _checkPaymentStatus(showErrors: false));
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم فتح بوابة كي كارد. بعد إتمام الدفع سيجري تحديث حالة الحجز تلقائياً.')));
-    } catch (e) {
-      if (mounted) setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
-    } finally { if (mounted) setState(() => _loading = false); }
+  void initState() {
+    super.initState();
+    _settingsFuture = _loadSettings();
   }
 
-  Future<void> _refreshBookingAfterPayment() async {
-    ref.invalidate(userBookingsProvider); ref.invalidate(lawyerBookingsProvider);
-    try {
-      final bookings = await ref.read(userBookingsProvider.future);
-      Booking? updated;
-      for (final booking in bookings) { if (booking.id == widget.booking.id) { updated = booking; break; } }
-      if (!mounted) return;
-      if (updated != null) { context.go('/booking-details', extra: updated); return; }
-    } catch (_) {}
-    if (mounted) context.go('/bookings');
+  @override
+  void dispose() {
+    _transactionController.dispose();
+    super.dispose();
   }
 
-  Future<void> _checkPaymentStatus({required bool showErrors}) async {
-    if (_checkingPayment || !mounted) return;
-    _checkingPayment = true;
-    try {
-      final result = await _paymentService.checkPaymentStatus(bookingId: widget.booking.id);
-      final paymentStatus = result['payment_status']?.toString();
-      final bookingStatus = result['booking_status']?.toString();
-      if (!mounted) return;
-      if (paymentStatus == 'تم الدفع' || bookingStatus == 'قيد مراجعة المحامي' || bookingStatus == 'مؤكد') {
-        _pollTimer?.cancel(); await _refreshBookingAfterPayment(); return;
-      }
-      if (paymentStatus == 'فشل الدفع') {
-        _pollTimer?.cancel();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لم تكتمل عملية الدفع. يمكنك المحاولة مرة أخرى.')));
-      }
-    } catch (e) {
-      if (showErrors && mounted) setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
-    } finally { _checkingPayment = false; }
+  Future<Map<String, dynamic>> _loadSettings() async {
+    final response = await SupabaseConfig.client.rpc('get_manual_payment_settings');
+    if (response is List && response.isNotEmpty) {
+      return Map<String, dynamic>.from(response.first as Map);
+    }
+    if (response is Map) return Map<String, dynamic>.from(response);
+    return <String, dynamic>{'enabled': false};
+  }
+
+  Future<void> _pickReceipt() async {
+    final image = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 82,
+      maxWidth: 1600,
+    );
+    if (image == null || !mounted) return;
+    setState(() {
+      _receipt = image;
+      _error = null;
+    });
+  }
+
+  Future<void> _copyAccount(String value) async {
+    if (value.trim().isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: value.trim()));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تم نسخ رقم الحساب/المحفظة')),
+    );
+  }
+
+  Future<void> _submit(Map<String, dynamic> settings) async {
+    if (_submitting) return;
+    if (settings['enabled'] != true) {
+      setState(() => _error = 'طريقة الدفع اليدوي غير مفعلة حالياً.');
+      return;
+    }
+    if (_receipt == null) {
+      setState(() => _error = 'يجب رفع صورة إيصال الدفع قبل الضغط على تم الدفع.');
+      return;
+    }
+    final transactionNumber = _transactionController.text.trim();
+    if (transactionNumber.isEmpty) {
+      setState(() => _error = 'يرجى إدخال رقم عملية التحويل الموجود في الإيصال.');
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    await ref.read(paymentsControllerProvider.notifier).submitPayment(
+          bookingId: widget.booking.id,
+          amount: widget.booking.price,
+          method: 'bank_transfer',
+          transactionNumber: transactionNumber,
+          receiptFile: _receipt,
+        );
+
+    final state = ref.read(paymentsControllerProvider);
+    if (!mounted) return;
+    if (state.hasError) {
+      setState(() {
+        _submitting = false;
+        _error = state.error.toString().replaceFirst('Exception: ', '');
+      });
+      return;
+    }
+
+    ref.invalidate(bookingPaymentProvider(widget.booking.id));
+    ref.invalidate(userBookingsProvider);
+    ref.invalidate(lawyerBookingsProvider);
+
+    setState(() => _submitting = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم إرسال إيصال الدفع إلى الإدارة للمراجعة. سيتم إشعارك بعد التحقق.'),
+      ),
+    );
+    context.go('/bookings');
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final priceText = widget.booking.price.toStringAsFixed(widget.booking.price.truncateToDouble() == widget.booking.price ? 0 : 2);
+    final priceText = widget.booking.price.toStringAsFixed(
+      widget.booking.price.truncateToDouble() == widget.booking.price ? 0 : 2,
+    );
+
     return Scaffold(
       backgroundColor: scheme.surface,
-      appBar: AppBar(title: const Text('إكمال الدفع'), centerTitle: true),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Container(
-              padding: const EdgeInsets.fromLTRB(18, 20, 18, 22),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft, colors: [scheme.primary, scheme.tertiary]),
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [BoxShadow(color: scheme.primary.withValues(alpha: .20), blurRadius: 22, offset: const Offset(0, 10))],
+      appBar: AppBar(
+        title: const Text('دفع الاستشارة'),
+        centerTitle: true,
+        surfaceTintColor: Colors.transparent,
+      ),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _settingsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return _LoadError(
+              onRetry: () => setState(() => _settingsFuture = _loadSettings()),
+            );
+          }
+
+          final settings = snapshot.data ?? const <String, dynamic>{};
+          final enabled = settings['enabled'] == true;
+          final provider = (settings['provider_name']?.toString().trim().isNotEmpty ?? false)
+              ? settings['provider_name'].toString().trim()
+              : 'تحويل يدوي';
+          final accountName = settings['account_name']?.toString().trim() ?? '';
+          final accountNumber = settings['account_number']?.toString().trim() ?? '';
+          final instructions = settings['instructions']?.toString().trim() ?? '';
+
+          return SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 36),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.account_balance_wallet_outlined,
+                            size: 34, color: scheme.onPrimaryContainer),
+                        const SizedBox(height: 8),
+                        Text(
+                          'المبلغ المطلوب',
+                          style: textTheme.titleMedium?.copyWith(
+                            color: scheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '$priceText د.ع',
+                          style: textTheme.headlineMedium?.copyWith(
+                            color: scheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (!enabled)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: scheme.errorContainer,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline_rounded, color: scheme.onErrorContainer),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'طريقة الدفع قيد الإعداد من الإدارة ولن يُطلب منك تحويل أي مبلغ حتى يتم تفعيلها.',
+                              style: TextStyle(color: scheme.onErrorContainer, height: 1.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (!enabled) const SizedBox(height: 16),
+                  Card(
+                    elevation: 0,
+                    color: scheme.surfaceContainerLowest,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(color: scheme.outlineVariant),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(17),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text('بيانات التحويل',
+                              style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+                          const SizedBox(height: 14),
+                          _InfoRow(label: 'طريقة التحويل', value: provider),
+                          if (accountName.isNotEmpty) ...[
+                            const Divider(height: 24),
+                            _InfoRow(label: 'اسم الحساب', value: accountName),
+                          ],
+                          const Divider(height: 24),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: _InfoRow(
+                                  label: 'رقم الحساب/المحفظة',
+                                  value: accountNumber.isEmpty ? 'غير محدد بعد' : accountNumber,
+                                ),
+                              ),
+                              if (accountNumber.isNotEmpty)
+                                IconButton(
+                                  tooltip: 'نسخ',
+                                  onPressed: () => _copyAccount(accountNumber),
+                                  icon: const Icon(Icons.copy_rounded),
+                                ),
+                            ],
+                          ),
+                          if (instructions.isNotEmpty) ...[
+                            const Divider(height: 24),
+                            Text(
+                              instructions,
+                              style: TextStyle(color: scheme.onSurfaceVariant, height: 1.55),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      'حوّل المبلغ الكامل إلى حساب المنصة، ثم ارفع صورة الإيصال وأدخل رقم العملية. لا يُعتبر الدفع مؤكداً إلا بعد مراجعة الإدارة.',
+                      style: TextStyle(color: scheme.onSurfaceVariant, height: 1.55),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _transactionController,
+                    enabled: enabled && !_submitting,
+                    textInputAction: TextInputAction.done,
+                    decoration: const InputDecoration(
+                      labelText: 'رقم عملية التحويل',
+                      hintText: 'اكتب الرقم الظاهر في الإيصال',
+                      prefixIcon: Icon(Icons.numbers_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: enabled && !_submitting ? _pickReceipt : null,
+                    icon: Icon(_receipt == null
+                        ? Icons.upload_file_rounded
+                        : Icons.check_circle_outline_rounded),
+                    label: Text(
+                      _receipt == null
+                          ? 'رفع إيصال الدفع (إلزامي)'
+                          : 'تم اختيار الإيصال: ${_receipt!.name}',
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(54),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(13),
+                      decoration: BoxDecoration(
+                        color: scheme.errorContainer,
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Text(
+                        _error!,
+                        style: TextStyle(color: scheme.onErrorContainer, height: 1.4),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: enabled && !_submitting ? () => _submit(settings) : null,
+                    icon: _submitting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.verified_outlined),
+                    label: Text(_submitting ? 'جاري إرسال الإثبات...' : 'تم الدفع وإرسال الإيصال'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(56),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextButton.icon(
+                    onPressed: _submitting ? null : () => context.go('/bookings'),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    label: const Text('العودة إلى استشاراتي'),
+                  ),
+                ],
               ),
-              child: Column(children: [
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Container(width: 46, height: 46, decoration: BoxDecoration(color: Colors.white.withValues(alpha: .18), borderRadius: BorderRadius.circular(15)), child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 27)),
-                  const SizedBox(width: 12),
-                  Text('إجمالي مبلغ الحجز', style: textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-                ]),
-                const SizedBox(height: 12),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text('$priceText د.ع', textAlign: TextAlign.center, style: textTheme.displaySmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: .2)),
-                ),
-                const SizedBox(height: 6),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.white.withValues(alpha: .14), borderRadius: BorderRadius.circular(20)), child: Text('المبلغ المطلوب دفعه لإتمام الحجز', style: textTheme.bodySmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w600))),
-              ]),
             ),
-            const SizedBox(height: 18),
-            Card(elevation: 0, color: scheme.surfaceContainerLowest, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: BorderSide(color: scheme.outlineVariant)), child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Container(width: 44, height: 44, decoration: BoxDecoration(color: scheme.primary.withValues(alpha: .10), borderRadius: BorderRadius.circular(14)), child: Icon(Icons.verified_user_outlined, color: scheme.primary)),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('دفع آمن', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: scheme.onSurface)), const SizedBox(height: 2), Text('بوابة كي كارد الرسمية', style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant))])),
-              ]),
-              const SizedBox(height: 16),
-              _infoRow(context, Icons.credit_card_outlined, 'طريقة الدفع', 'كي كارد'),
-              const SizedBox(height: 10),
-              _infoRow(context, Icons.lock_outline_rounded, 'حماية البيانات', 'يتم الدفع خارج التطبيق'),
-              const SizedBox(height: 14),
-              Container(width: double.infinity, padding: const EdgeInsets.all(13), decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(14)), child: Text('سيتم نقلك إلى صفحة الدفع الآمنة الخاصة بكي كارد. لا يتم إدخال بيانات البطاقة داخل تطبيق الاستشارة.', style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant, height: 1.55))),
-            ]))),
-            const SizedBox(height: 16),
-            if (_opened) Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: scheme.primaryContainer.withValues(alpha: .5), borderRadius: BorderRadius.circular(16)), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.sync_rounded, color: scheme.primary), const SizedBox(width: 10), Expanded(child: Text('تم فتح بوابة الدفع. نتحقق تلقائياً من العملية، ويمكنك العودة إلى التطبيق بعد إتمام الدفع.', style: textTheme.bodySmall?.copyWith(color: scheme.onSurface, height: 1.5)))])),
-            if (_opened) const SizedBox(height: 12),
-            if (_error != null) ...[
-              Container(padding: const EdgeInsets.all(13), decoration: BoxDecoration(color: scheme.errorContainer, borderRadius: BorderRadius.circular(16)), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.error_outline_rounded, color: scheme.error), const SizedBox(width: 10), Expanded(child: Text(_error!, style: TextStyle(color: scheme.onErrorContainer, height: 1.5)))])),
-              const SizedBox(height: 12),
-            ],
-            _loading ? const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: LoadingWidget()) : ElevatedButton.icon(onPressed: _startQiCardPayment, icon: Icon(_opened ? Icons.refresh_rounded : Icons.lock_outline_rounded), label: Text(_opened ? 'إعادة فتح صفحة الدفع' : 'الدفع بواسطة كي كارد'), style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(54), backgroundColor: scheme.primary, foregroundColor: scheme.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(onPressed: _checkingPayment ? null : () => _checkPaymentStatus(showErrors: true), icon: const Icon(Icons.sync_rounded), label: Text(_checkingPayment ? 'جاري التحقق...' : 'تحقق من حالة الدفع'), style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
-            const SizedBox(height: 16),
-            Center(child: TextButton.icon(onPressed: () => context.go('/bookings'), icon: const Icon(Icons.arrow_back_rounded), label: const Text('العودة إلى حجوزاتي'))),
-          ]),
-        ),
+          );
+        },
       ),
     );
   }
+}
 
-  Widget _infoRow(BuildContext context, IconData icon, String label, String value) {
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Row(children: [Icon(icon, size: 20, color: scheme.onSurfaceVariant), const SizedBox(width: 10), Text(label, style: TextStyle(color: scheme.onSurfaceVariant)), const Spacer(), Text(value, style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w700))]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+        const SizedBox(height: 4),
+        SelectableText(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+      ],
+    );
+  }
+}
+
+class _LoadError extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _LoadError({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_outlined, size: 48),
+            const SizedBox(height: 12),
+            const Text('تعذر تحميل بيانات الدفع'),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('إعادة المحاولة'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
