@@ -32,13 +32,6 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
     return row?['id']?.toString();
   }
 
-  bool _isValidFutureSlot(Map<String, dynamic> slot) {
-    final start = DateTime.tryParse(slot['starts_at']?.toString() ?? '')?.toLocal();
-    final price = double.tryParse('${slot['price'] ?? ''}') ?? 0;
-    final duration = int.tryParse('${slot['duration_minutes'] ?? ''}') ?? 0;
-    return start != null && start.isAfter(DateTime.now()) && price > 0 && duration > 0;
-  }
-
   Future<List<Map<String, dynamic>>> _loadSlots() async {
     final lawyerId = await _profileId();
     if (lawyerId == null) return <Map<String, dynamic>>[];
@@ -271,22 +264,15 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
           return RefreshIndicator(onRefresh: _refresh, child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 130), children: slots.map(_slotCard).toList()));
         },
       ),
-      bottomNavigationBar: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _slotsFuture,
-        builder: (context, snapshot) {
-          final slots = snapshot.data ?? const <Map<String, dynamic>>[];
-          final hasValidFutureSlot = slots.any(_isValidFutureSlot);
-          return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
-              child: FilledButton.icon(
-                onPressed: hasValidFutureSlot ? () => context.go('/lawyer-home') : null,
-                icon: const Icon(Icons.check_circle_outline_rounded),
-                label: const Text('إكمال إعداد التوفر'),
-              ),
-            ),
-          );
-        },
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
+          child: FilledButton.icon(
+            onPressed: () => context.go('/lawyer-home'),
+            icon: const Icon(Icons.check_circle_outline_rounded),
+            label: const Text('إكمال إعداد التوفر'),
+          ),
+        ),
       ),
     );
   }
