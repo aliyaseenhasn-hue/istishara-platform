@@ -15,6 +15,7 @@ class ArchivedBookingsPage extends ConsumerStatefulWidget {
 
 class _ArchivedBookingsPageState extends ConsumerState<ArchivedBookingsPage> {
   late Future<List<dynamic>> _future;
+  final Set<String> _restoring = <String>{};
 
   @override
   void initState() {
@@ -39,9 +40,28 @@ class _ArchivedBookingsPageState extends ConsumerState<ArchivedBookingsPage> {
   }
 
   Future<void> _restore(String bookingId) async {
+    if (_restoring.contains(bookingId)) return;
+    setState(() => _restoring.add(bookingId));
     await ref.read(bookingsControllerProvider.notifier).restoreBooking(bookingId);
     if (!mounted) return;
-    setState(() => _future = _load());
+
+    final result = ref.read(bookingsControllerProvider);
+    if (result.hasError) {
+      final message = result.error.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تعذر استعادة الاستشارة: $message')),
+      );
+      setState(() => _restoring.remove(bookingId));
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تمت إعادة الاستشارة إلى قائمتك.')),
+    );
+    setState(() {
+      _restoring.remove(bookingId);
+      _future = _load();
+    });
   }
 
   @override
@@ -57,23 +77,38 @@ class _ArchivedBookingsPageState extends ConsumerState<ArchivedBookingsPage> {
           if (snapshot.hasError) return Center(child: Text('تعذر تحميل الأرشيف', style: TextStyle(color: scheme.onSurface)));
           final items = snapshot.data ?? const [];
           if (items.isEmpty) return Center(child: Text('لا توجد استشارات مؤرشفة حالياً', style: TextStyle(color: scheme.onSurfaceVariant)));
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final booking = items[index];
-              final shortId = booking.id.length > 8 ? booking.id.substring(0, 8) : booking.id;
-              return Card(
-                child: ListTile(
-                  title: Text('استشارة #$shortId'),
-                  subtitle: Text('${booking.status} • ${booking.scheduledAt.toLocal()}'),
-                  leading: const Icon(Icons.archive_outlined),
-                  trailing: IconButton(onPressed: () => _restore(booking.id), tooltip: 'إعادة إلى الاستشارات', icon: const Icon(Icons.unarchive_outlined)),
-                  onTap: () => context.push('/booking-details', extra: booking),
-                ),
-              );
+          return RefreshIndicator(
+            onRefresh: () async {
+              final next = _load();
+              setState(() => _future = next);
+              await next;
             },
+            child: ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final booking = items[index];
+                final shortId = booking.id.length > 8 ? booking.id.substring(0, 8) : booking.id;
+                final restoring = _restoring.contains(booking.id);
+                return Card(
+                  child: ListTile(
+                    title: Text('استشارة #$shortId'),
+                    subtitle: Text('${booking.status} • ${booking.scheduledAt.toLocal()}'),
+                    leading: const Icon(Icons.archive_outlined),
+                    trailing: IconButton(
+                      onPressed: restoring ? null : () => _restore(booking.id),
+                      tooltip: 'إعادة إلى الاستشارات',
+                      icon: restoring
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.unarchive_outlined),
+                    ),
+                    onTap: restoring ? null : () => context.push('/booking-details', extra: booking),
+                  ),
+                );
+              },
+            ),
           );
         },
       ),
