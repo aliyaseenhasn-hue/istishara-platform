@@ -39,7 +39,6 @@ class LawyerDashboardPage extends ConsumerWidget {
         data: (items) {
           final completed = items.where((b) => b.status == 'مكتمل').length;
           final active = items.where((b) => b.status == 'مؤكد' || b.status == 'قيد التنفيذ').length;
-          final total = items.fold<double>(0, (sum, booking) => sum + booking.price);
           final profile = profileAsync.value;
           final registeredName = user?.fullName?.trim();
           final profileName = profile?.fullName?.trim();
@@ -65,7 +64,7 @@ class LawyerDashboardPage extends ConsumerWidget {
                   Expanded(child: _MetricCard(value: '$completed', label: 'استشارات مكتملة', icon: Icons.task_alt_rounded, background: AppColors.success, foreground: Colors.white)),
                 ]),
                 const SizedBox(height: 9),
-                _MoneyCard(total: total),
+                _WalletCard(onTap: () => context.push('/lawyer-wallet')),
                 const SizedBox(height: 16),
                 Row(children: [
                   const Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
@@ -172,25 +171,35 @@ class _MetricCard extends StatelessWidget {
       );
 }
 
-class _MoneyCard extends StatelessWidget {
-  final double total;
-  const _MoneyCard({required this.total});
+class _WalletCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _WalletCard({required this.onTap});
 
   @override
   Widget build(BuildContext context) => HoverLift(
         borderRadius: 20,
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.outlineVariant)),
-          child: Row(children: [
-            Container(width: 48, height: 48, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 25)),
-            const SizedBox(width: 13),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              const Text('إجمالي مبالغ الاستشارات', textAlign: TextAlign.right, style: TextStyle(color: AppColors.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 3),
-              Text('${total.toStringAsFixed(0)} د.ع', textAlign: TextAlign.right, style: const TextStyle(color: AppColors.primary, fontSize: 23, fontWeight: FontWeight.w900)),
-            ])),
-          ]),
+        child: Material(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.outlineVariant)),
+              child: Row(children: [
+                Container(width: 48, height: 48, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 25)),
+                const SizedBox(width: 13),
+                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  Text('المحفظة والمستحقات', textAlign: TextAlign.right, style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w900)),
+                  SizedBox(height: 3),
+                  Text('عرض الرصيد الحقيقي، الأرباح والمسحوبات', textAlign: TextAlign.right, style: TextStyle(color: AppColors.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                ])),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_left_rounded, color: AppColors.textSecondary),
+              ]),
+            ),
+          ),
         ),
       );
 }
