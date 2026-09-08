@@ -21,7 +21,7 @@ class HomePage extends ConsumerWidget {
     final unread = ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
     final categories = LegalSpecializations.all.take(8).toList();
     final registeredName = user?.fullName?.trim();
-    final name = registeredName != null && registeredName.isNotEmpty ? registeredName : 'عميل استشارة';
+    final name = registeredName != null && registeredName.isNotEmpty ? registeredName : 'طالب استشارة';
     final avatarUrl = user?.avatarUrl;
 
     return Scaffold(
@@ -163,7 +163,7 @@ class _ClientProfileHeader extends StatelessWidget {
                     child: const Row(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.person_pin_circle_outlined, color: Colors.white, size: 13),
                       SizedBox(width: 4),
-                      Text('عميل', style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w900)),
+                      Text('طالب استشارة', style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w900)),
                     ]),
                   ),
                   const SizedBox(height: 3),
