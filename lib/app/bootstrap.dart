@@ -21,9 +21,8 @@ Future<ProviderContainer> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    await Hive.initFlutter();
-    await Hive.openBox('app_cache');
-
+    // Supabase is required by authentication/routing and therefore remains on
+    // the critical startup path. Everything else is warmed up after runApp().
     try {
       await dotenv.load(fileName: '.env');
     } catch (_) {
@@ -45,36 +44,53 @@ Future<ProviderContainer> bootstrap() async {
       url: supabaseUrl,
       anonKey: supabaseAnonKey,
     );
-
-    // Optional notification services must never block runApp().
-    unawaited(
-      NotificationService.initialize().catchError((error, stackTrace) {
-        debugPrint('⚠️ Local notification service unavailable: $error');
-        debugPrintStack(stackTrace: stackTrace);
-      }),
-    );
-
-    // Native FCM is intentionally disabled on Web so the existing PWA/Web Push
-    // implementation remains untouched. Android/iOS register their FCM token.
-    unawaited(
-      PushNotificationService.initialize().catchError((error, stackTrace) {
-        debugPrint('⚠️ Native FCM unavailable: $error');
-        debugPrintStack(stackTrace: stackTrace);
-      }),
-    );
-
-    final realtimeService = RealtimeNotificationService();
-    unawaited(
-      realtimeService.start().catchError((error, stackTrace) {
-        debugPrint('⚠️ Realtime notifications unavailable: $error');
-        debugPrintStack(stackTrace: stackTrace);
-      }),
-    );
   } catch (e, stackTrace) {
     debugPrint('🚨 Critical Bootstrap Error: $e');
     debugPrintStack(stackTrace: stackTrace);
     rethrow;
   }
 
-  return ProviderContainer();
+  final container = ProviderContainer();
+
+  // Cache, notifications, push registration and realtime are useful but are
+  // not required to paint the first frame. Deferring them removes disk/plugin
+  // initialization from the cold-start critical path without changing their
+  // behavior once the application is running.
+  unawaited(_warmUpNonCriticalServices());
+
+  return container;
+}
+
+Future<void> _warmUpNonCriticalServices() async {
+  try {
+    await Hive.initFlutter();
+    await Hive.openBox('app_cache');
+  } catch (error, stackTrace) {
+    debugPrint('⚠️ App cache unavailable: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
+
+  unawaited(
+    NotificationService.initialize().catchError((error, stackTrace) {
+      debugPrint('⚠️ Local notification service unavailable: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }),
+  );
+
+  // Native FCM is intentionally disabled on Web so the existing PWA/Web Push
+  // implementation remains untouched. Android/iOS register their FCM token.
+  unawaited(
+    PushNotificationService.initialize().catchError((error, stackTrace) {
+      debugPrint('⚠️ Native FCM unavailable: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }),
+  );
+
+  final realtimeService = RealtimeNotificationService();
+  unawaited(
+    realtimeService.start().catchError((error, stackTrace) {
+      debugPrint('⚠️ Realtime notifications unavailable: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }),
+  );
 }
