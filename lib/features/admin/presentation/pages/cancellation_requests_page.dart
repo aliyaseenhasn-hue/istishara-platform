@@ -47,8 +47,19 @@ class _CancellationRequestsPageState extends State<CancellationRequestsPage> {
       }
       await SupabaseConfig.client.rpc('review_booking_cancellation', params: {'p_request_id': request['id'], 'p_decision': decision, 'p_penalty_rate': rate});
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم اعتماد القرار بنجاح.')));
-      _refresh();
+
+      setState(() {
+        request['status'] = decision == 'رفض الإلغاء' ? 'مرفوض' : 'مقبول';
+      });
+
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(const SnackBar(content: Text('تم اعتماد القرار بنجاح.')));
+
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      } else {
+        _refresh();
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))));
