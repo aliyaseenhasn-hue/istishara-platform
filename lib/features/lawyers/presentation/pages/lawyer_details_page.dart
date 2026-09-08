@@ -6,6 +6,7 @@ import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../../../chat/presentation/providers/chat_provider.dart';
 import '../providers/lawyers_provider.dart';
 import '../widgets/lawyer_achievements_gallery.dart';
+import '../widgets/follow_lawyer_button.dart';
 
 class LawyerDetailsPage extends ConsumerWidget {
   final String profileId;
@@ -57,6 +58,10 @@ class LawyerDetailsPage extends ConsumerWidget {
                               Row(mainAxisAlignment: MainAxisAlignment.center, children: [Flexible(child: Text(name, textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurface, fontSize: 22, fontWeight: FontWeight.w900))), if (lawyer.verified) Padding(padding: const EdgeInsets.only(right: 6), child: Icon(Icons.verified_rounded, color: scheme.primary, size: 20))]),
                               const SizedBox(height: 8),
                               Text(specializationText, textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14, height: 1.4)),
+                              if (!isOwnProfile) ...[
+                                const SizedBox(height: 14),
+                                FollowLawyerButton(lawyerId: lawyer.id),
+                              ],
                               if (isOwnProfile && licenseClass != null && licenseClass.trim().isNotEmpty) ...[
                                 const SizedBox(height: 12),
                                 Align(
