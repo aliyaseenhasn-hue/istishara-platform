@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Unified visual identity for Istishara.
 /// Crisp white keeps the product calm, sky blue adds freshness and clarity,
-/// deep blue preserves legal authority, and soft gold is used as a restrained accent.
+/// deep blue preserves legal authority, and gold is used as a premium legal accent.
 class AppColors {
   static const Color primary = Color(0xFF245A78);
   static const Color primaryContainer = Color(0xFF5E9FC3);
@@ -19,15 +19,15 @@ class AppColors {
   static const Color secondaryDark = Color(0xFF276C91);
   static const Color secondaryLight = Color(0xFF8BD0EF);
 
-  // Legacy semantic names retained for source compatibility.
-  static const Color ctaGold = secondary;
+  // Gold is the shared premium accent for client and lawyer experiences.
   static const Color gold = Color(0xFFD8B45C);
   static const Color goldLight = Color(0xFFFFF5D8);
   static const Color goldDark = Color(0xFF8A681C);
-  static const Color goldSoft = Color(0x2ED8B45C);
-  static const Color goldSoftStrong = Color(0x52E2C36F);
+  static const Color goldSoft = Color(0x42D8B45C);
+  static const Color goldSoftStrong = Color(0x70E2C36F);
   static const Color goldTransparent = goldSoft;
   static const Color goldTransparentStrong = goldSoftStrong;
+  static const Color ctaGold = gold;
 
   static const Color tertiary = goldDark;
   static const Color onTertiary = Color(0xFFFFFFFF);
@@ -70,6 +70,6 @@ class AppColors {
   static const Color cancelledText = Color(0xFF8A3832);
 
   static const List<Color> brandGradient = [primaryDark, primary, primaryContainer];
-  static const List<Color> goldGradient = [goldSoft, goldSoftStrong, goldLight];
+  static const List<Color> goldGradient = [goldLight, goldSoftStrong, gold];
   static const List<Color> skyGradient = [Color(0xFFF4FBFE), Color(0xFFDDF3FC)];
 }
