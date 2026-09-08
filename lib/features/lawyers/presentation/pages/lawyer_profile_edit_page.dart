@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,12 +25,30 @@ class _LawyerProfileEditPageState extends ConsumerState<LawyerProfileEditPage> {
   bool _isLoading = false;
   String? _lawyerProfileId;
   String? _practiceLicenseClass;
+  String? _initialProfileSignature;
 
   @override
   void initState() { super.initState(); _services = []; _loadProfile(); }
   @override
   void dispose() { _bioController.dispose(); _differentConsultationPriceController.dispose(); super.dispose(); }
 
+  String _buildProfileSignature() {
+    final price = double.tryParse(_differentConsultationPriceController.text.trim()) ?? 0;
+    return jsonEncode({
+      'bio': _bioController.text.trim(),
+      'license': _practiceLicenseClass ?? '',
+      'price': price,
+      'services': _services.map((service) => {
+        'title': service.title.trim(),
+        'price': service.price,
+        'description': (service.description ?? '').trim(),
+      }).toList(growable: false),
+    });
+  }
+
+  bool get _hasProfileChanges => _initialProfileSignature == null || _buildProfileSignature() != _initialProfileSignature;
+
+  @override
   Future<void> _loadProfile() async {
     final user = ref.read(authStateChangesProvider).value;
     if (user == null) return;
@@ -42,6 +62,7 @@ class _LawyerProfileEditPageState extends ConsumerState<LawyerProfileEditPage> {
           final price = profile.consultationPrice ?? 0;
           _differentConsultationPriceController.text = price > 0 ? price.toStringAsFixed(0) : '';
           _lawyerProfileId = profile.id;
+          _initialProfileSignature = _buildProfileSignature();
         });
       }
     } catch (e) {
@@ -94,6 +115,7 @@ class _LawyerProfileEditPageState extends ConsumerState<LawyerProfileEditPage> {
         practiceLicenseClass: _practiceLicenseClass,
       ));
       ref.invalidate(lawyerProfileProvider(profile.profileId));
+      _initialProfileSignature = _buildProfileSignature();
       return true;
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ في حفظ الملف المهني: $e'), backgroundColor: AppColors.error));
@@ -104,12 +126,19 @@ class _LawyerProfileEditPageState extends ConsumerState<LawyerProfileEditPage> {
   }
 
   Future<void> _save() async {
+    _formKey.currentState?.save();
+    if (!_hasProfileChanges) {
+      if (mounted) context.go('/lawyer-home');
+      return;
+    }
     if (!await _persist() || !mounted) return;
     context.go('/lawyer-home');
   }
 
   Future<void> _saveAndContinue() async {
-    if (!await _persist() || !mounted) return;
+    _formKey.currentState?.save();
+    if (_hasProfileChanges && !await _persist()) return;
+    if (!mounted) return;
     context.push('/lawyer-availability');
   }
 
@@ -346,8 +375,8 @@ class _LawyerProfileEditPageState extends ConsumerState<LawyerProfileEditPage> {
                 flex: 2,
                 child: FilledButton.icon(
                   onPressed: _isLoading ? null : _saveAndContinue,
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  label: const Text('التالي: أوقات التوفر', style: TextStyle(fontWeight: FontWeight.w900)),
+                  icon: const Icon(Icons.schedule_rounded),
+                  label: const Text('أوقات التوفر', style: TextStyle(fontWeight: FontWeight.w900)),
                   style: FilledButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                 ),
               ),
