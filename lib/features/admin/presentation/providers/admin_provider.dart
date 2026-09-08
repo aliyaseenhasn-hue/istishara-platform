@@ -26,8 +26,10 @@ class AdminStats extends _$AdminStats {
           .eq('verified', false);
       final pendingVerifications = (pendingVerificationsRes as List).length;
 
-      final activeBookingsRes =
-          await client.from('bookings').select('id').eq('status', 'confirmed');
+      final activeBookingsRes = await client
+          .from('bookings')
+          .select('id')
+          .inFilter('status', ['مؤكد', 'قيد التنفيذ']);
       final activeBookings = (activeBookingsRes as List).length;
 
       final paymentsRes =
@@ -37,10 +39,12 @@ class AdminStats extends _$AdminStats {
       int pendingPaymentsCount = 0;
 
       final paymentsList = paymentsRes as List;
-      for (final row in paymentsList) {
-        if (row['status'] == 'paid' || row['status'] == 'verified') {
+      for (final raw in paymentsList) {
+        final row = Map<String, dynamic>.from(raw as Map);
+        final status = row['status']?.toString();
+        if (status == 'تم الدفع') {
           totalRevenue += (row['amount'] as num?)?.toDouble() ?? 0;
-        } else if (row['status'] == 'pending') {
+        } else if (status == 'قيد معالجة الدفع' || status == 'بانتظار الدفع') {
           pendingPaymentsCount++;
         }
       }
