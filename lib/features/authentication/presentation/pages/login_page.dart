@@ -84,24 +84,33 @@ class _LoginPageState extends ConsumerState<LoginPage> with WidgetsBindingObserv
     ));
   }
 
-  Future<void> _openTelegram() async {
+  Uri? _telegramAppUri() {
     final url = _telegramUrl;
     final token = _token;
-    if (url == null || url.isEmpty || token == null || token.isEmpty) {
-      _error(Exception('رابط Telegram غير متوفر. ابدأ محاولة جديدة.'));
+    if (url == null || url.isEmpty || token == null || token.isEmpty) return null;
+    final webUri = Uri.tryParse(url);
+    if (webUri == null || webUri.host != 't.me' || webUri.pathSegments.isEmpty) return null;
+    final username = webUri.pathSegments.first.trim();
+    final start = webUri.queryParameters['start'];
+    if (username.isEmpty || start == null || start.isEmpty || start != token) return null;
+    return Uri(
+      scheme: 'tg',
+      host: 'resolve',
+      queryParameters: {'domain': username, 'start': token},
+    );
+  }
+
+  Future<void> _openTelegram() async {
+    final appUri = _telegramAppUri();
+    if (appUri == null) {
+      _error(Exception('رابط Telegram غير صالح. ابدأ محاولة جديدة.'));
       return;
     }
     try {
-      final uri = Uri.tryParse(url);
-      if (uri == null || uri.host != 't.me' || uri.pathSegments.isEmpty) {
-        throw Exception('رابط Telegram غير صالح. ابدأ محاولة جديدة.');
+      final ok = await launchUrl(appUri, mode: LaunchMode.externalApplication);
+      if (!ok) {
+        throw Exception('تعذر فتح تطبيق Telegram مباشرة. تأكد من تثبيت Telegram ثم حاول مرة أخرى.');
       }
-      final start = uri.queryParameters['start'];
-      if (start == null || start.isEmpty || start != token) {
-        throw Exception('رابط Telegram لا يحتوي على طلب التحقق الحالي.');
-      }
-      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication, webOnlyWindowName: '_blank');
-      if (!ok) throw Exception('تعذر فتح Telegram. اضغط «فتح Telegram» مرة أخرى.');
     } catch (e) {
       _error(e);
     }
