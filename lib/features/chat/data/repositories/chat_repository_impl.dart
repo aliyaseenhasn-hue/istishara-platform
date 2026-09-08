@@ -10,17 +10,43 @@ class ChatRepositoryImpl implements ChatRepository {
 
   @override
   Future<List<Message>> getMessages(String conversationId) async {
-    final response = await _supabase.from('messages').select().eq('conversation_id', conversationId).order('created_at', ascending: true);
-    return (response as List).map((json) => MessageModel.fromJson(json).toEntity()).toList();
+    final response = await _supabase
+        .from('messages')
+        .select()
+        .eq('conversation_id', conversationId)
+        .order('created_at', ascending: true);
+    return (response as List)
+        .map((json) => MessageModel.fromJson(json).toEntity())
+        .toList();
   }
 
   @override
-  Future<void> sendMessage(String conversationId, String senderId, String content) async {
+  Future<void> sendMessage(
+    String conversationId,
+    String senderId,
+    String content,
+  ) async {
     final text = content.trim();
     if (text.isEmpty) throw Exception('لا يمكن إرسال رسالة فارغة');
     if (text.length > 4000) throw Exception('الرسالة طويلة جدًا');
-    await _supabase.from('messages').insert({'conversation_id': conversationId, 'sender_id': senderId, 'content': text, 'is_read': false});
-    await _supabase.from('conversations').update({'last_message': text, 'last_message_at': DateTime.now().toUtc().toIso8601String()}).eq('id', conversationId);
+
+    try {
+      await _supabase.rpc(
+        'send_chat_message',
+        params: {
+          'p_conversation_id': conversationId,
+          'p_content': text,
+        },
+      );
+    } on PostgrestException catch (e) {
+      final message = e.message.trim();
+      if (message.isNotEmpty && !message.contains('PGRST')) {
+        throw Exception(message);
+      }
+      throw Exception('تعذر إرسال الرسالة. تحقق من أن الحجز مؤكد ثم حاول مجددًا.');
+    } catch (_) {
+      throw Exception('تعذر إرسال الرسالة. حاول مرة أخرى.');
+    }
   }
 
   @override
@@ -30,8 +56,14 @@ class ChatRepositoryImpl implements ChatRepository {
 
     Future<void> fetchAndEmit() async {
       try {
-        final data = await _supabase.from('messages').select().eq('conversation_id', conversationId).order('created_at', ascending: true);
-        final messages = (data as List).map((json) => MessageModel.fromJson(json).toEntity()).toList();
+        final data = await _supabase
+            .from('messages')
+            .select()
+            .eq('conversation_id', conversationId)
+            .order('created_at', ascending: true);
+        final messages = (data as List)
+            .map((json) => MessageModel.fromJson(json).toEntity())
+            .toList();
         if (!controller.isClosed) controller.add(messages);
       } catch (e) {
         if (!controller.isClosed) controller.addError(e);
@@ -41,13 +73,20 @@ class ChatRepositoryImpl implements ChatRepository {
     controller = StreamController<List<Message>>(
       onListen: () async {
         await fetchAndEmit();
-        channel = _supabase.channel('messages:$conversationId').onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'messages',
-          filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'conversation_id', value: conversationId),
-          callback: (_) => fetchAndEmit(),
-        ).subscribe();
+        channel = _supabase
+            .channel('messages:$conversationId')
+            .onPostgresChanges(
+              event: PostgresChangeEvent.all,
+              schema: 'public',
+              table: 'messages',
+              filter: PostgresChangeFilter(
+                type: PostgresChangeFilterType.eq,
+                column: 'conversation_id',
+                value: conversationId,
+              ),
+              callback: (_) => fetchAndEmit(),
+            )
+            .subscribe();
       },
       onCancel: () async {
         await channel?.unsubscribe();
@@ -58,16 +97,37 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<void> markConversationRead(String conversationId, String readerId) async {
-    await _supabase.from('messages').update({'is_read': true}).eq('conversation_id', conversationId).neq('sender_id', readerId).eq('is_read', false);
+  Future<void> markConversationRead(
+    String conversationId,
+    String readerId,
+  ) async {
+    try {
+      await _supabase.rpc(
+        'mark_chat_read',
+        params: {'p_conversation_id': conversationId},
+      );
+    } catch (_) {
+      // Read receipts must never block opening the conversation.
+    }
   }
 
   @override
-  Future<String?> getOtherPartyName(String conversationId, String currentAuthId) async {
+  Future<String?> getOtherPartyName(
+    String conversationId,
+    String currentAuthId,
+  ) async {
     try {
-      final conversation = await _supabase.from('conversations').select('user_id,lawyer_id').eq('id', conversationId).maybeSingle();
+      final conversation = await _supabase
+          .from('conversations')
+          .select('user_id,lawyer_id')
+          .eq('id', conversationId)
+          .maybeSingle();
       if (conversation == null) return null;
-      final currentProfileRow = await _supabase.from('profiles').select('id').eq('auth_id', currentAuthId).maybeSingle();
+      final currentProfileRow = await _supabase
+          .from('profiles')
+          .select('id')
+          .eq('auth_id', currentAuthId)
+          .maybeSingle();
       if (currentProfileRow == null) return null;
       final currentProfileId = currentProfileRow['id'] as String;
       final userId = conversation['user_id'] as String?;
@@ -85,12 +145,26 @@ class ChatRepositoryImpl implements ChatRepository {
       if (otherPartyId == null) return null;
 
       if (otherPartyIsLawyer) {
-        final row = await _supabase.from('lawyer_profiles').select('full_name').eq('profile_id', otherPartyId).maybeSingle();
-        final name = (row?['full_name'] as String?) ?? (await _supabase.from('profiles').select('full_name').eq('id', otherPartyId).maybeSingle())?['full_name'] as String?;
+        final row = await _supabase
+            .from('lawyer_profiles')
+            .select('full_name')
+            .eq('profile_id', otherPartyId)
+            .maybeSingle();
+        final name = (row?['full_name'] as String?) ??
+            (await _supabase
+                    .from('profiles')
+                    .select('full_name')
+                    .eq('id', otherPartyId)
+                    .maybeSingle())?['full_name']
+                as String?;
         return name == null ? null : 'المحامي / $name';
       }
 
-      final row = await _supabase.from('profiles').select('full_name').eq('id', otherPartyId).maybeSingle();
+      final row = await _supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', otherPartyId)
+          .maybeSingle();
       final name = row?['full_name'] as String?;
       return name == null ? null : 'طالب الاستشارة / $name';
     } catch (_) {
