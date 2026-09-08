@@ -32,6 +32,13 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
     return row?['id']?.toString();
   }
 
+  bool _isValidFutureSlot(Map<String, dynamic> slot) {
+    final start = DateTime.tryParse(slot['starts_at']?.toString() ?? '')?.toLocal();
+    final price = double.tryParse('${slot['price'] ?? ''}') ?? 0;
+    final duration = int.tryParse('${slot['duration_minutes'] ?? ''}') ?? 0;
+    return start != null && start.isAfter(DateTime.now()) && price > 0 && duration > 0;
+  }
+
   Future<List<Map<String, dynamic>>> _loadSlots() async {
     final lawyerId = await _profileId();
     if (lawyerId == null) return <Map<String, dynamic>>[];
@@ -86,12 +93,16 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
     return slots;
   }
 
-  void _refresh() => setState(() => _slotsFuture = _loadSlots());
+  Future<void> _refresh() async {
+    final nextFuture = _loadSlots();
+    setState(() => _slotsFuture = nextFuture);
+    await nextFuture;
+  }
 
   Future<void> _deleteSlot(String id) async {
     try {
       await SupabaseConfig.client.from('lawyer_availability_slots').delete().eq('id', id);
-      if (mounted) _refresh();
+      if (mounted) await _refresh();
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر حذف الموعد حالياً.')));
     }
@@ -120,7 +131,7 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
       if (!mounted) return;
       setState(() => _pendingCancellationBookings.add(bookingId));
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلب الإلغاء إلى الإدارة.')));
-      _refresh();
+      await _refresh();
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر إرسال طلب الإلغاء حالياً.')));
     } finally {
@@ -194,8 +205,9 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
         'is_available': true,
       });
       if (!mounted) return;
+      await _refresh();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت إضافة الموعد مع المدة والسعر.')));
-      _refresh();
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر إضافة الموعد. تحقق من البيانات وحاول مرة أخرى.')));
     }
@@ -256,21 +268,22 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
           if (snapshot.hasError) return const Center(child: Text('تعذر تحميل المواعيد.'));
           final slots = snapshot.data ?? const <Map<String, dynamic>>[];
           if (slots.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('أضف موعداً وحدد مدة الاستشارة والسعر حتى يتمكن طالب الاستشارة من اختيار ما يناسبه.', textAlign: TextAlign.center)));
-          return RefreshIndicator(onRefresh: () async => _refresh(), child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 130), children: slots.map(_slotCard).toList()));
+          return RefreshIndicator(onRefresh: _refresh, child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 130), children: slots.map(_slotCard).toList()));
         },
       ),
       bottomNavigationBar: FutureBuilder<List<Map<String, dynamic>>>(
         future: _slotsFuture,
         builder: (context, snapshot) {
           final slots = snapshot.data ?? const <Map<String, dynamic>>[];
-          final hasFutureAvailable = slots.any((slot) {
-            final start = DateTime.tryParse(slot['starts_at']?.toString() ?? '');
-            return start != null && start.isAfter(DateTime.now()) && slot['is_available'] == true && slot['price'] != null;
-          });
+          final hasValidFutureSlot = slots.any(_isValidFutureSlot);
           return SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
-              child: FilledButton.icon(onPressed: hasFutureAvailable ? () => context.go('/lawyer-home') : null, icon: const Icon(Icons.check_circle_outline_rounded), label: const Text('إكمال إعداد التوفر')),
+              child: FilledButton.icon(
+                onPressed: hasValidFutureSlot ? () => context.go('/lawyer-home') : null,
+                icon: const Icon(Icons.check_circle_outline_rounded),
+                label: const Text('إكمال إعداد التوفر'),
+              ),
             ),
           );
         },
