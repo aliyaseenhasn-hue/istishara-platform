@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +25,7 @@ class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
   late Future<Map<String, dynamic>> _settingsFuture;
   XFile? _receipt;
   bool _submitting = false;
+  bool _submitted = false;
   String? _error;
 
   @override
@@ -68,8 +71,37 @@ class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
     );
   }
 
+  Future<bool> _paymentReachedServer() async {
+    try {
+      final row = await SupabaseConfig.client
+          .from('bookings')
+          .select('status')
+          .eq('id', widget.booking.id)
+          .maybeSingle();
+      return row != null && row['status'] == 'قيد معالجة الدفع';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _refreshBookingState() async {
+    ref.invalidate(bookingPaymentProvider(widget.booking.id));
+    ref.invalidate(bookingDetailsProvider(widget.booking.id));
+    ref.invalidate(userBookingsProvider);
+    ref.invalidate(lawyerBookingsProvider);
+
+    try {
+      await Future.wait([
+        ref.read(userBookingsProvider.future),
+        ref.read(bookingDetailsProvider(widget.booking.id).future),
+      ]).timeout(const Duration(seconds: 12));
+    } catch (_) {
+      // Realtime will continue syncing after navigation even if this eager refresh times out.
+    }
+  }
+
   Future<void> _submit(Map<String, dynamic> settings) async {
-    if (_submitting) return;
+    if (_submitting || _submitted) return;
     if (settings['enabled'] != true) {
       setState(() => _error = 'طريقة الدفع اليدوي غير مفعلة حالياً.');
       return;
@@ -89,32 +121,49 @@ class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
       _error = null;
     });
 
-    await ref.read(paymentsControllerProvider.notifier).submitPayment(
-          bookingId: widget.booking.id,
-          amount: widget.booking.price,
-          method: 'bank_transfer',
-          transactionNumber: transactionNumber,
-          receiptFile: _receipt,
-        );
-
-    final state = ref.read(paymentsControllerProvider);
-    if (!mounted) return;
-    if (state.hasError) {
-      setState(() {
-        _submitting = false;
-        _error = state.error.toString().replaceFirst('Exception: ', '');
-      });
-      return;
+    var succeeded = false;
+    try {
+      await ref
+          .read(paymentsControllerProvider.notifier)
+          .submitPayment(
+            bookingId: widget.booking.id,
+            amount: widget.booking.price,
+            method: 'bank_transfer',
+            transactionNumber: transactionNumber,
+            receiptFile: _receipt,
+          )
+          .timeout(const Duration(seconds: 45));
+      succeeded = true;
+    } on TimeoutException {
+      succeeded = await _paymentReachedServer();
+      if (!succeeded && mounted) {
+        setState(() => _error = 'استغرق إرسال الإيصال وقتاً أطول من المتوقع. تحقق من الاتصال ثم أعد المحاولة.');
+      }
+    } catch (error) {
+      if (await _paymentReachedServer()) {
+        succeeded = true;
+      } else if (mounted) {
+        setState(() {
+          _error = error.toString().replaceFirst('Exception: ', '');
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
 
-    ref.invalidate(bookingPaymentProvider(widget.booking.id));
-    ref.invalidate(userBookingsProvider);
-    ref.invalidate(lawyerBookingsProvider);
+    if (!succeeded || !mounted) return;
 
-    setState(() => _submitting = false);
+    setState(() {
+      _submitted = true;
+      _error = null;
+    });
+    await _refreshBookingState();
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('تم إرسال إيصال الدفع إلى الإدارة للمراجعة. سيتم إشعارك بعد التحقق.'),
+        content: Text('تم إرسال إيصال الدفع بنجاح وهو الآن بانتظار تحقق الإدارة.'),
+        duration: Duration(seconds: 3),
       ),
     );
     context.go('/bookings');
@@ -155,7 +204,7 @@ class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
           final accountName = settings['account_name']?.toString().trim() ?? '';
           final accountNumber = settings['account_number']?.toString().trim() ?? '';
           final instructions = settings['instructions']?.toString().trim() ?? '';
-          final canSubmit = enabled && !_submitting && _receipt != null;
+          final canSubmit = enabled && !_submitting && !_submitted && _receipt != null;
 
           return SafeArea(
             child: SingleChildScrollView(
@@ -174,47 +223,30 @@ class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
                         Icon(Icons.account_balance_wallet_outlined,
                             size: 34, color: scheme.onPrimaryContainer),
                         const SizedBox(height: 8),
-                        Text(
-                          'المبلغ المطلوب',
-                          style: textTheme.titleMedium?.copyWith(
-                            color: scheme.onPrimaryContainer,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                        Text('المبلغ المطلوب',
+                            style: textTheme.titleMedium?.copyWith(
+                              color: scheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w700,
+                            )),
                         const SizedBox(height: 6),
-                        Text(
-                          '$priceText د.ع',
-                          style: textTheme.headlineMedium?.copyWith(
-                            color: scheme.onPrimaryContainer,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
+                        Text('$priceText د.ع',
+                            style: textTheme.headlineMedium?.copyWith(
+                              color: scheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w900,
+                            )),
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
-                  if (!enabled)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: scheme.errorContainer,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.info_outline_rounded, color: scheme.onErrorContainer),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'طريقة الدفع قيد الإعداد من الإدارة ولن يُطلب منك تحويل أي مبلغ حتى يتم تفعيلها.',
-                              style: TextStyle(color: scheme.onErrorContainer, height: 1.5),
-                            ),
-                          ),
-                        ],
-                      ),
+                  if (!enabled) ...[
+                    _MessageCard(
+                      icon: Icons.info_outline_rounded,
+                      text: 'طريقة الدفع قيد الإعداد من الإدارة ولن يُطلب منك تحويل أي مبلغ حتى يتم تفعيلها.',
+                      background: scheme.errorContainer,
+                      foreground: scheme.onErrorContainer,
                     ),
-                  if (!enabled) const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                  ],
                   Card(
                     elevation: 0,
                     color: scheme.surfaceContainerLowest,
@@ -237,7 +269,6 @@ class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
                           ],
                           const Divider(height: 24),
                           Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Expanded(
                                 child: _InfoRow(
@@ -270,55 +301,40 @@ class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
                       children: [
                         Row(
                           children: [
-                            Container(
-                              width: 42,
-                              height: 42,
-                              decoration: BoxDecoration(
-                                color: scheme.tertiary.withValues(alpha: .14),
-                                borderRadius: BorderRadius.circular(13),
-                              ),
-                              child: Icon(Icons.priority_high_rounded, color: scheme.tertiary),
-                            ),
-                            const SizedBox(width: 10),
+                            Icon(Icons.priority_high_rounded, color: scheme.tertiary),
+                            const SizedBox(width: 9),
                             Expanded(
-                              child: Text(
-                                'تعليمات مهمة قبل تأكيد الدفع',
-                                style: textTheme.titleMedium?.copyWith(
-                                  color: scheme.onTertiaryContainer,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
+                              child: Text('تعليمات مهمة قبل تأكيد الدفع',
+                                  style: textTheme.titleMedium?.copyWith(
+                                    color: scheme.onTertiaryContainer,
+                                    fontWeight: FontWeight.w900,
+                                  )),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 13),
-                        _InstructionLine(number: '1', text: 'حوّل مبلغ الاستشارة كاملاً إلى حساب المنصة الموضح أعلاه.'),
+                        const SizedBox(height: 12),
+                        const _InstructionLine(number: '1', text: 'حوّل مبلغ الاستشارة كاملاً إلى حساب المنصة الموضح أعلاه.'),
                         const SizedBox(height: 8),
-                        _InstructionLine(number: '2', text: 'احتفظ بصورة واضحة للإيصال بعد إتمام التحويل.'),
+                        const _InstructionLine(number: '2', text: 'احتفظ بصورة واضحة للإيصال بعد إتمام التحويل.'),
                         const SizedBox(height: 8),
-                        _InstructionLine(number: '3', text: 'ارفع صورة الإيصال وأدخل رقم عملية التحويل الظاهر فيه.'),
+                        const _InstructionLine(number: '3', text: 'ارفع صورة الإيصال وأدخل رقم عملية التحويل الظاهر فيه.'),
                         const SizedBox(height: 8),
-                        _InstructionLine(number: '4', text: 'اضغط «تم الدفع وإرسال الإيصال». لن يعتبر الدفع مؤكداً إلا بعد مراجعة الإدارة.'),
+                        const _InstructionLine(number: '4', text: 'اضغط «تم الدفع وإرسال الإيصال». لن يعتبر الدفع مؤكداً إلا بعد مراجعة الإدارة.'),
                         if (instructions.isNotEmpty) ...[
-                          const SizedBox(height: 13),
+                          const SizedBox(height: 12),
                           Divider(color: scheme.tertiary.withValues(alpha: .25)),
-                          const SizedBox(height: 8),
-                          Text(
-                            'تعليمات إضافية من الإدارة',
-                            style: TextStyle(
-                              color: scheme.onTertiaryContainer,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
+                          Text('تعليمات إضافية من الإدارة',
+                              style: TextStyle(
+                                color: scheme.onTertiaryContainer,
+                                fontWeight: FontWeight.w900,
+                              )),
                           const SizedBox(height: 6),
-                          Text(
-                            instructions,
-                            style: TextStyle(
-                              color: scheme.onTertiaryContainer,
-                              height: 1.6,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          Text(instructions,
+                              style: TextStyle(
+                                color: scheme.onTertiaryContainer,
+                                height: 1.6,
+                                fontWeight: FontWeight.w600,
+                              )),
                         ],
                       ],
                     ),
@@ -326,7 +342,7 @@ class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
                   const SizedBox(height: 16),
                   TextField(
                     controller: _transactionController,
-                    enabled: enabled && !_submitting,
+                    enabled: enabled && !_submitting && !_submitted,
                     textInputAction: TextInputAction.done,
                     decoration: const InputDecoration(
                       labelText: 'رقم عملية التحويل',
@@ -336,47 +352,34 @@ class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
-                    onPressed: enabled && !_submitting ? _pickReceipt : null,
+                    onPressed: enabled && !_submitting && !_submitted ? _pickReceipt : null,
                     icon: Icon(_receipt == null
                         ? Icons.upload_file_rounded
                         : Icons.check_circle_outline_rounded),
-                    label: Text(
-                      _receipt == null
-                          ? 'رفع إيصال الدفع (إلزامي)'
-                          : 'تم اختيار الإيصال: ${_receipt!.name}',
-                    ),
+                    label: Text(_receipt == null
+                        ? 'رفع إيصال الدفع (إلزامي)'
+                        : 'تم اختيار الإيصال: ${_receipt!.name}'),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(54),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                     ),
                   ),
-                  if (_receipt == null && enabled) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.lock_outline_rounded, size: 17, color: scheme.onSurfaceVariant),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'زر تأكيد الدفع سيتفعّل بعد رفع صورة الإيصال.',
-                            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12.5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
                   if (_error != null) ...[
                     const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(13),
-                      decoration: BoxDecoration(
-                        color: scheme.errorContainer,
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Text(
-                        _error!,
-                        style: TextStyle(color: scheme.onErrorContainer, height: 1.4),
-                      ),
+                    _MessageCard(
+                      icon: Icons.error_outline_rounded,
+                      text: _error!,
+                      background: scheme.errorContainer,
+                      foreground: scheme.onErrorContainer,
+                    ),
+                  ],
+                  if (_submitted) ...[
+                    const SizedBox(height: 12),
+                    _MessageCard(
+                      icon: Icons.check_circle_rounded,
+                      text: 'تم إرسال الإيصال بنجاح. الحالة الآن: بانتظار تحقق الإدارة.',
+                      background: scheme.primaryContainer,
+                      foreground: scheme.onPrimaryContainer,
                     ),
                   ],
                   const SizedBox(height: 16),
@@ -388,14 +391,18 @@ class _PaymentUploadPageState extends ConsumerState<PaymentUploadPage> {
                             height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : Icon(_receipt == null ? Icons.lock_outline_rounded : Icons.verified_outlined),
-                    label: Text(
-                      _submitting
-                          ? 'جاري إرسال الإثبات...'
-                          : _receipt == null
-                              ? 'ارفع الإيصال أولاً'
-                              : 'تم الدفع وإرسال الإيصال',
-                    ),
+                        : Icon(_submitted
+                            ? Icons.check_circle_rounded
+                            : _receipt == null
+                                ? Icons.lock_outline_rounded
+                                : Icons.verified_outlined),
+                    label: Text(_submitting
+                        ? 'جاري إرسال الإثبات...'
+                        : _submitted
+                            ? 'تم إرسال الإيصال'
+                            : _receipt == null
+                                ? 'ارفع الإيصال أولاً'
+                                : 'تم الدفع وإرسال الإيصال'),
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(56),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -437,24 +444,21 @@ class _InstructionLine extends StatelessWidget {
             color: scheme.tertiary,
             borderRadius: BorderRadius.circular(9),
           ),
-          child: Text(
-            number,
-            style: TextStyle(color: scheme.onTertiary, fontWeight: FontWeight.w900, fontSize: 12),
-          ),
+          child: Text(number,
+              style: TextStyle(
+                color: scheme.onTertiary,
+                fontWeight: FontWeight.w900,
+                fontSize: 12,
+              )),
         ),
         const SizedBox(width: 9),
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Text(
-              text,
+          child: Text(text,
               style: TextStyle(
                 color: scheme.onTertiaryContainer,
                 height: 1.55,
                 fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
+              )),
         ),
       ],
     );
@@ -475,8 +479,42 @@ class _InfoRow extends StatelessWidget {
       children: [
         Text(label, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
         const SizedBox(height: 4),
-        SelectableText(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+        SelectableText(value,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
       ],
+    );
+  }
+}
+
+class _MessageCard extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color background;
+  final Color foreground;
+
+  const _MessageCard({
+    required this.icon,
+    required this.text,
+    required this.background,
+    required this.foreground,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: foreground),
+          const SizedBox(width: 9),
+          Expanded(child: Text(text, style: TextStyle(color: foreground, height: 1.5))),
+        ],
+      ),
     );
   }
 }
