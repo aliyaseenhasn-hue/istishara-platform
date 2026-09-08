@@ -15,7 +15,6 @@ class HomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
     final user = ref.watch(authStateChangesProvider).value;
     final bookings = ref.watch(userBookingsProvider);
     final lawyers = ref.watch(lawyersListProvider);
@@ -26,7 +25,7 @@ class HomePage extends ConsumerWidget {
     final avatarUrl = user?.avatarUrl;
 
     return Scaffold(
-      backgroundColor: scheme.surfaceContainerLow,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -36,12 +35,12 @@ class HomePage extends ConsumerWidget {
                 child: Row(
                   textDirection: TextDirection.rtl,
                   children: [
-                    Expanded(
+                    const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text('استشارة', style: TextStyle(color: scheme.primary, fontSize: 19, fontWeight: FontWeight.w900)),
-                          Text('مساحتك للاستشارات القانونية', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 10.5)),
+                          Text('استشارة', style: TextStyle(color: AppColors.primary, fontSize: 19, fontWeight: FontWeight.w900)),
+                          Text('مساحتك للاستشارات القانونية', style: TextStyle(color: AppColors.textSecondary, fontSize: 10.5)),
                         ],
                       ),
                     ),
@@ -129,15 +128,14 @@ class _ClientProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return HoverLift(
       borderRadius: 20,
       child: Container(
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
         decoration: BoxDecoration(
-          gradient: LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft, colors: [scheme.primary, AppColors.primaryContainer]),
+          gradient: const LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft, colors: [AppColors.primaryDark, AppColors.primary, AppColors.secondary]),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: scheme.primary.withValues(alpha: .18)),
+          border: Border.all(color: AppColors.goldTransparentStrong),
         ),
         child: Row(
           textDirection: TextDirection.rtl,
@@ -146,11 +144,11 @@ class _ClientProfileHeader extends StatelessWidget {
               width: 66,
               height: 66,
               padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(shape: BoxShape.circle, color: scheme.onPrimary.withValues(alpha: .12), border: Border.all(color: scheme.onPrimary.withValues(alpha: .72), width: 1.5)),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.goldTransparent, border: Border.all(color: AppColors.goldSoft, width: 1.5)),
               child: CircleAvatar(
-                backgroundColor: scheme.surfaceContainerHighest,
+                backgroundColor: AppColors.surfaceContainerHighest,
                 backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty ? NetworkImage(avatarUrl!) : null,
-                child: avatarUrl == null || avatarUrl!.isEmpty ? Icon(Icons.person_outline_rounded, color: scheme.primary, size: 30) : null,
+                child: avatarUrl == null || avatarUrl!.isEmpty ? const Icon(Icons.person_outline_rounded, color: AppColors.primary, size: 30) : null,
               ),
             ),
             const SizedBox(width: 11),
@@ -161,17 +159,17 @@ class _ClientProfileHeader extends StatelessWidget {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(color: scheme.onPrimary.withValues(alpha: .12), borderRadius: BorderRadius.circular(99)),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.person_pin_circle_outlined, color: scheme.onPrimary, size: 13),
-                      const SizedBox(width: 4),
-                      Text('عميل', style: TextStyle(color: scheme.onPrimary, fontSize: 10.5, fontWeight: FontWeight.w900)),
+                    decoration: BoxDecoration(color: AppColors.goldTransparent, borderRadius: BorderRadius.circular(99)),
+                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.person_pin_circle_outlined, color: Colors.white, size: 13),
+                      SizedBox(width: 4),
+                      Text('عميل', style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w900)),
                     ]),
                   ),
                   const SizedBox(height: 3),
-                  Text(name, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onPrimary, fontSize: 18, fontWeight: FontWeight.w900, height: 1.15)),
+                  Text(name, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, height: 1.15)),
                   const SizedBox(height: 2),
-                  Text('اطلب استشارتك القانونية بسهولة وأمان', textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onPrimary.withValues(alpha: .82), fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text('اطلب استشارتك القانونية بسهولة وأمان', textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white.withValues(alpha: .90), fontSize: 11, fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
@@ -189,11 +187,10 @@ class _ClientStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Row(children: [
-      Expanded(child: _ClientStatCard(value: total, label: 'الاستشارات', icon: Icons.forum_outlined, iconBackground: scheme.primary.withValues(alpha: .10), iconColor: scheme.primary)),
+      Expanded(child: _ClientStatCard(value: total, label: 'الاستشارات', icon: Icons.forum_outlined, background: AppColors.tertiary, foreground: Colors.white)),
       const SizedBox(width: 7),
-      Expanded(child: _ClientStatCard(value: completed, label: 'مكتملة', icon: Icons.verified_outlined, iconBackground: scheme.tertiary.withValues(alpha: .10), iconColor: scheme.tertiary)),
+      Expanded(child: _ClientStatCard(value: completed, label: 'مكتملة', icon: Icons.verified_outlined, background: AppColors.success, foreground: Colors.white)),
     ]);
   }
 }
@@ -202,24 +199,23 @@ class _ClientStatCard extends StatelessWidget {
   final String value;
   final String label;
   final IconData icon;
-  final Color iconBackground;
-  final Color iconColor;
-  const _ClientStatCard({required this.value, required this.label, required this.icon, required this.iconBackground, required this.iconColor});
+  final Color background;
+  final Color foreground;
+  const _ClientStatCard({required this.value, required this.label, required this.icon, required this.background, required this.foreground});
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return HoverLift(
       lift: 2,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 9),
-        decoration: BoxDecoration(color: scheme.surfaceContainerLowest, borderRadius: BorderRadius.circular(15), border: Border.all(color: scheme.outlineVariant)),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 9),
+        decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(15)),
         child: Row(textDirection: TextDirection.rtl, children: [
-          Container(width: 32, height: 32, decoration: BoxDecoration(color: iconBackground, borderRadius: BorderRadius.circular(10)), alignment: Alignment.center, child: Icon(icon, color: iconColor, size: 18)),
+          Container(width: 32, height: 32, decoration: BoxDecoration(color: foreground.withValues(alpha: .12), borderRadius: BorderRadius.circular(10)), alignment: Alignment.center, child: Icon(icon, color: foreground, size: 18)),
           const SizedBox(width: 7),
           Expanded(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(value, style: TextStyle(color: scheme.onSurface, fontSize: 17, fontWeight: FontWeight.w900, height: 1.05)),
-            Text(label, textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 10.5, fontWeight: FontWeight.w700, height: 1.15)),
+            Text(value, style: TextStyle(color: foreground, fontSize: 17, fontWeight: FontWeight.w900, height: 1.05)),
+            Text(label, textAlign: TextAlign.right, style: TextStyle(color: foreground.withValues(alpha: .92), fontSize: 10.5, fontWeight: FontWeight.w700, height: 1.15)),
           ])),
         ]),
       ),
@@ -231,12 +227,7 @@ class _StatsLoading extends StatelessWidget {
   const _StatsLoading();
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(children: [
-      Expanded(child: _ClientStatCard(value: '—', label: 'الاستشارات', icon: Icons.forum_outlined, iconBackground: scheme.primary.withValues(alpha: .10), iconColor: scheme.primary)),
-      const SizedBox(width: 7),
-      Expanded(child: _ClientStatCard(value: '—', label: 'مكتملة', icon: Icons.verified_outlined, iconBackground: scheme.tertiary.withValues(alpha: .10), iconColor: scheme.tertiary)),
-    ]);
+    return const _ClientStats(total: '—', completed: '—');
   }
 }
 
@@ -248,11 +239,10 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
       height: 32,
       child: Row(textDirection: TextDirection.rtl, children: [
-        Expanded(child: Text(title, textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurface, fontSize: 16, fontWeight: FontWeight.w900))),
+        Expanded(child: Text(title, textAlign: TextAlign.right, style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w900))),
         TextButton(
           onPressed: onTap,
           style: TextButton.styleFrom(
@@ -261,7 +251,7 @@ class _SectionTitle extends StatelessWidget {
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             visualDensity: VisualDensity.compact,
           ),
-          child: Text(action, style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800, fontSize: 11.5)),
+          child: const Text('عرض الكل', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 11.5)),
         ),
       ]),
     );
@@ -274,7 +264,6 @@ class _LawyerSearchButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
       height: 40,
       child: FilledButton.icon(
@@ -282,12 +271,12 @@ class _LawyerSearchButton extends StatelessWidget {
         icon: const Icon(Icons.manage_search_rounded, size: 18),
         label: const Text('ابحث عن محامٍ', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
         style: ButtonStyle(
-          foregroundColor: WidgetStatePropertyAll(scheme.onPrimary),
+          foregroundColor: const WidgetStatePropertyAll(Colors.white),
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.hovered) || states.contains(WidgetState.focused) || states.contains(WidgetState.pressed)) return AppColors.primaryLight;
-            return scheme.primary;
+            return AppColors.primary;
           }),
-          overlayColor: WidgetStatePropertyAll(scheme.onPrimary.withValues(alpha: .08)),
+          overlayColor: WidgetStatePropertyAll(Colors.white.withValues(alpha: .08)),
           padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 14)),
           shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
         ),
@@ -316,7 +305,6 @@ class _AnimatedCategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return TweenAnimationBuilder<double>(
       key: ValueKey(title),
       tween: Tween(begin: 0, end: 1),
@@ -325,21 +313,21 @@ class _AnimatedCategoryCard extends StatelessWidget {
       builder: (context, value, child) => Opacity(opacity: value, child: Transform.translate(offset: Offset(0, 8 * (1 - value)), child: child)),
       child: HoverLift(
         child: Material(
-          color: scheme.surfaceContainerLowest,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
           child: InkWell(
             onTap: onTap,
-            hoverColor: scheme.primary.withValues(alpha: .055),
-            focusColor: scheme.primary.withValues(alpha: .07),
-            splashColor: scheme.primary.withValues(alpha: .10),
+            hoverColor: AppColors.primary.withValues(alpha: .05),
+            focusColor: AppColors.primary.withValues(alpha: .07),
+            splashColor: AppColors.primary.withValues(alpha: .10),
             borderRadius: BorderRadius.circular(16),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: scheme.outlineVariant)),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.outlineVariant)),
               child: Row(textDirection: TextDirection.rtl, children: [
-                Container(width: 34, height: 34, decoration: BoxDecoration(color: scheme.primary.withValues(alpha: .09), borderRadius: BorderRadius.circular(10)), alignment: Alignment.center, child: Icon(_iconFor(title), color: scheme.primary, size: 18)),
+                Container(width: 34, height: 34, decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: .09), borderRadius: BorderRadius.circular(10)), alignment: Alignment.center, child: Icon(_iconFor(title), color: AppColors.primary, size: 18)),
                 const SizedBox(width: 7),
-                Expanded(child: Text(title, textAlign: TextAlign.right, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurface, fontSize: 11.5, fontWeight: FontWeight.w800, height: 1.2))),
+                Expanded(child: Text(title, textAlign: TextAlign.right, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textPrimary, fontSize: 11.5, fontWeight: FontWeight.w800, height: 1.2))),
               ]),
             ),
           ),
@@ -355,14 +343,13 @@ class _SuggestedLawyerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final name = lawyer.fullName?.trim().isNotEmpty == true ? lawyer.fullName!.trim() : 'محامٍ';
     final specialization = lawyer.specializations.isNotEmpty ? lawyer.specializations.take(2).join('، ') : 'استشارات قانونية';
     final hasAvatar = lawyer.avatarUrl?.isNotEmpty == true;
     return HoverLift(
       borderRadius: 16,
       child: Material(
-        color: scheme.surfaceContainerLowest,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: () {
@@ -370,35 +357,35 @@ class _SuggestedLawyerCard extends StatelessWidget {
             if (id.isEmpty) return;
             context.push('/lawyers/$id');
           },
-          hoverColor: scheme.primary.withValues(alpha: .05),
-          focusColor: scheme.primary.withValues(alpha: .07),
-          splashColor: scheme.primary.withValues(alpha: .10),
+          hoverColor: AppColors.primary.withValues(alpha: .05),
+          focusColor: AppColors.primary.withValues(alpha: .07),
+          splashColor: AppColors.primary.withValues(alpha: .10),
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: scheme.outlineVariant)),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.outlineVariant)),
             child: Row(textDirection: TextDirection.rtl, children: [
-              CircleAvatar(radius: 22, backgroundColor: scheme.primary.withValues(alpha: .10), backgroundImage: hasAvatar ? NetworkImage(lawyer.avatarUrl!) : null, child: hasAvatar ? null : Icon(Icons.person_outline_rounded, color: scheme.primary)),
+              CircleAvatar(radius: 22, backgroundColor: AppColors.primary.withValues(alpha: .10), backgroundImage: hasAvatar ? NetworkImage(lawyer.avatarUrl!) : null, child: hasAvatar ? null : const Icon(Icons.person_outline_rounded, color: AppColors.primary)),
               const SizedBox(width: 9),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  Icon(Icons.verified_user_outlined, color: scheme.primary, size: 14),
+                  const Icon(Icons.verified_user_outlined, color: AppColors.primary, size: 14),
                   const SizedBox(width: 4),
-                  Flexible(child: Text(name, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurface, fontSize: 13.5, fontWeight: FontWeight.w900))),
+                  Flexible(child: Text(name, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w900))),
                 ]),
                 const SizedBox(height: 2),
-                Text(specialization, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                Text(specialization, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 3),
                 Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  Icon(Icons.star_rounded, color: scheme.primary, size: 14),
+                  const Icon(Icons.star_rounded, color: AppColors.tertiary, size: 14),
                   const SizedBox(width: 3),
-                  Text(lawyer.rating.toStringAsFixed(1), style: TextStyle(color: scheme.onSurface, fontSize: 11.5, fontWeight: FontWeight.w800)),
+                  Text(lawyer.rating.toStringAsFixed(1), style: const TextStyle(color: AppColors.textPrimary, fontSize: 11.5, fontWeight: FontWeight.w800)),
                   const SizedBox(width: 7),
-                  Text('${lawyer.reviewCount} تقييم', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11.5)),
+                  Text('${lawyer.reviewCount} تقييم', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11.5)),
                 ]),
               ])),
               const SizedBox(width: 7),
-              Icon(Icons.chevron_left_rounded, color: scheme.onSurfaceVariant, size: 21),
+              const Icon(Icons.chevron_left_rounded, color: AppColors.textSecondary, size: 21),
             ]),
           ),
         ),
@@ -414,9 +401,8 @@ class _NotificationBell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Stack(clipBehavior: Clip.none, children: [
-      IconButton(onPressed: onTap, tooltip: 'الإشعارات', visualDensity: VisualDensity.compact, icon: Icon(Icons.notifications_none_rounded, color: scheme.primary)),
+      IconButton(onPressed: onTap, tooltip: 'الإشعارات', visualDensity: VisualDensity.compact, icon: const Icon(Icons.notifications_none_rounded, color: AppColors.primary)),
       if (unreadCount > 0)
         Positioned(
           top: 2,
@@ -424,8 +410,8 @@ class _NotificationBell extends StatelessWidget {
           child: Container(
             constraints: const BoxConstraints(minWidth: 18),
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-            decoration: BoxDecoration(color: scheme.tertiary, borderRadius: BorderRadius.circular(99)),
-            child: Text(unreadCount > 99 ? '99+' : '$unreadCount', textAlign: TextAlign.center, style: TextStyle(color: scheme.onTertiary, fontSize: 11, fontWeight: FontWeight.w900)),
+            decoration: BoxDecoration(color: AppColors.tertiary, borderRadius: BorderRadius.circular(99)),
+            child: Text(unreadCount > 99 ? '99+' : '$unreadCount', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900)),
           ),
         ),
     ]);
@@ -439,13 +425,12 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(children: [
-        Icon(icon, color: scheme.onSurfaceVariant, size: 32),
+        Icon(icon, color: AppColors.textSecondary, size: 32),
         const SizedBox(height: 6),
-        Text(text, textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w700)),
+        Text(text, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w700)),
       ]),
     );
   }
