@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:astshara/core/config/supabase_config.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../providers/bookings_provider.dart';
+import '../providers/bookings_realtime_provider.dart';
 import '../../domain/entities/booking.dart';
 import '../../domain/cancellation_policy.dart';
 import 'booking_details_page.dart';
@@ -152,20 +153,21 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
 
   @override
   Widget build(BuildContext context) {
+    final liveBooking = ref.watch(bookingRealtimeProvider(widget.booking.id)).valueOrNull ?? widget.booking;
     final user = ref.watch(authStateChangesProvider).value;
     final isLawyer = user?.role == 'lawyer';
-    final isClient = user?.id == widget.booking.userId && !isLawyer;
+    final isClient = user?.id == liveBooking.userId && !isLawyer;
     final eligibleCancellation = BookingCancellationPolicy.canRequest(
-      status: widget.booking.status,
-      scheduledAt: widget.booking.scheduledAt,
+      status: liveBooking.status,
+      scheduledAt: liveBooking.scheduledAt,
       pendingReview: _pending,
     );
     final needsReview = isLawyer &&
-        !widget.booking.lawyerApproved &&
-        ['قيد انتظار الدفع', 'قيد معالجة الدفع', 'قيد مراجعة المحامي'].contains(widget.booking.status);
+        !liveBooking.lawyerApproved &&
+        ['قيد انتظار الدفع', 'قيد معالجة الدفع', 'قيد مراجعة المحامي'].contains(liveBooking.status);
     final clientCanCancel = isClient &&
-        ['قيد انتظار الدفع', 'قيد معالجة الدفع', 'مؤكد'].contains(widget.booking.status) &&
-        widget.booking.scheduledAt.isAfter(DateTime.now());
+        ['قيد انتظار الدفع', 'قيد معالجة الدفع', 'مؤكد'].contains(liveBooking.status) &&
+        liveBooking.scheduledAt.isAfter(DateTime.now());
     final decisionText = switch (_requestStatus) {
       'تم رفض الطلب' => 'تم رفض طلب إلغاء الحجز من الإدارة.',
       'تمت الموافقة' => 'تمت الموافقة على طلب إلغاء الحجز بدون غرامة.',
@@ -176,7 +178,7 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
 
     return Stack(
       children: [
-        BookingDetailsPage(booking: widget.booking),
+        BookingDetailsPage(booking: liveBooking),
         if (isLawyer && !_loading && !needsReview && eligibleCancellation)
           Positioned(
             left: 16,
