@@ -43,46 +43,141 @@ class _AdminReviewsPageState extends State<AdminReviewsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('جميع المراجعات'),
+        title: const Text('مركز المراجعات'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        actions: [IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh))],
+        centerTitle: true,
+        surfaceTintColor: Colors.transparent,
+        actions: [IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh_rounded), tooltip: 'تحديث')],
       ),
       body: FutureBuilder<Map<String, int>>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (snapshot.hasError) return Center(child: Text('تعذر تحميل المراجعات: ${snapshot.error}'));
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error),
+                  const SizedBox(height: 12),
+                  const Text('تعذر تحميل المراجعات', style: TextStyle(fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 10),
+                  FilledButton.icon(onPressed: _refresh, icon: const Icon(Icons.refresh_rounded), label: const Text('إعادة المحاولة')),
+                ]),
+              ),
+            );
+          }
+
           final counts = snapshot.data ?? const <String, int>{};
-          final items = <({String title, String subtitle, IconData icon, int count, String route})>[
-            (title: 'طلبات توثيق المحامين', subtitle: 'مراجعة واعتماد بيانات المحامين', icon: Icons.verified_user_outlined, count: counts['verifications'] ?? 0, route: '/admin/lawyer-verifications'),
-            (title: 'طلبات إلغاء الحجوزات', subtitle: 'مراجعة الإلغاء والغرامات والتعويضات', icon: Icons.event_busy_outlined, count: counts['cancellations'] ?? 0, route: '/admin/cancellation-requests'),
-            (title: 'طلبات تغيير التخصص', subtitle: 'مراجعة طلبات تغيير التخصص والوثائق', icon: Icons.badge_outlined, count: counts['specializations'] ?? 0, route: '/admin/specialization-change-requests'),
-            (title: 'مراجعة الدفعات', subtitle: 'مراجعة الدفعات المعلقة والتحقق منها', icon: Icons.payments_outlined, count: counts['payments'] ?? 0, route: '/admin/payments'),
-            (title: 'مراجعة عدم الحضور', subtitle: 'التحقق من بلاغات عدم حضور الاستشارة واتخاذ القرار', icon: Icons.person_off_outlined, count: counts['noShow'] ?? 0, route: '/admin/no-show-reviews'),
+          final items = <({String title, String subtitle, IconData icon, int count, String route, Color accent})>[
+            (title: 'توثيق المحامين', subtitle: 'مراجعة بيانات ووثائق المحامين واعتمادها', icon: Icons.verified_user_outlined, count: counts['verifications'] ?? 0, route: '/admin/lawyer-verifications', accent: AppColors.primary),
+            (title: 'طلبات إلغاء الحجوزات', subtitle: 'مراجعة الإلغاء والغرامات والتعويضات', icon: Icons.event_busy_outlined, count: counts['cancellations'] ?? 0, route: '/admin/cancellation-requests', accent: AppColors.warning),
+            (title: 'تغيير التخصص', subtitle: 'مراجعة طلبات تغيير التخصص والوثائق المرفقة', icon: Icons.badge_outlined, count: counts['specializations'] ?? 0, route: '/admin/specialization-change-requests', accent: AppColors.secondaryDark),
+            (title: 'مراجعة الدفعات', subtitle: 'متابعة الدفعات المعلقة وحالات التحقق', icon: Icons.payments_outlined, count: counts['payments'] ?? 0, route: '/admin/payments', accent: AppColors.teal),
+            (title: 'عدم الحضور', subtitle: 'فحص بلاغات عدم الحضور واتخاذ القرار الإداري', icon: Icons.person_off_outlined, count: counts['noShow'] ?? 0, route: '/admin/no-show-reviews', accent: AppColors.error),
           ];
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              const Text('المراجعات التي تتطلب إجراءً إدارياً', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text('تجمع هذه الصفحة جميع العمليات التي تحتاج إلى قرار من الإدارة.'),
-              const SizedBox(height: 20),
-              ...items.map((item) => Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(14),
-                      leading: CircleAvatar(backgroundColor: AppColors.primary.withValues(alpha: .1), child: Icon(item.icon, color: AppColors.primary)),
-                      title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(item.subtitle),
-                      trailing: Row(mainAxisSize: MainAxisSize.min, children: [if (item.count > 0) Chip(label: Text('${item.count}')), const SizedBox(width: 8), const Icon(Icons.arrow_forward_ios, size: 15)]),
-                      onTap: () => context.push(item.route),
+          final totalPending = items.fold<int>(0, (sum, item) => sum + item.count);
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              _refresh();
+              await _future;
+            },
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [AppColors.primaryDark, AppColors.primary], begin: Alignment.topRight, end: Alignment.bottomLeft),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: .14), borderRadius: BorderRadius.circular(16)),
+                      child: const Icon(Icons.fact_check_outlined, color: Colors.white, size: 28),
                     ),
-                  )),
-            ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const Text('المهام التي تحتاج قراراً', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 4),
+                        Text(totalPending > 0 ? '$totalPending طلباً بانتظار المراجعة' : 'لا توجد طلبات معلقة حالياً', style: const TextStyle(color: Colors.white70, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      ]),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: .14), borderRadius: BorderRadius.circular(999)),
+                      child: Text('$totalPending', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
+                    ),
+                  ]),
+                ),
+                const SizedBox(height: 18),
+                const Text('أقسام المراجعة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
+                const SizedBox(height: 10),
+                ...items.map((item) => _ReviewCard(item: item, onTap: () => context.push(item.route))),
+              ],
+            ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _ReviewCard extends StatelessWidget {
+  final ({String title, String subtitle, IconData icon, int count, String route, Color accent}) item;
+  final VoidCallback onTap;
+
+  const _ReviewCard({required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final needsAction = item.count > 0;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: needsAction ? item.accent.withValues(alpha: .32) : AppColors.outlineVariant),
+        boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: .035), blurRadius: 12, offset: const Offset(0, 4))],
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(15),
+          child: Row(children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(color: item.accent.withValues(alpha: .10), borderRadius: BorderRadius.circular(15)),
+              child: Icon(item.icon, color: item.accent, size: 25),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(item.title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15.5, color: AppColors.textPrimary)),
+                const SizedBox(height: 4),
+                Text(item.subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.45)),
+              ]),
+            ),
+            const SizedBox(width: 8),
+            if (needsAction)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(color: item.accent.withValues(alpha: .10), borderRadius: BorderRadius.circular(999)),
+                child: Text('${item.count}', style: TextStyle(color: item.accent, fontWeight: FontWeight.w900)),
+              ),
+            const SizedBox(width: 7),
+            const Icon(Icons.chevron_left_rounded, color: AppColors.textSecondary),
+          ]),
+        ),
       ),
     );
   }
