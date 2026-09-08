@@ -37,6 +37,24 @@ void main() {
     expect(booking.isManualPaymentPending, isFalse);
   });
 
+  test('free beta booking never requires electronic or manual payment', () {
+    final booking = Booking(
+      id: 'beta-1',
+      userId: 'u1',
+      lawyerId: 'l1',
+      scheduledAt: scheduled,
+      price: 100,
+      consultationMode: 'في المكتب',
+      paymentRequired: false,
+      paymentWaivedAt: scheduled,
+      paymentWaiverReason: 'free_beta',
+      manualPaymentRequired: false,
+    );
+
+    expect(booking.isFreeBeta, isTrue);
+    expect(booking.isManualPaymentPending, isFalse);
+  });
+
   test('copyWith preserves booking identity and required fields', () {
     final booking = Booking(
       id: 'b3',

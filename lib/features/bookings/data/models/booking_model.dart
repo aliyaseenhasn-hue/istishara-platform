@@ -11,6 +11,9 @@ class BookingModel {
   final DateTime? startedAt;
   final String? whatsappNumber;
   final bool lawyerApproved;
+  final bool paymentRequired;
+  final DateTime? paymentWaivedAt;
+  final String? paymentWaiverReason;
   final String? consultationMode;
   final bool manualPaymentRequired;
   final double? manualReceivedAmount;
@@ -27,6 +30,9 @@ class BookingModel {
     this.startedAt,
     this.whatsappNumber,
     this.lawyerApproved = false,
+    this.paymentRequired = true,
+    this.paymentWaivedAt,
+    this.paymentWaiverReason,
     this.consultationMode,
     this.manualPaymentRequired = false,
     this.manualReceivedAmount,
@@ -46,6 +52,9 @@ class BookingModel {
         startedAt: json['started_at'] != null ? DateTime.parse(json['started_at'] as String) : null,
         whatsappNumber: json['whatsapp_number'] as String?,
         lawyerApproved: json['lawyer_approved'] as bool? ?? false,
+        paymentRequired: json['payment_required'] as bool? ?? true,
+        paymentWaivedAt: json['payment_waived_at'] != null ? DateTime.parse(json['payment_waived_at'] as String) : null,
+        paymentWaiverReason: json['payment_waiver_reason'] as String?,
         consultationMode: json['consultation_mode'] as String?,
         manualPaymentRequired: json['manual_payment_required'] as bool? ?? false,
         manualReceivedAmount: (json['manual_received_amount'] as num?)?.toDouble(),
@@ -63,6 +72,9 @@ class BookingModel {
         startedAt: startedAt,
         whatsappNumber: whatsappNumber,
         lawyerApproved: lawyerApproved,
+        paymentRequired: paymentRequired,
+        paymentWaivedAt: paymentWaivedAt,
+        paymentWaiverReason: paymentWaiverReason,
         consultationMode: consultationMode,
         manualPaymentRequired: manualPaymentRequired,
         manualReceivedAmount: manualReceivedAmount,

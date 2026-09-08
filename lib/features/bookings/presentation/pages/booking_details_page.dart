@@ -53,7 +53,8 @@ class BookingDetailsPage extends ConsumerWidget {
               _row(context, 'التاريخ', DateFormat('yyyy/MM/dd').format(booking.scheduledAt)),
               _row(context, 'الوقت', AppTimeFormat.time12(booking.scheduledAt)),
               _row(context, 'المدة', '${d?['package_duration_minutes'] ?? 30} دقيقة'),
-              _row(context, 'الرسوم', '${booking.price.toStringAsFixed(0)} د.ع'),
+              _row(context, booking.isFreeBeta ? 'السعر الأصلي' : 'الرسوم', '${booking.price.toStringAsFixed(0)} د.ع'),
+              if (booking.isFreeBeta) _row(context, 'المبلغ المستحق', '0 د.ع — نسخة تجريبية مجانية'),
             ]),
             loading: () => const LinearProgressIndicator(),
             error: (_, __) => Column(children: [_row(context, 'التاريخ', DateFormat('yyyy/MM/dd').format(booking.scheduledAt)), _row(context, 'الوقت', AppTimeFormat.time12(booking.scheduledAt)), _row(context, 'الرسوم', '${booking.price.toStringAsFixed(0)} د.ع')]),
@@ -65,17 +66,20 @@ class BookingDetailsPage extends ConsumerWidget {
             error: (_, __) => Text(booking.description ?? 'لا يوجد وصف متاح.'),
           )),
           const SizedBox(height: 12),
-          _section(context, 'حالة الدفع', Icons.receipt_long_outlined, payment.when(
-            data: (p) => p == null ? const Text('لم يتم إرسال الدفع بعد.') : Column(children: [_row(context, 'الوسيلة', _paymentMethod(p.paymentMethod)), _row(context, 'حالة الدفع', _paymentStatus(p.status)), if (p.transactionNumber != null) _row(context, 'رقم العملية', p.transactionNumber!)]),
-            loading: () => const LinearProgressIndicator(),
-            error: (_, __) => const Text('تعذر تحميل بيانات الدفع'),
-          )),
+          if (booking.isFreeBeta)
+            _section(context, 'الفترة التجريبية', Icons.science_outlined, const Text('هذه الاستشارة مجانية ضمن النسخة التجريبية، ولن يتم تحصيل أي مبلغ أو إنشاء معاملة دفع.'))
+          else
+            _section(context, 'حالة الدفع', Icons.receipt_long_outlined, payment.when(
+              data: (p) => p == null ? const Text('لم يتم إرسال الدفع بعد.') : Column(children: [_row(context, 'الوسيلة', _paymentMethod(p.paymentMethod)), _row(context, 'حالة الدفع', _paymentStatus(p.status)), if (p.transactionNumber != null) _row(context, 'رقم العملية', p.transactionNumber!)]),
+              loading: () => const LinearProgressIndicator(),
+              error: (_, __) => const Text('تعذر تحميل بيانات الدفع'),
+            )),
           if (['مؤكد', 'قيد التنفيذ', 'مكتمل'].contains(booking.status)) ...[
             const SizedBox(height: 12),
             _section(context, 'معلومات التواصل', Icons.contact_phone_outlined, contact.when(data: (c) => c == null ? const Text('لا توجد معلومات تواصل متاحة.') : _contactContent(context, c, isLawyer), loading: () => const LinearProgressIndicator(), error: (e, _) => Text(e.toString().replaceFirst('Exception: ', '')))),
           ],
           const SizedBox(height: 20),
-          if (isOwner && booking.status == 'قيد انتظار الدفع') ElevatedButton.icon(onPressed: () => context.push('/upload-payment', extra: booking), icon: const Icon(Icons.payment_rounded), label: const Text('إكمال الدفع')),
+          if (isOwner && booking.paymentRequired && booking.status == 'قيد انتظار الدفع') ElevatedButton.icon(onPressed: () => context.push('/upload-payment', extra: booking), icon: const Icon(Icons.payment_rounded), label: const Text('إكمال الدفع')),
           if (needsReview) ...[
             _infoCard(context, 'هذا الطلب بانتظار مراجعتك. يمكنك الموافقة أو رفض الطلب.', Icons.rule_rounded), const SizedBox(height: 10),
             Row(children: [Expanded(child: ElevatedButton.icon(onPressed: () => _review(context, ref, true), icon: const Icon(Icons.check_circle_outline), label: const Text('الموافقة'))), const SizedBox(width: 10), Expanded(child: OutlinedButton.icon(onPressed: () => _review(context, ref, false), icon: const Icon(Icons.cancel_outlined), label: const Text('رفض الطلب')))]),
