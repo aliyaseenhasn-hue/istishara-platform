@@ -23,7 +23,8 @@ class AdminStats extends _$AdminStats {
       final pendingVerificationsRes = await client
           .from('lawyer_profiles')
           .select('id')
-          .eq('verified', false);
+          .eq('verified', false)
+          .eq('verification_status', 'pending');
       final pendingVerifications = (pendingVerificationsRes as List).length;
 
       final activeBookingsRes = await client
@@ -32,8 +33,7 @@ class AdminStats extends _$AdminStats {
           .inFilter('status', ['مؤكد', 'قيد التنفيذ']);
       final activeBookings = (activeBookingsRes as List).length;
 
-      final paymentsRes =
-          await client.from('payments').select('amount, status');
+      final paymentsRes = await client.from('payments').select('amount, status');
 
       double totalRevenue = 0;
       int pendingPaymentsCount = 0;
