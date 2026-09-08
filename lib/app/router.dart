@@ -35,6 +35,7 @@ import '../features/bookings/presentation/pages/create_booking_page.dart';
 import '../features/bookings/presentation/pages/bookings_list_page.dart';
 import '../features/bookings/presentation/pages/archived_bookings_page.dart';
 import '../features/bookings/presentation/pages/booking_cancellation_overlay.dart';
+import '../features/bookings/presentation/pages/booking_notification_target_page.dart';
 import '../features/bookings/presentation/pages/manual_payment_page.dart';
 import '../features/bookings/presentation/pages/manual_payment_required_page.dart';
 import '../features/chat/presentation/pages/chat_page.dart';
@@ -79,8 +80,6 @@ GoRouter router(RouterRef ref) {
     refreshListenable: GoRouterRefreshStream(ref.watch(authRepositoryProvider).authStateChanges()),
     redirect: (context, state) async {
       var user = authState.valueOrNull;
-      // Supabase may already have a valid session immediately after Telegram/Google
-      // while the Riverpod stream is still catching up. Resolve it before routing.
       if (user == null && SupabaseConfig.client.auth.currentUser != null) {
         try {
           user = await ref.read(authRepositoryProvider).getCurrentUser();
@@ -159,7 +158,15 @@ GoRouter router(RouterRef ref) {
         GoRoute(path: '/bookings', builder: (c, s) => const BookingsListPage()),
         GoRoute(path: '/archived-bookings', builder: (c, s) => const ArchivedBookingsPage()),
         GoRoute(path: '/chats', builder: (c, s) => const ConversationsPage()),
-        GoRoute(path: '/booking-details', builder: (c, s) { final b = s.extra as Booking?; return b == null ? const BookingsListPage() : BookingDetailsWithCancellation(booking: b); }),
+        GoRoute(path: '/booking-details', builder: (c, s) {
+          final b = s.extra as Booking?;
+          if (b != null) return BookingDetailsWithCancellation(booking: b);
+          final bookingId = s.uri.queryParameters['booking_id']?.trim();
+          if (bookingId != null && bookingId.isNotEmpty) {
+            return BookingNotificationTargetPage(bookingId: bookingId);
+          }
+          return const BookingsListPage();
+        }),
         GoRoute(path: '/manual-payment-required', builder: (c, s) => const ManualPaymentRequiredPage()),
         GoRoute(path: '/manual-payment', builder: (c, s) { final b = s.extra as Booking?; return b == null ? const ManualPaymentRequiredPage() : ManualPaymentPage(booking: b); }),
         GoRoute(path: '/chat/:id', builder: (c, s) => ChatPage(conversationId: s.pathParameters['id']!),
