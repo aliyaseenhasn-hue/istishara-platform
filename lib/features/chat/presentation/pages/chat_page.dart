@@ -244,11 +244,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             ),
           ],
         ),
-        actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.videocam_outlined)),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.call_outlined)),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.more_horiz_rounded)),
-        ],
       ),
       body: Column(
         children: [
@@ -321,34 +316,20 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                     color: scheme.outlineVariant.withValues(alpha: .7),
                   ),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      onPressed: () {},
-                      icon: Icon(
-                        Icons.add_circle_outline_rounded,
-                        color: scheme.onSurfaceVariant,
-                      ),
+                child: TextField(
+                  controller: _messageController,
+                  onChanged: (_) => setState(() {}),
+                  maxLines: null,
+                  textDirection: TextDirection.rtl,
+                  decoration: InputDecoration(
+                    hintText: 'اكتب رسالتك هنا...',
+                    hintStyle: TextStyle(color: scheme.onSurfaceVariant),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
                     ),
-                    Expanded(
-                      child: TextField(
-                        controller: _messageController,
-                        onChanged: (_) => setState(() {}),
-                        maxLines: null,
-                        textDirection: TextDirection.rtl,
-                        decoration: InputDecoration(
-                          hintText: 'اكتب رسالتك هنا...',
-                          hintStyle: TextStyle(color: scheme.onSurfaceVariant),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 14,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -357,17 +338,20 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: AppColors.gold,
+                color: hasText ? AppColors.gold : scheme.surfaceContainerHighest,
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.gold.withValues(alpha: .22),
-                    blurRadius: 12,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
+                boxShadow: hasText
+                    ? [
+                        BoxShadow(
+                          color: AppColors.gold.withValues(alpha: .22),
+                          blurRadius: 12,
+                          offset: const Offset(0, 5),
+                        ),
+                      ]
+                    : null,
               ),
               child: IconButton(
+                tooltip: 'إرسال الرسالة',
                 onPressed: hasText && !_sending ? _send : null,
                 icon: _sending
                     ? SizedBox(
@@ -379,8 +363,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         ),
                       )
                     : Icon(
-                        hasText ? Icons.send_rounded : Icons.mic_none_rounded,
-                        color: AppColors.textOnPrimary,
+                        Icons.send_rounded,
+                        color: hasText
+                            ? AppColors.textOnPrimary
+                            : scheme.onSurfaceVariant,
                         size: 21,
                       ),
               ),
