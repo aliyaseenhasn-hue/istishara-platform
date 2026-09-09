@@ -15,8 +15,9 @@ class SpecializationChangePage extends ConsumerStatefulWidget {
 
 class _SpecializationChangePageState extends ConsumerState<SpecializationChangePage> {
   static const _options = LegalSpecializations.all;
+  static const _max = LegalSpecializations.maxLawyerSpecializations;
 
-  final Set<String> _selected = <String>{};
+  final List<String> _selected = <String>[];
   PlatformFile? _idCard;
   bool _saving = false;
 
@@ -37,11 +38,34 @@ class _SpecializationChangePageState extends ConsumerState<SpecializationChangeP
     setState(() => _idCard = file);
   }
 
+  void _toggleSpecialization(String specialization, bool value) {
+    if (value) {
+      if (_selected.contains(specialization)) return;
+      if (_selected.length >= _max) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('الحد الأقصى 3 تخصصات: تخصص رئيسي وتخصصان إضافيان.'),
+          ),
+        );
+        return;
+      }
+      setState(() => _selected.add(specialization));
+      return;
+    }
+    setState(() => _selected.remove(specialization));
+  }
+
   Future<void> _submit() async {
     final idCard = _idCard;
     if (_selected.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('اختر تخصصاً واحداً على الأقل.')),
+        const SnackBar(content: Text('اختر تخصصاً رئيسياً واحداً على الأقل.')),
+      );
+      return;
+    }
+    if (_selected.length > _max) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يمكن اعتماد ثلاثة تخصصات كحد أقصى.')),
       );
       return;
     }
@@ -57,7 +81,7 @@ class _SpecializationChangePageState extends ConsumerState<SpecializationChangeP
       final repo = LawyersRepositoryImpl(SupabaseConfig.client);
       final url = await repo.uploadFile(idCard.bytes!, idCard.name, 'lawyer_documents');
       await repo.requestSpecializationChange(
-        _selected.toList(growable: false),
+        List<String>.unmodifiable(_selected),
         unionIdCardUrl: url,
       );
 
@@ -74,6 +98,59 @@ class _SpecializationChangePageState extends ConsumerState<SpecializationChangeP
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Widget _selectionSummary() {
+    if (_selected.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(13),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.info_outline_rounded, color: AppColors.primaryDark, size: 20),
+            SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                'أول تخصص تختاره سيكون تخصصك الرئيسي، ويمكنك إضافة تخصصين فقط.',
+                style: TextStyle(color: AppColors.textSecondary, height: 1.45),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'التخصص الرئيسي: ${_selected.first}',
+            style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.primaryDark),
+          ),
+          if (_selected.length > 1) ...[
+            const SizedBox(height: 5),
+            Text(
+              'إضافي: ${_selected.skip(1).join('، ')}',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ],
+          const SizedBox(height: 5),
+          Text(
+            '${_selected.length}/$_max تخصصات مختارة',
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -125,7 +202,7 @@ class _SpecializationChangePageState extends ConsumerState<SpecializationChangeP
                           ),
                           SizedBox(height: 5),
                           Text(
-                            'اختر المجالات التي ترغب بممارستها وأرسل المستندات للمراجعة.',
+                            'تخصص رئيسي واحد وتخصصان إضافيان كحد أقصى، بعد مراجعة الإدارة.',
                             style: TextStyle(color: Color(0xE6FFFFFF), height: 1.45),
                           ),
                         ],
@@ -135,11 +212,13 @@ class _SpecializationChangePageState extends ConsumerState<SpecializationChangeP
                 ),
               ),
               const SizedBox(height: 24),
-              _SectionTitle(
+              const _SectionTitle(
                 number: '01',
                 title: 'التخصصات المطلوبة',
-                subtitle: 'يمكنك اختيار أكثر من تخصص.',
+                subtitle: 'اختر الرئيسي أولاً، ثم أضف حتى تخصصين آخرين.',
               ),
+              const SizedBox(height: 12),
+              _selectionSummary(),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(14),
@@ -153,8 +232,10 @@ class _SpecializationChangePageState extends ConsumerState<SpecializationChangeP
                   runSpacing: 9,
                   children: _options.map((specialization) {
                     final selected = _selected.contains(specialization);
+                    final position = selected ? _selected.indexOf(specialization) : -1;
+                    final suffix = position == 0 ? ' • رئيسي' : (position > 0 ? ' • إضافي' : '');
                     return FilterChip(
-                      label: Text(specialization),
+                      label: Text('$specialization$suffix'),
                       selected: selected,
                       showCheckmark: true,
                       checkmarkColor: AppColors.textOnPrimary,
@@ -170,24 +251,16 @@ class _SpecializationChangePageState extends ConsumerState<SpecializationChangeP
                         color: selected ? AppColors.textOnPrimary : AppColors.textPrimary,
                         fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
                       ),
-                      onSelected: (value) {
-                        setState(() {
-                          if (value) {
-                            _selected.add(specialization);
-                          } else {
-                            _selected.remove(specialization);
-                          }
-                        });
-                      },
+                      onSelected: _saving ? null : (value) => _toggleSpecialization(specialization, value),
                     );
                   }).toList(growable: false),
                 ),
               ),
               const SizedBox(height: 24),
-              _SectionTitle(
+              const _SectionTitle(
                 number: '02',
                 title: 'وثيقة التحقق',
-                subtitle: 'مطلوبة للتأكد من صلاحية التخصص الجديد.',
+                subtitle: 'مطلوبة للتأكد من صلاحية التخصصات الجديدة.',
               ),
               const SizedBox(height: 12),
               InkWell(
@@ -277,7 +350,7 @@ class _SpecializationChangePageState extends ConsumerState<SpecializationChangeP
               const SizedBox(height: 10),
               const Center(
                 child: Text(
-                  'ستراجع الإدارة طلبك قبل اعتماد التخصص الجديد.',
+                  'ستراجع الإدارة الطلب قبل اعتماد التخصصات الجديدة.',
                   style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                 ),
               ),
