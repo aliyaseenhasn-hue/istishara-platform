@@ -59,27 +59,26 @@ class _MainBottomNavState extends ConsumerState<MainBottomNav> {
 
     return Container(
       color: Colors.transparent,
-      padding: const EdgeInsets.fromLTRB(12, 5, 12, 8),
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
       child: SafeArea(
         top: false,
         child: Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(27),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(
               color: AppColors.primary.withValues(alpha: .24),
-              width: 1.2,
+              width: 1,
             ),
             boxShadow: [
               BoxShadow(
                 color: AppColors.primaryDark.withValues(alpha: .10),
-                blurRadius: 24,
-                spreadRadius: 1,
-                offset: const Offset(0, 8),
+                blurRadius: 16,
+                offset: const Offset(0, 5),
               ),
             ],
           ),
-          padding: const EdgeInsets.all(7),
+          padding: const EdgeInsets.all(5),
           child: Row(
             textDirection: direction,
             children: List.generate(
@@ -146,18 +145,18 @@ class _NavDestination extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = selected ? Colors.white : AppColors.primaryDark;
-    final textColor = selected ? Colors.white : AppColors.textPrimary;
+    final iconColor = selected ? Colors.white : AppColors.textSecondary;
+    final textColor = selected ? AppColors.primaryDark : AppColors.textSecondary;
 
     return Semantics(
       button: true,
       selected: selected,
       label: item.label,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 2),
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(15),
           child: InkWell(
             onTap: onTap,
             splashFactory: NoSplash.splashFactory,
@@ -165,22 +164,21 @@ class _NavDestination extends StatelessWidget {
             highlightColor: Colors.transparent,
             hoverColor: Colors.transparent,
             focusColor: AppColors.primary.withValues(alpha: .05),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(15),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 125),
               curve: Curves.easeOutCubic,
-              constraints: const BoxConstraints(minHeight: 60),
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              constraints: const BoxConstraints(minHeight: 50),
+              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
               decoration: BoxDecoration(
                 color: selected
-                    ? AppColors.primary
-                    : AppColors.primaryFixed.withValues(alpha: .82),
-                borderRadius: BorderRadius.circular(18),
+                    ? AppColors.primaryFixed
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(15),
                 border: Border.all(
                   color: selected
-                      ? AppColors.gold.withValues(alpha: .78)
-                      : AppColors.primaryLight.withValues(alpha: .30),
-                  width: selected ? 1.4 : 1,
+                      ? AppColors.primary.withValues(alpha: .18)
+                      : Colors.transparent,
                 ),
               ),
               child: Column(
@@ -190,36 +188,31 @@ class _NavDestination extends StatelessWidget {
                   AnimatedScale(
                     duration: const Duration(milliseconds: 125),
                     curve: Curves.easeOutCubic,
-                    scale: selected ? 1.06 : 1,
+                    scale: selected ? 1.04 : 1,
                     child: Container(
-                      width: 30,
-                      height: 30,
+                      width: 26,
+                      height: 26,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: selected
-                            ? Colors.white.withValues(alpha: .14)
-                            : AppColors.surface.withValues(alpha: .88),
+                            ? AppColors.primary
+                            : Colors.transparent,
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: selected
-                              ? Colors.white.withValues(alpha: .20)
-                              : AppColors.primaryLight.withValues(alpha: .25),
-                        ),
                       ),
                       child: Icon(
                         selected ? item.activeIcon : item.icon,
                         color: iconColor,
-                        size: 22.5,
+                        size: 20,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   AnimatedDefaultTextStyle(
                     duration: const Duration(milliseconds: 125),
                     curve: Curves.easeOutCubic,
                     style: TextStyle(
                       color: textColor,
-                      fontSize: 11.5,
+                      fontSize: 10.5,
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
                       height: 1.1,
                     ),
