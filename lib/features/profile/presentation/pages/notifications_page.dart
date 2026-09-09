@@ -60,13 +60,33 @@ class NotificationsPage extends ConsumerWidget {
       await ref.read(unreadNotificationsCountProvider.future);
     }
 
+    Future<void> markAllRead() async {
+      try {
+        await markAllNotificationsAsRead();
+        await refresh();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم اعتبار جميع الإشعارات مقروءة')),
+          );
+        }
+      } catch (_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تعذر تحديث حالة الإشعارات. حاول مرة أخرى.')),
+          );
+        }
+      }
+    }
+
     return Scaffold(
       backgroundColor: scheme.surface,
       body: RefreshIndicator(
         color: AppColors.teal,
         onRefresh: refresh,
         child: async.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: AppColors.teal)),
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppColors.teal),
+          ),
           error: (_, __) => _NotificationState(
             icon: Icons.notifications_off_rounded,
             title: 'تعذر تحميل التنبيهات',
@@ -78,25 +98,7 @@ class NotificationsPage extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: _NotificationsHeader(
                   unread: unread,
-                  onMarkAll: unread == 0
-                      ? null
-                      : () async {
-                          try {
-                            await markAllNotificationsAsRead();
-                            await refresh();
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('تم تحديد جميع الإشعارات كمقروءة')),
-                              );
-                            }
-                          } catch (_) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('تعذر تحديث حالة الإشعارات. حاول مرة أخرى.')),
-                              );
-                            }
-                          }
-                        },
+                  onMarkAll: markAllRead,
                 ),
               ),
               if (items.isEmpty)
@@ -126,9 +128,12 @@ class NotificationsPage extends ConsumerWidget {
 
 class _NotificationsHeader extends StatelessWidget {
   final int unread;
-  final Future<void> Function()? onMarkAll;
+  final Future<void> Function() onMarkAll;
 
-  const _NotificationsHeader({required this.unread, required this.onMarkAll});
+  const _NotificationsHeader({
+    required this.unread,
+    required this.onMarkAll,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +167,11 @@ class _NotificationsHeader extends StatelessWidget {
               const Text(
                 'التنبيهات',
                 textAlign: TextAlign.right,
-                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               const SizedBox(width: 10),
               Container(
@@ -171,43 +180,61 @@ class _NotificationsHeader extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: .14),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withValues(alpha: .22)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: .22),
+                  ),
                 ),
-                child: const Icon(Icons.notifications_active_rounded, color: AppColors.goldLight),
+                child: const Icon(
+                  Icons.notifications_active_rounded,
+                  color: AppColors.goldLight,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              if (onMarkAll != null)
-                TextButton.icon(
-                  onPressed: onMarkAll,
-                  icon: const Icon(Icons.done_all_rounded, size: 17),
-                  label: const Text('تحديد الكل كمقروء'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                )
-              else
-                const SizedBox.shrink(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.goldLight.withValues(alpha: .18),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.goldLight.withValues(alpha: .30)),
-                ),
-                child: Text(
-                  unread == 0 ? 'كل شيء محدث' : '$unread تنبيه غير مقروء',
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.goldLight.withValues(alpha: .18),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: AppColors.goldLight.withValues(alpha: .30),
                 ),
               ),
-            ],
+              child: Text(
+                unread == 0 ? 'كل شيء محدث' : '$unread تنبيه غير مقروء',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: onMarkAll,
+              icon: const Icon(Icons.done_all_rounded, size: 19),
+              label: const Text(
+                'اعتبار جميع الإشعارات مقروءة',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                backgroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -220,14 +247,21 @@ class _NotificationCard extends StatelessWidget {
   final Future<void> Function() onOpen;
   final Future<void> Function() onRefresh;
 
-  const _NotificationCard({required this.item, required this.onOpen, required this.onRefresh});
+  const _NotificationCard({
+    required this.item,
+    required this.onOpen,
+    required this.onRefresh,
+  });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final unread = !item.isRead;
     final visual = _visualFor(item.type);
-    final time = DateFormat('yyyy/MM/dd - HH:mm', 'ar').format(item.createdAt.toLocal());
+    final time = DateFormat(
+      'yyyy/MM/dd - HH:mm',
+      'ar',
+    ).format(item.createdAt.toLocal());
 
     return Container(
       margin: const EdgeInsets.only(bottom: 13),
@@ -235,7 +269,9 @@ class _NotificationCard extends StatelessWidget {
         color: scheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(23),
         border: Border.all(
-          color: unread ? visual.color.withValues(alpha: .55) : scheme.outlineVariant,
+          color: unread
+              ? visual.color.withValues(alpha: .55)
+              : scheme.outlineVariant,
         ),
         boxShadow: [
           BoxShadow(
@@ -259,7 +295,11 @@ class _NotificationCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _NotificationIcon(icon: visual.icon, color: visual.color, unread: unread),
+                _NotificationIcon(
+                  icon: visual.icon,
+                  color: visual.color,
+                  unread: unread,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -270,15 +310,25 @@ class _NotificationCard extends StatelessWidget {
                         children: [
                           if (unread)
                             Container(
-                              margin: const EdgeInsetsDirectional.only(start: 8, top: 2),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              margin: const EdgeInsetsDirectional.only(
+                                start: 8,
+                                top: 2,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: visual.color.withValues(alpha: .12),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
                                 'جديد',
-                                style: TextStyle(color: visual.color, fontSize: 10, fontWeight: FontWeight.w900),
+                                style: TextStyle(
+                                  color: visual.color,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
                             ),
                           Expanded(
@@ -291,7 +341,9 @@ class _NotificationCard extends StatelessWidget {
                                 color: scheme.onSurface,
                                 fontSize: 15,
                                 height: 1.35,
-                                fontWeight: unread ? FontWeight.w900 : FontWeight.w700,
+                                fontWeight: unread
+                                    ? FontWeight.w900
+                                    : FontWeight.w700,
                               ),
                             ),
                           ),
@@ -303,7 +355,11 @@ class _NotificationCard extends StatelessWidget {
                         textAlign: TextAlign.right,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13, height: 1.55),
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 13,
+                          height: 1.55,
+                        ),
                       ),
                       const SizedBox(height: 10),
                       Row(
@@ -314,11 +370,19 @@ class _NotificationCard extends StatelessWidget {
                               time,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: scheme.outline, fontSize: 12, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                color: scheme.outline,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 6),
-                          Icon(Icons.schedule_rounded, size: 14, color: visual.color),
+                          Icon(
+                            Icons.schedule_rounded,
+                            size: 14,
+                            color: visual.color,
+                          ),
                         ],
                       ),
                     ],
@@ -336,18 +400,36 @@ class _NotificationCard extends StatelessWidget {
     switch (type.toLowerCase()) {
       case 'chat':
       case 'message':
-        return const _NotificationVisual(Icons.chat_bubble_rounded, AppColors.teal);
+        return const _NotificationVisual(
+          Icons.chat_bubble_rounded,
+          AppColors.teal,
+        );
       case 'payment':
-        return const _NotificationVisual(Icons.payments_rounded, AppColors.success);
+        return const _NotificationVisual(
+          Icons.payments_rounded,
+          AppColors.success,
+        );
       case 'booking':
-        return const _NotificationVisual(Icons.event_available_rounded, AppColors.primaryLight);
+        return const _NotificationVisual(
+          Icons.event_available_rounded,
+          AppColors.primaryLight,
+        );
       case 'profile':
-        return const _NotificationVisual(Icons.person_rounded, Color(0xFF7C4DFF));
+        return const _NotificationVisual(
+          Icons.person_rounded,
+          Color(0xFF7C4DFF),
+        );
       case 'warning':
       case 'alert':
-        return const _NotificationVisual(Icons.warning_amber_rounded, AppColors.warning);
+        return const _NotificationVisual(
+          Icons.warning_amber_rounded,
+          AppColors.warning,
+        );
       default:
-        return const _NotificationVisual(Icons.notifications_rounded, AppColors.secondary);
+        return const _NotificationVisual(
+          Icons.notifications_rounded,
+          AppColors.secondary,
+        );
     }
   }
 }
@@ -364,7 +446,11 @@ class _NotificationIcon extends StatelessWidget {
   final Color color;
   final bool unread;
 
-  const _NotificationIcon({required this.icon, required this.color, required this.unread});
+  const _NotificationIcon({
+    required this.icon,
+    required this.color,
+    required this.unread,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -373,12 +459,17 @@ class _NotificationIcon extends StatelessWidget {
       height: 52,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [color.withValues(alpha: .19), color.withValues(alpha: .07)],
+          colors: [
+            color.withValues(alpha: .19),
+            color.withValues(alpha: .07),
+          ],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: color.withValues(alpha: unread ? .30 : .18)),
+        border: Border.all(
+          color: color.withValues(alpha: unread ? .30 : .18),
+        ),
       ),
       child: Icon(icon, color: color, size: 25),
     );
@@ -415,19 +506,31 @@ class _EmptyNotifications extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(Icons.notifications_active_rounded, size: 45, color: Colors.white),
+              child: const Icon(
+                Icons.notifications_active_rounded,
+                size: 45,
+                color: Colors.white,
+              ),
             ),
             const SizedBox(height: 22),
             Text(
               'لا توجد تنبيهات حالياً',
               textAlign: TextAlign.center,
-              style: TextStyle(color: scheme.onSurface, fontSize: 18, fontWeight: FontWeight.w900),
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'ستظهر هنا آخر تحديثات حسابك واستشاراتك.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13, height: 1.5),
+              style: TextStyle(
+                color: scheme.onSurfaceVariant,
+                fontSize: 13,
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -442,7 +545,12 @@ class _NotificationState extends StatelessWidget {
   final String actionLabel;
   final Future<void> Function() onAction;
 
-  const _NotificationState({required this.icon, required this.title, required this.actionLabel, required this.onAction});
+  const _NotificationState({
+    required this.icon,
+    required this.title,
+    required this.actionLabel,
+    required this.onAction,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -456,14 +564,21 @@ class _NotificationState extends StatelessWidget {
             Container(
               width: 76,
               height: 76,
-              decoration: BoxDecoration(color: AppColors.errorContainer, borderRadius: BorderRadius.circular(24)),
+              decoration: BoxDecoration(
+                color: AppColors.errorContainer,
+                borderRadius: BorderRadius.circular(24),
+              ),
               child: Icon(icon, size: 38, color: AppColors.error),
             ),
             const SizedBox(height: 18),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: TextStyle(color: scheme.onSurface, fontSize: 16, fontWeight: FontWeight.w800),
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
             ),
             const SizedBox(height: 14),
             FilledButton(
@@ -471,10 +586,18 @@ class _NotificationState extends StatelessWidget {
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.teal,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
-              child: Text(actionLabel, style: const TextStyle(fontWeight: FontWeight.w800)),
+              child: Text(
+                actionLabel,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
             ),
           ],
         ),
