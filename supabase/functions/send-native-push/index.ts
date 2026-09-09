@@ -4,6 +4,7 @@ import { importPKCS8, SignJWT } from 'npm:jose@6';
 interface NotificationRecord {
   id: string;
   user_id: string;
+  actor_profile_id?: string | null;
   title?: string | null;
   body?: string | null;
   type?: string | null;
@@ -42,7 +43,7 @@ async function getAccessToken(serviceAccount: Record<string, string>) {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      grant_type: 'urn:ietf:params:oauth-type:jwt-bearer',
       assertion,
     }),
   });
@@ -65,6 +66,12 @@ export default {
       const payload = (await request.json()) as WebhookPayload;
       if (payload.type !== 'INSERT' || payload.table !== 'notifications' || payload.schema !== 'public') {
         return Response.json({ ok: true, skipped: true });
+      }
+
+      // A user action may still create an in-app notification for audit/history,
+      // but it must not generate an OS push back to the same actor.
+      if (payload.record.actor_profile_id && payload.record.actor_profile_id === payload.record.user_id) {
+        return Response.json({ ok: true, sent: 0, skipped: 'self_action' });
       }
 
       const serviceAccount = JSON.parse(requireEnv('FCM_SERVICE_ACCOUNT_JSON')) as Record<string, string>;
