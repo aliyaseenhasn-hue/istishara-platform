@@ -20,7 +20,17 @@ class _CancellationRequestsPageState extends State<CancellationRequestsPage> {
 
   Future<List<Map<String, dynamic>>> _load() async {
     final response = await SupabaseConfig.client.rpc('get_admin_cancellation_requests');
-    return (response as List).map((row) => Map<String, dynamic>.from(row as Map)).toList();
+    final rows = (response as List).map((row) => Map<String, dynamic>.from(row as Map)).toList();
+    await Future.wait(rows.map((row) async {
+      try {
+        final summary = await SupabaseConfig.client.rpc(
+          'get_booking_cancellation_summary',
+          params: {'p_booking_id': row['booking_id']},
+        );
+        if (summary is Map) row['cancellation_summary'] = Map<String, dynamic>.from(summary);
+      } catch (_) {}
+    }));
+    return rows;
   }
 
   void _refresh() => setState(() => _future = _load());
@@ -50,10 +60,10 @@ class _CancellationRequestsPageState extends State<CancellationRequestsPage> {
             title: const Text('تأكيد القرار المالي', style: TextStyle(fontWeight: FontWeight.w900)),
             content: Text(
               'قيمة الاستشارة: ${bookingPrice.toStringAsFixed(0)} د.ع\n'
-              'نسبة الغرامة: ${rate!.toStringAsFixed(0)}%\n'
-              'قيمة الغرامة للعرض: ${amount.toStringAsFixed(0)} د.ع\n'
-              'المستفيد من التعويض: ${request['client_name']}\n\n'
-              'سيتم الحساب والاعتماد النهائيان داخل قاعدة البيانات.',
+              'نسبة الغرامة: ${rate.toStringAsFixed(0)}%\n'
+              'التعويض الإضافي: ${amount.toStringAsFixed(0)} د.ع\n'
+              'المستفيد: ${request['client_name']}\n\n'
+              'إذا كانت الاستشارة مدفوعة، فسيُسجل كامل مبلغ الاستشارة للاسترداد للعميل بصورة مستقلة عن هذا التعويض. الغرامة هنا تعويض إضافي على المحامي وليست خصماً من مبلغ الاسترداد.',
             ),
             actions: [
               TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('رجوع')),
@@ -73,19 +83,8 @@ class _CancellationRequestsPageState extends State<CancellationRequestsPage> {
         params: {'p_request_id': request['id'], 'p_decision': decision, 'p_penalty_rate': rate},
       );
       if (!mounted) return;
-
-      setState(() {
-        request['status'] = decision == 'رفض الإلغاء' ? 'مرفوض' : 'مقبول';
-      });
-
-      final messenger = ScaffoldMessenger.of(context);
-      messenger.showSnackBar(const SnackBar(content: Text('تم اعتماد القرار بنجاح.')));
-
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop(true);
-      } else {
-        _refresh();
-      }
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم اعتماد القرار وتحديث حالة الحجز والماليات.')));
+      _refresh();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -158,7 +157,7 @@ class _CancellationRequestsPageState extends State<CancellationRequestsPage> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            const Text('مراجعة طلبات الإلغاء', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
+                            const Text('مراجعة الإلغاء والاستردادات', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
                             const SizedBox(height: 4),
                             Text('$pendingCount طلباً بانتظار قرار الإدارة', style: const TextStyle(color: Colors.white70, fontSize: 12.5)),
                           ]),
@@ -183,8 +182,14 @@ class _RequestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pending = request['status'] == 'بانتظار مراجعة الإدارة';
+    final rejected = request['status'] == 'تم رفض الطلب';
     final scheduled = request['scheduled_at'] == null ? null : DateTime.tryParse(request['scheduled_at'].toString())?.toLocal();
     final price = (request['price'] as num?)?.toDouble() ?? 0;
+    final summaryRaw = request['cancellation_summary'];
+    final summary = summaryRaw is Map ? Map<String, dynamic>.from(summaryRaw) : <String, dynamic>{};
+    final creditsRaw = summary['credits'];
+    final credits = creditsRaw is List ? creditsRaw.map((e) => Map<String, dynamic>.from(e as Map)).toList() : <Map<String, dynamic>>[];
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -204,7 +209,7 @@ class _RequestCard extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('طلب إلغاء حجز', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.textPrimary)),
+              const Text('طلب إلغاء من المحامي', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.textPrimary)),
               const SizedBox(height: 3),
               Text(request['consultation_type']?.toString() ?? 'استشارة قانونية', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             ]),
@@ -212,13 +217,13 @@ class _RequestCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: pending ? AppColors.pendingBg : request['status'] == 'مرفوض' ? AppColors.cancelledBg : AppColors.acceptedBg,
+              color: pending ? AppColors.pendingBg : rejected ? AppColors.cancelledBg : AppColors.acceptedBg,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
               request['status']?.toString() ?? '',
               style: TextStyle(
-                color: pending ? AppColors.pendingText : request['status'] == 'مرفوض' ? AppColors.cancelledText : AppColors.acceptedText,
+                color: pending ? AppColors.pendingText : rejected ? AppColors.cancelledText : AppColors.acceptedText,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w800,
               ),
@@ -237,10 +242,33 @@ class _RequestCard extends StatelessWidget {
             _row('قيمة الاستشارة', '${price.toStringAsFixed(0)} د.ع'),
             _row('سبب الإلغاء', request['reason']),
             _row('تاريخ الطلب', DateFormat('yyyy/MM/dd - hh:mm a').format(DateTime.parse(request['requested_at'].toString()).toLocal())),
+            if (request['decision'] != null) _row('قرار الإدارة', request['decision']),
+            if (request['reviewed_at'] != null) _row('تاريخ القرار', DateFormat('yyyy/MM/dd - hh:mm a').format(DateTime.parse(request['reviewed_at'].toString()).toLocal())),
             if (request['penalty_rate'] != null) _row('نسبة الغرامة', '${request['penalty_rate']}%'),
-            if (request['penalty_amount'] != null) _row('مبلغ الغرامة', '${request['penalty_amount']} ${request['currency']}'),
+            if (request['penalty_amount'] != null) _row('التعويض الإضافي', '${request['penalty_amount']} ${request['currency']}'),
           ]),
         ),
+        if (credits.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: AppColors.primaryFixed, borderRadius: BorderRadius.circular(14)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('الاسترداد والتعويض', style: TextStyle(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 6),
+                ...credits.map((credit) => Padding(
+                      padding: const EdgeInsets.only(bottom: 5),
+                      child: Text(
+                        '${credit['transaction_type']}: ${credit['amount']} ${credit['currency']} — ${credit['status']}',
+                        style: const TextStyle(height: 1.4),
+                      ),
+                    )),
+              ],
+            ),
+          ),
+        ],
         if (request['description']?.toString().trim().isNotEmpty == true) ...[
           const SizedBox(height: 10),
           Container(
@@ -254,7 +282,7 @@ class _RequestCard extends StatelessWidget {
           FilledButton.icon(
             onPressed: () => onReview(request),
             icon: const Icon(Icons.rule_outlined),
-            label: const Text('مراجعة طلب الإلغاء', style: TextStyle(fontWeight: FontWeight.w900)),
+            label: const Text('مراجعة الإلغاء والماليات', style: TextStyle(fontWeight: FontWeight.w900)),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -295,25 +323,27 @@ class _DecisionSheet extends StatelessWidget {
             const Text('مراجعة طلب إلغاء الحجز', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
             const SizedBox(height: 8),
             Text('المحامي: ${request['lawyer_name']}\nطالب الاستشارة: ${request['client_name']}\nالسبب: ${request['reason']}', style: const TextStyle(color: AppColors.textSecondary, height: 1.6)),
+            const SizedBox(height: 10),
+            const Text('عند وجود دفعة مؤكدة، قبول الإلغاء يسجل كامل مبلغ الاستشارة للاسترداد. خيار الغرامة يضيف تعويضاً منفصلاً للعميل.', style: TextStyle(fontSize: 12.5, height: 1.5, fontWeight: FontWeight.w700)),
             const SizedBox(height: 18),
             FilledButton.icon(
               onPressed: () => Navigator.pop(context, 'الموافقة بدون غرامة'),
               icon: const Icon(Icons.check_circle_outline_rounded),
-              label: const Text('الموافقة بدون غرامة'),
+              label: const Text('قبول الإلغاء بدون تعويض إضافي'),
               style: FilledButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 13)),
             ),
             const SizedBox(height: 9),
             FilledButton.tonalIcon(
               onPressed: () => Navigator.pop(context, 'الموافقة مع غرامة'),
               icon: const Icon(Icons.account_balance_wallet_outlined),
-              label: const Text('الموافقة مع غرامة'),
+              label: const Text('قبول الإلغاء + تعويض للعميل'),
               style: FilledButton.styleFrom(backgroundColor: AppColors.pendingBg, foregroundColor: AppColors.pendingText, padding: const EdgeInsets.symmetric(vertical: 13)),
             ),
             const SizedBox(height: 9),
             OutlinedButton.icon(
               onPressed: () => Navigator.pop(context, 'رفض الإلغاء'),
               icon: const Icon(Icons.close_rounded),
-              label: const Text('رفض الإلغاء'),
+              label: const Text('رفض طلب الإلغاء والإبقاء على الحجز'),
               style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error), padding: const EdgeInsets.symmetric(vertical: 13)),
             ),
           ]),
@@ -333,13 +363,13 @@ class _PenaltyRateDialogState extends State<_PenaltyRateDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('نسبة الغرامة', style: TextStyle(fontWeight: FontWeight.w900)),
+        title: const Text('نسبة التعويض/الغرامة', style: TextStyle(fontWeight: FontWeight.w900)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('اختر نسبة الغرامة، وسيتم حساب المبلغ النهائي خادمياً.'),
+          const Text('هذه النسبة تُحسب من سعر الاستشارة كتعويض إضافي للعميل، ولا تُنقص مبلغ الاسترداد الأصلي إذا كانت الاستشارة مدفوعة.'),
           const SizedBox(height: 12),
           DropdownButtonFormField<double>(
             initialValue: _rate,
-            decoration: const InputDecoration(labelText: 'نسبة الغرامة', border: OutlineInputBorder()),
+            decoration: const InputDecoration(labelText: 'النسبة', border: OutlineInputBorder()),
             items: [for (int i = 5; i <= 100; i += 5) DropdownMenuItem(value: i.toDouble(), child: Text('$i%'))],
             onChanged: (value) => setState(() => _rate = value ?? 20),
           ),
