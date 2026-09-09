@@ -1,0 +1,44 @@
+name: Add landing login button
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/add-landing-login-button.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Add visible login button to landing hero
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('lib/features/home/presentation/pages/landing_page.dart')
+          text = p.read_text()
+          if "child: const Text(\n                            'تسجيل الدخول',\n                            style: TextStyle(" in text:
+              print('Landing login button already present')
+              raise SystemExit(0)
+          needle = """                      SizedBox(\n                        width: double.infinity,\n                        height: 48,\n                        child: FilledButton(\n                          onPressed: () => context.push('/signup'),\n                          style: FilledButton.styleFrom(\n                            backgroundColor: _navy,\n                            foregroundColor: Colors.white,\n                          ),\n                          child: const Text(\n                            'اطلب استشارة الآن',\n                            style: TextStyle(\n                              fontWeight: FontWeight.w800,\n                              fontSize: 15,\n                            ),\n                          ),\n                        ),\n                      ),\n"""
+          replacement = needle + """                      const SizedBox(height: 12),\n                      SizedBox(\n                        width: double.infinity,\n                        height: 48,\n                        child: OutlinedButton.icon(\n                          onPressed: () => context.push('/login'),\n                          icon: const Icon(Icons.login_rounded, size: 20),\n                          style: OutlinedButton.styleFrom(\n                            foregroundColor: _navy,\n                            side: const BorderSide(color: _navy, width: 1.4),\n                            shape: RoundedRectangleBorder(\n                              borderRadius: BorderRadius.circular(12),\n                            ),\n                          ),\n                          label: const Text(\n                            'تسجيل الدخول',\n                            style: TextStyle(\n                              fontWeight: FontWeight.w800,\n                              fontSize: 15,\n                            ),\n                          ),\n                        ),\n                      ),\n"""
+          if needle not in text:
+              raise SystemExit('Target landing CTA block was not found; aborting without changes.')
+          p.write_text(text.replace(needle, replacement, 1))
+          PY
+      - name: Commit change
+        run: |
+          if git diff --quiet; then
+            echo 'No changes required.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/features/home/presentation/pages/landing_page.dart
+          git commit -m 'feat: add prominent login button to landing page'
+          git push origin HEAD:main
