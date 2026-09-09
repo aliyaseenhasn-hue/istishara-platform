@@ -6,6 +6,7 @@ import '../../../../shared/widgets/hover_lift.dart';
 import '../../../../shared/widgets/lawyer_more_menu_button.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../../../bookings/domain/entities/booking.dart';
+import '../../../bookings/presentation/pages/lawyer_consultations_page.dart';
 import '../../../bookings/presentation/providers/bookings_provider.dart';
 import '../../../profile/presentation/providers/notifications_provider.dart';
 import '../../domain/entities/lawyer_profile.dart';
@@ -71,9 +72,39 @@ class LawyerDashboardPage extends ConsumerWidget {
                 _ProfileHero(name: name, specialization: specialization, license: license, avatarUrl: avatar),
                 const SizedBox(height: 12),
                 Row(children: [
-                  Expanded(child: _MetricCard(value: '$active', label: 'استشارات نشطة', icon: Icons.forum_rounded, background: AppColors.tertiary, foreground: Colors.white)),
+                  Expanded(
+                    child: _MetricCard(
+                      value: '$active',
+                      label: 'استشارات نشطة',
+                      icon: Icons.forum_rounded,
+                      background: AppColors.tertiary,
+                      foreground: Colors.white,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const LawyerConsultationsPage(
+                            filter: LawyerConsultationsFilter.active,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: 9),
-                  Expanded(child: _MetricCard(value: '$completed', label: 'استشارات مكتملة', icon: Icons.task_alt_rounded, background: AppColors.success, foreground: Colors.white)),
+                  Expanded(
+                    child: _MetricCard(
+                      value: '$completed',
+                      label: 'استشارات مكتملة',
+                      icon: Icons.task_alt_rounded,
+                      background: AppColors.success,
+                      foreground: Colors.white,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const LawyerConsultationsPage(
+                            filter: LawyerConsultationsFilter.completed,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ]),
                 const SizedBox(height: 9),
                 _WalletCard(onTap: () => context.push('/lawyer-wallet')),
@@ -226,20 +257,46 @@ class _MetricCard extends StatelessWidget {
   final IconData icon;
   final Color background;
   final Color foreground;
-  const _MetricCard({required this.value, required this.label, required this.icon, required this.background, required this.foreground});
+  final VoidCallback onTap;
+
+  const _MetricCard({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.background,
+    required this.foreground,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) => HoverLift(
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-          decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(18)),
-          child: Column(children: [
-            Icon(icon, color: foreground, size: 23),
-            const SizedBox(height: 5),
-            Text(value, style: TextStyle(color: foreground, fontSize: 21, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 2),
-            Text(label, textAlign: TextAlign.center, style: TextStyle(color: foreground.withValues(alpha: .92), fontSize: 10.5, fontWeight: FontWeight.w700)),
-          ]),
+        borderRadius: 18,
+        child: Material(
+          color: background,
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(18),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 10),
+              child: Column(children: [
+                Icon(icon, color: foreground, size: 23),
+                const SizedBox(height: 5),
+                Text(value, style: TextStyle(color: foreground, fontSize: 21, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 2),
+                Text(label, textAlign: TextAlign.center, style: TextStyle(color: foreground.withValues(alpha: .94), fontSize: 10.5, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.open_in_new_rounded, color: foreground.withValues(alpha: .90), size: 13),
+                    const SizedBox(width: 4),
+                    Text('عرض', style: TextStyle(color: foreground.withValues(alpha: .90), fontSize: 10, fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ]),
+            ),
+          ),
         ),
       );
 }
@@ -250,27 +307,81 @@ class _WalletCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => HoverLift(
-        borderRadius: 20,
+        borderRadius: 22,
         child: Material(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.outlineVariant)),
-              child: Row(children: [
-                Container(width: 48, height: 48, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 25)),
-                const SizedBox(width: 13),
-                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  Text('المحفظة والمستحقات', textAlign: TextAlign.right, style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w900)),
-                  SizedBox(height: 3),
-                  Text('عرض الرصيد الحقيقي، الأرباح والمسحوبات', textAlign: TextAlign.right, style: TextStyle(color: AppColors.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w700)),
-                ])),
-                const SizedBox(width: 8),
-                const Icon(Icons.chevron_left_rounded, color: AppColors.textSecondary),
-              ]),
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(22),
+          child: Ink(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+                colors: [AppColors.primaryDark, AppColors.primary, AppColors.tertiary],
+              ),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: AppColors.goldTransparentStrong),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryDark.withValues(alpha: .16),
+                  blurRadius: 18,
+                  offset: const Offset(0, 7),
+                ),
+              ],
+            ),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(22),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .14),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: Colors.white.withValues(alpha: .22)),
+                    ),
+                    child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 27),
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'المحفظة والمستحقات',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'الرصيد، الأرباح، المستحقات والمسحوبات',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(color: Colors.white.withValues(alpha: .88), fontSize: 11.5, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: .13),
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            child: const Text(
+                              'فتح المحفظة',
+                              style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 27),
+                ]),
+              ),
             ),
           ),
         ),
