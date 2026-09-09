@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/utils/user_facing_error.dart';
 
 class PaymentMethodsPage extends StatefulWidget {
   const PaymentMethodsPage({super.key});
@@ -120,7 +121,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
         'bank_account': 'حساب مصرفي',
       }[value] ?? value;
 
-  String _errorText(Object e) => e.toString().replaceFirst('Exception: ', '');
+  String _errorText(Object e) => UserFacingError.text(e);
 
   @override
   Widget build(BuildContext context) {
