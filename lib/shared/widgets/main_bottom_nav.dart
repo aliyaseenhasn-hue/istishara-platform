@@ -127,12 +127,14 @@ class _NavDestination extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           child: InkWell(
             onTap: onTap,
-            hoverColor: AppColors.primary.withValues(alpha: .06),
-            focusColor: AppColors.primary.withValues(alpha: .08),
-            splashColor: AppColors.primary.withValues(alpha: .12),
+            splashFactory: NoSplash.splashFactory,
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+            focusColor: AppColors.primary.withValues(alpha: .05),
             borderRadius: BorderRadius.circular(18),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
+              duration: const Duration(milliseconds: 240),
               curve: Curves.easeOutCubic,
               constraints: const BoxConstraints(minHeight: 60),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
@@ -167,7 +169,8 @@ class _NavDestination extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
+                    duration: const Duration(milliseconds: 240),
+                    curve: Curves.easeOutCubic,
                     width: selected ? 31 : 29,
                     height: selected ? 31 : 29,
                     alignment: Alignment.center,
@@ -182,23 +185,33 @@ class _NavDestination extends StatelessWidget {
                             : AppColors.primaryLight.withValues(alpha: .25),
                       ),
                     ),
-                    child: Icon(
-                      selected ? item.activeIcon : item.icon,
-                      color: iconColor,
-                      size: selected ? 23 : 22,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      child: Icon(
+                        selected ? item.activeIcon : item.icon,
+                        key: ValueKey<bool>(selected),
+                        color: iconColor,
+                        size: selected ? 23 : 22,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    item.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
                     style: TextStyle(
                       color: textColor,
                       fontSize: 11.5,
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
                       height: 1.1,
+                    ),
+                    child: Text(
+                      item.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ],
