@@ -27,29 +27,44 @@ class MainBottomNav extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
     final items = isLawyer ? _lawyerItems : _clientItems;
     final selectedIndex = currentIndex.clamp(0, items.length - 1).toInt();
     final direction = Directionality.of(context);
 
     return Container(
       color: Colors.transparent,
-      padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
+      padding: const EdgeInsets.fromLTRB(12, 5, 12, 8),
       child: SafeArea(
         top: false,
         child: Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [scheme.surfaceContainerLowest, scheme.surfaceContainerLow]),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: scheme.outlineVariant.withValues(alpha: .65)),
-            boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: .07), blurRadius: 28, spreadRadius: 1, offset: const Offset(0, 10))],
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(27),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: .24),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryDark.withValues(alpha: .10),
+                blurRadius: 24,
+                spreadRadius: 1,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-          padding: const EdgeInsets.fromLTRB(9, 9, 9, 8),
+          padding: const EdgeInsets.all(7),
           child: Row(
             textDirection: direction,
             children: List.generate(
               items.length,
-              (index) => Expanded(child: _NavDestination(item: items[index], selected: index == selectedIndex, scheme: scheme, onTap: () => _navigate(context, index))),
+              (index) => Expanded(
+                child: _NavDestination(
+                  item: items[index],
+                  selected: index == selectedIndex,
+                  onTap: () => _navigate(context, index),
+                ),
+              ),
             ),
           ),
         ),
@@ -59,8 +74,20 @@ class MainBottomNav extends ConsumerWidget {
 
   void _navigate(BuildContext context, int index) {
     final target = isLawyer
-        ? switch (index) {0 => '/lawyer-home', 1 => '/bookings', 2 => '/lawyer-profile-edit', 3 => '/app-settings', _ => '/lawyer-home'}
-        : switch (index) {0 => '/', 1 => '/lawyers', 2 => '/bookings', 3 => '/app-settings', _ => '/'};
+        ? switch (index) {
+            0 => '/lawyer-home',
+            1 => '/bookings',
+            2 => '/lawyer-profile-edit',
+            3 => '/app-settings',
+            _ => '/lawyer-home',
+          }
+        : switch (index) {
+            0 => '/',
+            1 => '/lawyers',
+            2 => '/bookings',
+            3 => '/app-settings',
+            _ => '/',
+          };
     if (GoRouterState.of(context).uri.path != target) context.go(target);
   }
 }
@@ -69,6 +96,7 @@ class _NavItem {
   final IconData icon;
   final IconData activeIcon;
   final String label;
+
   const _NavItem(this.icon, this.activeIcon, this.label);
 }
 
@@ -76,13 +104,17 @@ class _NavDestination extends StatelessWidget {
   final _NavItem item;
   final bool selected;
   final VoidCallback onTap;
-  final ColorScheme scheme;
 
-  const _NavDestination({required this.item, required this.selected, required this.onTap, required this.scheme});
+  const _NavDestination({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = selected ? scheme.onPrimary : scheme.onSurfaceVariant;
+    final iconColor = selected ? Colors.white : AppColors.primaryDark;
+    final textColor = selected ? Colors.white : AppColors.textPrimary;
 
     return Semantics(
       button: true,
@@ -95,34 +127,81 @@ class _NavDestination extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           child: InkWell(
             onTap: onTap,
-            hoverColor: scheme.primary.withValues(alpha: .06),
-            focusColor: scheme.primary.withValues(alpha: .08),
-            splashColor: scheme.primary.withValues(alpha: .10),
+            hoverColor: AppColors.primary.withValues(alpha: .06),
+            focusColor: AppColors.primary.withValues(alpha: .08),
+            splashColor: AppColors.primary.withValues(alpha: .12),
             borderRadius: BorderRadius.circular(18),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 220),
               curve: Curves.easeOutCubic,
-              constraints: const BoxConstraints(minHeight: 48),
-              padding: EdgeInsets.symmetric(horizontal: selected ? 8 : 5, vertical: 5),
+              constraints: const BoxConstraints(minHeight: 60),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
               decoration: BoxDecoration(
-                gradient: selected ? const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.primary, AppColors.primaryContainer]) : null,
+                gradient: selected
+                    ? const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [AppColors.primaryDark, AppColors.primary],
+                      )
+                    : null,
+                color: selected ? null : AppColors.primaryFixed.withValues(alpha: .82),
                 borderRadius: BorderRadius.circular(18),
-                border: selected ? Border.all(color: AppColors.primaryLight.withValues(alpha: .22)) : Border.all(color: Colors.transparent),
+                border: Border.all(
+                  color: selected
+                      ? AppColors.gold.withValues(alpha: .78)
+                      : AppColors.primaryLight.withValues(alpha: .30),
+                  width: selected ? 1.4 : 1,
+                ),
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: .22),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
               ),
-              child: AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                child: selected
-                    ? Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
-                        Icon(item.activeIcon, color: iconColor, size: 21),
-                        const SizedBox(width: 5),
-                        Flexible(child: Text(item.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: iconColor, fontSize: 12, fontWeight: FontWeight.w700, height: 1.15))),
-                      ])
-                    : Column(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Icon(item.icon, color: iconColor, size: 21),
-                        const SizedBox(height: 2),
-                        Text(item.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: iconColor, fontSize: 12, fontWeight: FontWeight.w500, height: 1.15)),
-                      ]),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    width: selected ? 31 : 29,
+                    height: selected ? 31 : 29,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? Colors.white.withValues(alpha: .14)
+                          : AppColors.surface.withValues(alpha: .88),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selected
+                            ? Colors.white.withValues(alpha: .20)
+                            : AppColors.primaryLight.withValues(alpha: .25),
+                      ),
+                    ),
+                    child: Icon(
+                      selected ? item.activeIcon : item.icon,
+                      color: iconColor,
+                      size: selected ? 23 : 22,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 11.5,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+                      height: 1.1,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
