@@ -192,13 +192,10 @@ class BookingsController extends _$BookingsController {
   }
 
   Future<void> reportNoShow(String bookingId, {required bool isLawyer}) async {
-    // This action does not need to drive the AsyncNotifier's own state.
-    // Keeping it as a plain awaited command avoids completing the provider's
-    // internal future twice when realtime invalidations arrive at the same time.
+    // report_booking_no_show changes the booking and emits Realtime updates.
+    // Do not invalidate the same FutureProviders here as well: that can race
+    // with the Realtime listener and complete Riverpod's internal future twice.
     await ref.read(bookingsRepositoryProvider).reportNoShow(bookingId, isLawyer);
-    ref.invalidate(userBookingsProvider);
-    ref.invalidate(lawyerBookingsProvider);
-    ref.invalidate(bookingDetailsProvider(bookingId));
   }
 
   Future<void> archiveBooking(String bookingId, {required bool isLawyer}) async {
