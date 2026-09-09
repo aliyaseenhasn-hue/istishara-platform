@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:astshara/core/config/supabase_config.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 
 class FollowLawyerButton extends ConsumerStatefulWidget {
@@ -80,7 +81,7 @@ class _FollowLawyerButtonState extends ConsumerState<FollowLawyerButton> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تعذر تحديث المتابعة: ${e.toString().replaceFirst('Exception: ', '')}')),
+          SnackBar(content: Text('تعذر تحديث المتابعة: ${UserFacingError.text(e)}')),
         );
       }
     } finally {
