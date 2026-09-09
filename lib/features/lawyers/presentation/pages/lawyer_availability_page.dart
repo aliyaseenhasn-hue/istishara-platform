@@ -138,6 +138,14 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
     final time = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 10, minute: 0));
     if (time == null || !mounted) return;
 
+    final proposedStart = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    if (!proposedStart.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا يمكن إضافة موعد بتاريخ أو وقت سابق. اختر موعداً لاحقاً.')),
+      );
+      return;
+    }
+
     int duration = 30;
     final priceController = TextEditingController();
     final details = await showDialog<Map<String, dynamic>>(
@@ -182,7 +190,13 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
     priceController.dispose();
     if (details == null || !mounted) return;
 
-    final start = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    final start = proposedStart;
+    if (!start.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا يمكن إضافة موعد بتاريخ أو وقت سابق. اختر موعداً لاحقاً.')),
+      );
+      return;
+    }
     final durationMinutes = details['duration'] as int;
     final price = details['price'] as double;
     final lawyerId = await _profileId();
@@ -201,8 +215,16 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
       await _refresh();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت إضافة الموعد مع المدة والسعر.')));
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر إضافة الموعد. تحقق من البيانات وحاول مرة أخرى.')));
+    } catch (e) {
+      if (!mounted) return;
+      final raw = e.toString().toLowerCase();
+      if (raw.contains('past') || raw.contains('سابق') || raw.contains('الماضي')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('لا يمكن إضافة موعد بتاريخ أو وقت سابق. اختر موعداً لاحقاً.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر إضافة الموعد. تحقق من البيانات وحاول مرة أخرى.')));
+      }
     }
   }
 
