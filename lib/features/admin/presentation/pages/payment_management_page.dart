@@ -179,19 +179,58 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
   }
 
   Future<void> _review(Payment payment, bool approved) async {
+    Map<String, dynamic> bookingContext = const {};
+    try {
+      final row = await SupabaseConfig.client
+          .from('bookings')
+          .select('status,cancellation_actor_role,cancellation_reason')
+          .eq('id', payment.bookingId)
+          .maybeSingle();
+      if (row != null) bookingContext = Map<String, dynamic>.from(row);
+    } catch (_) {
+      // Server-side rules remain authoritative even if context lookup fails.
+    }
+    if (!mounted) return;
+
+    final refundOnly = bookingContext['status'] == 'بانتظار الاسترداد' &&
+        bookingContext['cancellation_actor_role'] != null;
+    final cancellationReason = bookingContext['cancellation_reason']?.toString();
     final noteController = TextEditingController();
     final proceed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(approved ? 'تأكيد استلام المبلغ' : 'رفض إثبات الدفع'),
+        title: Text(
+          approved
+              ? (refundOnly ? 'تأكيد وصول مبلغ لحجز ملغي' : 'تأكيد استلام المبلغ')
+              : 'رفض إثبات الدفع',
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (refundOnly) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(dialogContext).colorScheme.tertiaryContainer,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  'هذا الحجز أُلغي بالفعل${cancellationReason?.trim().isNotEmpty == true ? ' بسبب: $cancellationReason' : ''}. '
+                  'مراجعة الإيصال هنا هدفها مطابقة وصول المال فقط.',
+                  style: const TextStyle(fontWeight: FontWeight.w800, height: 1.45),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             Text(
               approved
-                  ? 'تأكد من وصول المبلغ فعلياً إلى حساب المنصة قبل الموافقة. عند التأكيد ستُحتسب عمولة المنصة ويُسجل صافي المحامي تلقائياً.'
-                  : 'سيتم إبلاغ طالب الاستشارة أن إثبات الدفع لم يتم اعتماده.',
+                  ? (refundOnly
+                      ? 'تأكد من وصول ${payment.amount.toStringAsFixed(0)} د.ع فعلياً إلى حساب المنصة. عند الموافقة لن يُعاد تفعيل الحجز، ولن تُحتسب عمولة أو مستحق للمحامي؛ سيُسجل المبلغ كاملاً للاسترداد للعميل.'
+                      : 'تأكد من وصول المبلغ فعلياً إلى حساب المنصة قبل الموافقة. عند التأكيد ستُحتسب عمولة المنصة ويُسجل صافي المحامي تلقائياً.')
+                  : (refundOnly
+                      ? 'اختر الرفض فقط إذا تأكدت أن المبلغ لم يصل إلى حساب المنصة. سيبقى الحجز ملغياً ولن يُنشأ استرداد لمبلغ غير مستلم.'
+                      : 'سيتم إبلاغ طالب الاستشارة أن إثبات الدفع لم يتم اعتماده.'),
             ),
             const SizedBox(height: 14),
             TextField(
@@ -205,7 +244,11 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(approved ? 'تأكيد الدفع' : 'رفض الإثبات'),
+            child: Text(
+              approved
+                  ? (refundOnly ? 'تأكيد الوصول وبدء الاسترداد' : 'تأكيد الدفع')
+                  : 'رفض الإثبات',
+            ),
           ),
         ],
       ),
@@ -229,7 +272,13 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(approved ? 'تم اعتماد الدفع وتسجيل المستحقات.' : 'تم رفض إثبات الدفع.')),
+      SnackBar(
+        content: Text(
+          approved
+              ? (refundOnly ? 'تم إثبات وصول المبلغ وتسجيله للاسترداد الكامل.' : 'تم اعتماد الدفع وتسجيل المستحقات.')
+              : (refundOnly ? 'تم رفض الإثبات وإغلاق الحجز الملغي دون استرداد.' : 'تم رفض إثبات الدفع.'),
+        ),
+      ),
     );
   }
 
