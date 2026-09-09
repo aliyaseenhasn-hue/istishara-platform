@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../providers/reviews_provider.dart';
 
 class ReviewDialog extends ConsumerStatefulWidget {
@@ -99,7 +100,7 @@ class _ReviewDialogState extends ConsumerState<ReviewDialog> {
       if (!mounted) return;
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        SnackBar(content: Text(UserFacingError.text(e, fallback: 'تعذر إرسال التقييم. حاول مرة أخرى.'))),
       );
     }
   }
