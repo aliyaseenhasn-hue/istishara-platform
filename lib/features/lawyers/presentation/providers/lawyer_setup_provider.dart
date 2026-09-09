@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../core/config/supabase_config.dart';
+import '../../../../core/constants/legal_specializations.dart';
 import '../../../../shared/providers/global_loading_provider.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../../domain/entities/lawyer_profile.dart';
@@ -34,6 +35,24 @@ class LawyerSetupController extends _$LawyerSetupController {
       state = AsyncValue.error(Exception('صورة هوية النقابة إلزامية'), StackTrace.current);
       return;
     }
+
+    final normalizedSpecializations = (specializations ?? const <String>[])
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty && LegalSpecializations.all.contains(value))
+        .toSet()
+        .take(LegalSpecializations.maxLawyerSpecializations)
+        .toList(growable: false);
+
+    if (normalizedSpecializations.isEmpty) {
+      state = AsyncValue.error(
+        Exception('اختر تخصصاً رئيسياً واحداً على الأقل'),
+        StackTrace.current,
+      );
+      return;
+    }
+
+    final requestedPrice = consultationPrice ?? 20000;
+    final normalizedPrice = requestedPrice.clamp(20000, 50000).toDouble();
 
     ref.read(globalLoadingProvider.notifier).setLoading(true);
     state = const AsyncLoading();
@@ -86,10 +105,10 @@ class LawyerSetupController extends _$LawyerSetupController {
         idCardUrl: idCardUrl,
         verified: false,
         licenseNumber: licenseNumber ?? 'PENDING',
-        specializations: specializations ?? [],
+        specializations: normalizedSpecializations,
         bio: bio ?? 'طلب انضمام جديد',
         yearsExperience: yearsExperience ?? 0,
-        consultationPrice: consultationPrice ?? 0,
+        consultationPrice: normalizedPrice,
       );
 
       await lawyersRepo.updateLawyerProfile(lawyerProfile);
