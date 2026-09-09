@@ -49,26 +49,47 @@ class _SpecializationChangeRequestsPageState extends ConsumerState<Specializatio
     final controller = TextEditingController();
     final note = await showDialog<String?>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(approved ? 'الموافقة على الطلب' : 'رفض الطلب'),
-          content: TextField(
-            controller: controller,
-            maxLines: 3,
-            decoration: const InputDecoration(labelText: 'ملاحظة (اختياري)'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('إلغاء'),
+      builder: (dialogContext) => AlertDialog(
+        title: Text(approved ? 'الموافقة على الطلب' : 'رفض الطلب'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              approved
+                  ? 'راجع هوية النقابة والتخصصات المطلوبة قبل الاعتماد. يمكنك إضافة ملاحظة إدارية اختيارية.'
+                  : 'اكتب سبب الرفض بوضوح ليعرف المحامي ما المطلوب تعديله قبل إعادة الطلب.',
             ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
-              child: const Text('تأكيد'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: approved ? 'ملاحظة (اختياري)' : 'سبب الرفض (إلزامي)',
+              ),
             ),
           ],
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (!approved && value.isEmpty) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('سبب رفض طلب تغيير التخصص إلزامي.')),
+                );
+                return;
+              }
+              Navigator.of(dialogContext).pop(value);
+            },
+            child: const Text('تأكيد'),
+          ),
+        ],
+      ),
     );
     controller.dispose();
     if (note == null) return;
@@ -85,7 +106,7 @@ class _SpecializationChangeRequestsPageState extends ConsumerState<Specializatio
       if (!mounted) return;
       setState(() => _future = _load());
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(approved ? 'تمت الموافقة على الطلب.' : 'تم رفض الطلب.')),
+        SnackBar(content: Text(approved ? 'تمت الموافقة على الطلب وتحديث التخصص.' : 'تم رفض الطلب وإرسال السبب للمحامي.')),
       );
     } catch (error) {
       if (!mounted) return;
@@ -123,79 +144,93 @@ class _SpecializationChangeRequestsPageState extends ConsumerState<Specializatio
             return const Center(child: Text('لا توجد طلبات تغيير تخصص معلقة.'));
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: rows.length,
-            itemBuilder: (context, index) {
-              final row = rows[index];
-              final specialties = row['requested_specializations'];
-              final specialtyText = specialties is List
-                  ? specialties.map((e) => e.toString()).join('، ')
-                  : specialties?.toString() ?? '-';
-              final idCardUrl = row['union_id_card_url']?.toString();
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(() => _future = _load());
+              await _future;
+            },
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: rows.length,
+              itemBuilder: (context, index) {
+                final row = rows[index];
+                final specialties = row['requested_specializations'];
+                final specialtyText = specialties is List
+                    ? specialties.map((e) => e.toString()).join('، ')
+                    : specialties?.toString() ?? '-';
+                final idCardUrl = row['union_id_card_url']?.toString();
 
-              return Card(
-                margin: const EdgeInsets.only(bottom: 14),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        row['lawyer_name']?.toString() ?? 'محامي',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-                      ),
-                      if (row['license_number'] != null)
-                        Text('رقم الإجازة: ${row['license_number']}'),
-                      const SizedBox(height: 8),
-                      Text('التخصصات: $specialtyText'),
-                      const SizedBox(height: 12),
-                      if (idCardUrl != null && idCardUrl.isNotEmpty)
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            showDialog<void>(
-                              context: context,
-                              builder: (_) => Dialog(
-                                child: InteractiveViewer(
-                                  child: Image.network(
-                                    idCardUrl,
-                                    errorBuilder: (_, __, ___) => const Padding(
-                                      padding: EdgeInsets.all(30),
-                                      child: Text('تعذر فتح هوية النقابة.'),
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          row['lawyer_name']?.toString() ?? 'محامي',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                        ),
+                        if (row['license_number'] != null)
+                          Text('رقم الإجازة: ${row['license_number']}'),
+                        const SizedBox(height: 8),
+                        Text('التخصصات المطلوبة: $specialtyText'),
+                        const SizedBox(height: 12),
+                        if (idCardUrl != null && idCardUrl.isNotEmpty)
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              showDialog<void>(
+                                context: context,
+                                builder: (_) => Dialog(
+                                  child: InteractiveViewer(
+                                    child: Image.network(
+                                      idCardUrl,
+                                      errorBuilder: (_, __, ___) => const Padding(
+                                        padding: EdgeInsets.all(30),
+                                        child: Text('تعذر فتح هوية النقابة.'),
+                                      ),
                                     ),
                                   ),
                                 ),
+                              );
+                            },
+                            icon: const Icon(Icons.badge_outlined),
+                            label: const Text('عرض هوية النقابة'),
+                          )
+                        else
+                          const Text(
+                            'لا توجد هوية نقابة قابلة للمراجعة.',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: idCardUrl == null || idCardUrl.isEmpty
+                                    ? null
+                                    : () => _review(row['id'].toString(), true),
+                                icon: const Icon(Icons.check),
+                                label: const Text('موافقة'),
                               ),
-                            );
-                          },
-                          icon: const Icon(Icons.badge_outlined),
-                          label: const Text('عرض هوية النقابة'),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _review(row['id'].toString(), false),
+                                icon: const Icon(Icons.close),
+                                label: const Text('رفض'),
+                              ),
+                            ),
+                          ],
                         ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () => _review(row['id'].toString(), true),
-                              icon: const Icon(Icons.check),
-                              label: const Text('موافقة'),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () => _review(row['id'].toString(), false),
-                              icon: const Icon(Icons.close),
-                              label: const Text('رفض'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           );
         },
       ),
