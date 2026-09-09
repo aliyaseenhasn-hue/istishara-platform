@@ -1,4 +1,4 @@
-const CACHE_NAME = 'astshara-pwa-v6';
+const CACHE_NAME = 'astshara-pwa-v7';
 const APP_SHELL = [
   './',
   './index.html',
@@ -52,15 +52,12 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'استشارة';
   const options = {
     body: data.body || 'لديك إشعار جديد',
-    // Keep icon/badge relative to the deployed PWA scope. This is important
-    // for GitHub Pages deployments under /istishara-platform/.
     icon: data.icon || './icons/Icon-192.png',
     badge: data.badge || './icons/Icon-192.png',
     dir: 'rtl',
     lang: 'ar',
     tag: data.tag || 'astshara-notification',
     renotify: true,
-    // Allow the browser/OS to use its normal notification sound behavior.
     silent: false,
     requireInteraction: Boolean(data.requireInteraction),
     data: { url: data.url || './', notification_id: data.notification_id || null },
