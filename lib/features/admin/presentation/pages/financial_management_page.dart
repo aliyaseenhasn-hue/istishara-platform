@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:astshara/core/config/supabase_config.dart';
+import '../../../../core/utils/user_facing_error.dart';
 
 class FinancialManagementPage extends StatefulWidget {
   const FinancialManagementPage({super.key});
@@ -445,8 +446,7 @@ class _FinancialManagementPageState extends State<FinancialManagementPage> {
         '${local.month.toString().padLeft(2, '0')}/${local.year}';
   }
 
-  String _errorText(Object error) =>
-      error.toString().replaceFirst('Exception: ', '');
+  String _errorText(Object error) => UserFacingError.text(error);
 
   @override
   Widget build(BuildContext context) {
