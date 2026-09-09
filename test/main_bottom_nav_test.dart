@@ -7,7 +7,7 @@ import 'package:astshara/shared/widgets/main_bottom_nav.dart';
 import 'package:astshara/shared/widgets/lawyer_more_menu_button.dart';
 
 void main() {
-  testWidgets('lawyer navigation exposes notifications without a secondary menu', (tester) async {
+  testWidgets('lawyer navigation keeps notifications off the bottom bar', (tester) async {
     final router = GoRouter(
       initialLocation: '/lawyer-home',
       routes: [
@@ -17,7 +17,6 @@ void main() {
         ),
         for (final path in [
           '/bookings',
-          '/notifications',
           '/app-settings',
           '/lawyer-profile-edit',
           '/lawyer-availability',
@@ -40,14 +39,15 @@ void main() {
       ),
     );
 
-    expect(find.text('التنبيهات'), findsOneWidget);
+    expect(find.text('التنبيهات'), findsNothing);
+    expect(find.text('الرئيسية'), findsOneWidget);
     expect(find.text('استشاراتي'), findsOneWidget);
     expect(find.text('الإعدادات'), findsOneWidget);
     expect(find.byTooltip('المزيد من أدوات المحامي'), findsNothing);
 
-    await tester.tap(find.text('التنبيهات'));
+    await tester.tap(find.text('الإعدادات'));
     await tester.pumpAndSettle();
-    expect(find.text('/notifications'), findsOneWidget);
+    expect(find.text('/app-settings'), findsOneWidget);
   });
 
   testWidgets('lawyer home menu exposes every unique secondary destination', (tester) async {
@@ -114,7 +114,8 @@ void main() {
       ),
     );
 
-    expect(find.text('التنبيهات'), findsOneWidget);
+    expect(find.text('التنبيهات'), findsNothing);
+    expect(find.text('الإعدادات'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
