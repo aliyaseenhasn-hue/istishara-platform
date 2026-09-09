@@ -6,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../core/config/supabase_config.dart';
 import '../core/services/notification_service.dart';
 import '../core/services/push_notification_service.dart';
+import '../core/services/pwa_notification_service.dart';
 import '../core/services/realtime_notification_service.dart';
 
 const _buildSupabaseUrl = String.fromEnvironment('SUPABASE_URL');
@@ -77,11 +78,18 @@ Future<void> _warmUpNonCriticalServices() async {
     }),
   );
 
-  // Native FCM is intentionally disabled on Web so the existing PWA/Web Push
-  // implementation remains untouched. Android/iOS register their FCM token.
+  // Native FCM is intentionally disabled on Web. PWA registration is synced
+  // separately so an already-authorized browser subscription follows the
+  // currently authenticated account without prompting the user again.
   unawaited(
     PushNotificationService.initialize().catchError((error, stackTrace) {
       debugPrint('⚠️ Native FCM unavailable: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }),
+  );
+  unawaited(
+    PwaNotificationService.initialize().catchError((error, stackTrace) {
+      debugPrint('⚠️ PWA push ownership sync unavailable: $error');
       debugPrintStack(stackTrace: stackTrace);
     }),
   );
