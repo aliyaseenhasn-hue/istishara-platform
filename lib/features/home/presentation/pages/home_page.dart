@@ -421,11 +421,56 @@ class _NotificationBell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(clipBehavior: Clip.none, children: [
-      IconButton(onPressed: onTap, tooltip: 'الإشعارات', visualDensity: VisualDensity.compact, icon: const Icon(Icons.notifications_none_rounded, color: AppColors.primary)),
-      if (unreadCount > 0)
-        Positioned(top: 2, right: 2, child: Container(constraints: const BoxConstraints(minWidth: 18), padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2), decoration: BoxDecoration(color: AppColors.tertiary, borderRadius: BorderRadius.circular(99)), child: Text(unreadCount > 99 ? '99+' : '$unreadCount', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900)))),
-    ]);
+    return SizedBox(
+      width: 52,
+      height: 52,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(16),
+                child: const Center(
+                  child: Icon(
+                    Icons.notifications_none_rounded,
+                    color: AppColors.primary,
+                    size: 27,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (unreadCount > 0)
+            Positioned(
+              top: 1,
+              right: 1,
+              child: IgnorePointer(
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 18),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.tertiary,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    unreadCount > 99 ? '99+' : '$unreadCount',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 
