@@ -140,6 +140,29 @@ class LandingPage extends ConsumerWidget {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          onPressed: () => context.push('/login'),
+                          icon: const Icon(Icons.login_rounded, size: 20),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _navy,
+                            side: const BorderSide(color: _navy, width: 1.4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          label: const Text(
+                            'تسجيل الدخول',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
