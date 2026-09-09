@@ -151,3 +151,5 @@ Future<void> deleteNotification(String id) async {
             sleep 2
           done
           exit 1
+
+# trigger
