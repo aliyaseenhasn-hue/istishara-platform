@@ -155,14 +155,14 @@ class _FinancialManagementPageState extends State<FinancialManagementPage> {
   }
 
   Future<void> _markLawyerPaid(Map<String, dynamic> row) async {
-    final reference = await _askProviderReference();
-    if (!mounted || reference == null) return;
+    final reference = await _askProviderReference(required: true);
+    if (!mounted || reference == null || reference.isEmpty) return;
     setState(() => processing = true);
     try {
       await SupabaseConfig.client.rpc('admin_complete_payout', params: {
         'p_payout_id': row['id'],
         'p_status': 'paid',
-        'p_provider_reference': reference.isEmpty ? null : reference,
+        'p_provider_reference': reference,
         'p_rejection_reason': null,
       });
       if (mounted) {
@@ -549,7 +549,7 @@ class _FinancialManagementPageState extends State<FinancialManagementPage> {
                                   child: FilledButton.icon(
                                     onPressed: processing ? null : () => _markLawyerPaid(row),
                                     icon: const Icon(Icons.check_circle_outline),
-                                    label: const Text('تم التحويل'),
+                                    label: const Text('تم التحويل + المرجع'),
                                   ),
                                 ),
                               ]),
