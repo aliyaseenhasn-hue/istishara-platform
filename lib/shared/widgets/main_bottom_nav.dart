@@ -5,12 +5,21 @@ import '../../core/constants/app_colors.dart';
 
 /// الشريط السفلي الثابت.
 /// تبقى الوجهات الأساسية فقط هنا؛ أدوات المحامي الثانوية متاحة من رأس الرئيسية.
-class MainBottomNav extends ConsumerWidget {
+class MainBottomNav extends ConsumerStatefulWidget {
   final int currentIndex;
   final bool isLawyer;
 
-  const MainBottomNav({super.key, required this.currentIndex, this.isLawyer = false});
+  const MainBottomNav({
+    super.key,
+    required this.currentIndex,
+    this.isLawyer = false,
+  });
 
+  @override
+  ConsumerState<MainBottomNav> createState() => _MainBottomNavState();
+}
+
+class _MainBottomNavState extends ConsumerState<MainBottomNav> {
   static const _clientItems = <_NavItem>[
     _NavItem(Icons.home_outlined, Icons.home_rounded, 'الرئيسية'),
     _NavItem(Icons.people_outline_rounded, Icons.people_rounded, 'المحامون'),
@@ -25,10 +34,27 @@ class MainBottomNav extends ConsumerWidget {
     _NavItem(Icons.settings_outlined, Icons.settings_rounded, 'الإعدادات'),
   ];
 
+  late int _visualIndex;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final items = isLawyer ? _lawyerItems : _clientItems;
-    final selectedIndex = currentIndex.clamp(0, items.length - 1).toInt();
+  void initState() {
+    super.initState();
+    _visualIndex = widget.currentIndex;
+  }
+
+  @override
+  void didUpdateWidget(covariant MainBottomNav oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentIndex != widget.currentIndex ||
+        oldWidget.isLawyer != widget.isLawyer) {
+      _visualIndex = widget.currentIndex;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = widget.isLawyer ? _lawyerItems : _clientItems;
+    final selectedIndex = _visualIndex.clamp(0, items.length - 1).toInt();
     final direction = Directionality.of(context);
 
     return Container(
@@ -73,7 +99,11 @@ class MainBottomNav extends ConsumerWidget {
   }
 
   void _navigate(BuildContext context, int index) {
-    final target = isLawyer
+    if (_visualIndex != index) {
+      setState(() => _visualIndex = index);
+    }
+
+    final target = widget.isLawyer
         ? switch (index) {
             0 => '/lawyer-home',
             1 => '/bookings',
@@ -88,7 +118,10 @@ class MainBottomNav extends ConsumerWidget {
             3 => '/app-settings',
             _ => '/home',
           };
-    if (GoRouterState.of(context).uri.path != target) context.go(target);
+
+    if (GoRouterState.of(context).uri.path != target) {
+      context.go(target);
+    }
   }
 }
 
@@ -134,7 +167,7 @@ class _NavDestination extends StatelessWidget {
             focusColor: AppColors.primary.withValues(alpha: .05),
             borderRadius: BorderRadius.circular(18),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 190),
+              duration: const Duration(milliseconds: 170),
               curve: Curves.easeOutCubic,
               constraints: const BoxConstraints(minHeight: 60),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
@@ -146,7 +179,9 @@ class _NavDestination extends StatelessWidget {
                         colors: [AppColors.primaryDark, AppColors.primary],
                       )
                     : null,
-                color: selected ? null : AppColors.primaryFixed.withValues(alpha: .82),
+                color: selected
+                    ? null
+                    : AppColors.primaryFixed.withValues(alpha: .82),
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
                   color: selected
@@ -169,11 +204,11 @@ class _NavDestination extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   AnimatedScale(
-                    duration: const Duration(milliseconds: 190),
+                    duration: const Duration(milliseconds: 170),
                     curve: Curves.easeOutCubic,
                     scale: selected ? 1.06 : 1,
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 190),
+                      duration: const Duration(milliseconds: 170),
                       curve: Curves.easeOutCubic,
                       width: 30,
                       height: 30,
@@ -190,7 +225,7 @@ class _NavDestination extends StatelessWidget {
                         ),
                       ),
                       child: Icon(
-                        item.activeIcon,
+                        selected ? item.activeIcon : item.icon,
                         color: iconColor,
                         size: 22.5,
                       ),
@@ -198,7 +233,7 @@ class _NavDestination extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 190),
+                    duration: const Duration(milliseconds: 170),
                     curve: Curves.easeOutCubic,
                     style: TextStyle(
                       color: textColor,
