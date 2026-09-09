@@ -11,33 +11,6 @@ LawyersRepository lawyersRepository(LawyersRepositoryRef ref) => LawyersReposito
 
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
-String _normalizeSpecialization(String value) {
-  return value.trim().toLowerCase().replaceAll(RegExp(r'[إأآ]'), 'ا').replaceAll('ة', 'ه').replaceAll(RegExp(r'[\u064B-\u065F]'), '').replaceAll(RegExp(r'\s+'), ' ');
-}
-
-bool _matchesCategory(LawyerProfile lawyer, String category) {
-  final wanted = _normalizeSpecialization(category);
-  if (wanted.isEmpty) return true;
-  return lawyer.specializations.any((specialization) {
-    final actual = _normalizeSpecialization(specialization);
-    if (actual == wanted) return true;
-    final wantedTokens = wanted.split(' ').where((e) => e.isNotEmpty).toSet();
-    final actualTokens = actual.split(' ').where((e) => e.isNotEmpty).toSet();
-    return wantedTokens.isNotEmpty && wantedTokens.every(actualTokens.contains);
-  });
-}
-
-bool _matchesSearch(LawyerProfile lawyer, String query) {
-  final q = _normalizeSpecialization(query);
-  if (q.isEmpty) return true;
-  final name = _normalizeSpecialization(lawyer.fullName ?? '');
-  if (name == q || name.split(' ').contains(q)) return true;
-  return lawyer.specializations.any((specialization) {
-    final value = _normalizeSpecialization(specialization);
-    return value == q || value.split(' ').contains(q);
-  });
-}
-
 @Riverpod(keepAlive: true)
 Future<List<LawyerProfile>> lawyersList(LawyersListRef ref) async {
   // هذه القائمة تستخدمها الصفحة الرئيسية والصفحات العامة لعرض المحامين.
