@@ -1,4 +1,4 @@
-const CACHE_NAME = 'astshara-pwa-v7';
+const CACHE_NAME = 'astshara-pwa-v8';
 const APP_SHELL = [
   './',
   './index.html',
@@ -29,12 +29,17 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   const isNavigation = event.request.mode === 'navigate' ||
-      url.pathname.endsWith('/index.html') ||
-      url.pathname.endsWith('/flutter_bootstrap.js');
-  const isIconAsset = url.pathname.endsWith('/app_icon.png') || url.pathname.endsWith('/app_icon_v2.png');
+      url.pathname.endsWith('/index.html');
+  const isCriticalFlutterAsset =
+      url.pathname.endsWith('/flutter_bootstrap.js') ||
+      url.pathname.endsWith('/main.dart.js') ||
+      url.pathname.endsWith('/flutter.js');
+  const isIconAsset = url.pathname.endsWith('/app_icon.png') ||
+      url.pathname.endsWith('/app_icon_v2.png');
+  const forceFresh = isNavigation || isCriticalFlutterAsset || isIconAsset;
 
   event.respondWith(
-    fetch(event.request, (isNavigation || isIconAsset) ? { cache: 'no-store' } : undefined)
+    fetch(event.request, forceFresh ? { cache: 'no-store' } : undefined)
       .then((response) => {
         if (response.ok) {
           const copy = response.clone();
