@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:astshara/core/config/supabase_config.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../providers/bookings_provider.dart';
@@ -182,7 +183,9 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
 
   String _creditStatus(Map<String, dynamic> credit) {
     final status = credit['status']?.toString() ?? '';
+    final hasPayoutAccount = _summary?['has_payout_account'] == true;
     return switch (status) {
+      'مستحق' when !hasPayoutAccount => 'يلزم إضافة حساب استلام',
       'مستحق' => 'مستحق وجاهز للتحويل',
       'بانتظار التحويل' => 'بانتظار تنفيذ التحويل',
       'قيد الانتظار' => 'قيد الانتظار',
@@ -208,6 +211,15 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
     final actorName = _summary?['cancelled_by_name']?.toString();
     final reason = _summary?['cancellation_reason']?.toString();
     final source = _summary?['cancellation_source']?.toString();
+    final currentUser = ref.read(authStateChangesProvider).value;
+    final isClient = currentUser?.role != 'lawyer' && currentUser?.id == widget.booking.userId;
+    final hasPayoutAccount = _summary?['has_payout_account'] == true;
+    final needsPayoutAccount = isClient &&
+        !hasPayoutAccount &&
+        _credits.any((credit) {
+          final status = credit['status']?.toString();
+          return ['مستحق', 'pending', 'بانتظار التحويل', 'قيد الانتظار'].contains(status);
+        });
 
     await showModalBottomSheet<void>(
       context: context,
@@ -271,6 +283,22 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
                         ],
                       ),
                     )),
+              ],
+              if (needsPayoutAccount) ...[
+                const SizedBox(height: 4),
+                const _InfoBox(
+                  icon: Icons.account_balance_outlined,
+                  text: 'لديك مبلغ مستحق، لكن لا يوجد حساب استلام محفوظ. أضف زين كاش أو Qi Card أو آسيا حوالة أو حساباً مصرفياً حتى تتمكن الإدارة من تحويل المبلغ فعلياً.',
+                ),
+                const SizedBox(height: 10),
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    context.push('/payment-methods');
+                  },
+                  icon: const Icon(Icons.add_card_rounded),
+                  label: const Text('إضافة حساب استلام'),
+                ),
               ],
               if (_credits.isEmpty && ['بانتظار الاسترداد', 'مسترد'].contains(_summary?['booking_status'])) ...[
                 const SizedBox(height: 12),
