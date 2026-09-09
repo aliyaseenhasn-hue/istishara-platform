@@ -217,20 +217,18 @@ class LawyersRepositoryImpl implements LawyersRepository {
 
   @override
   Future<void> requestSpecializationChange(List<String> specializations, {String? unionIdCardUrl}) async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) throw Exception('المستخدم غير مسجل دخول');
-    final profile = await _supabase
-        .from('profiles')
-        .select('id')
-        .eq('auth_id', user.id)
-        .maybeSingle();
-    if (profile == null) throw Exception('لم يتم العثور على الملف الشخصي للمستخدم');
-    await _supabase.from('specialization_change_requests').insert({
-      'lawyer_id': profile['id'],
-      'requested_specializations': specializations,
-      'union_id_card_url': unionIdCardUrl,
-      'status': 'pending',
-    });
+    final normalized = specializations.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList(growable: false);
+    if (normalized.isEmpty) throw Exception('اختر تخصصاً واحداً على الأقل');
+    final document = unionIdCardUrl?.trim();
+    if (document == null || document.isEmpty) throw Exception('هوية النقابة مطلوبة لمراجعة تغيير التخصص');
+
+    await _supabase.rpc(
+      'request_specialization_change',
+      params: {
+        'p_requested_specializations': normalized,
+        'p_union_id_card_url': document,
+      },
+    );
   }
 }
 
