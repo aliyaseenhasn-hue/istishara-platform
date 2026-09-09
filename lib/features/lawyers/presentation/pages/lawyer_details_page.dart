@@ -14,6 +14,8 @@ class LawyerDetailsPage extends ConsumerWidget {
   final String profileId;
   const LawyerDetailsPage({super.key, required this.profileId});
 
+  static const Color _whatsAppColor = Color(0xFF25D366);
+
   Future<void> _followAndReturnHome(BuildContext context, String lawyerId) async {
     final authUser = SupabaseConfig.client.auth.currentUser;
     if (authUser == null) return;
@@ -99,6 +101,23 @@ class LawyerDetailsPage extends ConsumerWidget {
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر فتح واتساب')));
     }
+  }
+
+  Widget _lockedWhatsAppButton({required bool loading}) {
+    return OutlinedButton.icon(
+      onPressed: null,
+      style: OutlinedButton.styleFrom(
+        side: BorderSide(color: _whatsAppColor.withValues(alpha: .55)),
+        foregroundColor: _whatsAppColor,
+      ),
+      icon: loading
+          ? const SizedBox(width: 17, height: 17, child: CircularProgressIndicator(strokeWidth: 2))
+          : const Icon(Icons.chat_rounded, color: _whatsAppColor, size: 19),
+      label: const Text(
+        'واتساب • مقفل',
+        style: TextStyle(color: _whatsAppColor, fontSize: 10.5, fontWeight: FontWeight.w800),
+      ),
+    );
   }
 
   @override
@@ -223,16 +242,25 @@ class LawyerDetailsPage extends ConsumerWidget {
                           ),
                           const SizedBox(width: 10),
                           SizedBox(
-                            width: 118,
+                            width: 138,
                             height: 52,
                             child: whatsapp.when(
-                              loading: () => OutlinedButton.icon(onPressed: null, icon: const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)), label: const Text('واتساب', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                              error: (_, __) => OutlinedButton.icon(onPressed: null, icon: const Icon(Icons.lock_outline_rounded, size: 18), label: const Text('واتساب', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                              data: (number) => OutlinedButton.icon(
-                                onPressed: number == null ? null : () => _openWhatsApp(context, number),
-                                icon: Icon(number == null ? Icons.lock_outline_rounded : Icons.chat_rounded, size: 18),
-                                label: Text(number == null ? 'بعد القبول' : 'واتساب', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                              ),
+                              loading: () => _lockedWhatsAppButton(loading: true),
+                              error: (_, __) => _lockedWhatsAppButton(loading: false),
+                              data: (number) => number == null
+                                  ? Tooltip(
+                                      message: 'يفتح واتساب بعد قبول الاستشارة',
+                                      child: _lockedWhatsAppButton(loading: false),
+                                    )
+                                  : OutlinedButton.icon(
+                                      onPressed: () => _openWhatsApp(context, number),
+                                      style: OutlinedButton.styleFrom(
+                                        side: const BorderSide(color: _whatsAppColor),
+                                        foregroundColor: _whatsAppColor,
+                                      ),
+                                      icon: const Icon(Icons.chat_rounded, color: _whatsAppColor, size: 19),
+                                      label: const Text('واتساب', style: TextStyle(color: _whatsAppColor, fontSize: 11, fontWeight: FontWeight.w800)),
+                                    ),
                             ),
                           ),
                         ],
