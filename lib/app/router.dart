@@ -131,6 +131,7 @@ GoRouter router(RouterRef ref) {
       final publicRoute = location == '/' ||
           location == '/how-it-works' ||
           location == '/privacy' ||
+          location == '/delete-account' ||
           location == '/terms' ||
           location == '/contact' ||
           location == '/faq' ||
@@ -202,6 +203,7 @@ GoRouter router(RouterRef ref) {
       GoRoute(path: '/', builder: (c, s) => const LandingPage()),
       GoRoute(path: '/how-it-works', builder: (c, s) => PublicInfoPage.howItWorks()),
       GoRoute(path: '/privacy', builder: (c, s) => PublicInfoPage.privacy()),
+      GoRoute(path: '/delete-account', builder: (c, s) => PublicInfoPage.deleteAccount()),
       GoRoute(path: '/terms', builder: (c, s) => PublicInfoPage.terms()),
       GoRoute(path: '/contact', builder: (c, s) => PublicInfoPage.contact()),
       GoRoute(path: '/faq', builder: (c, s) => PublicInfoPage.faq()),
