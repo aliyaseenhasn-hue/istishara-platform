@@ -11,8 +11,7 @@ class AppShell extends ConsumerWidget {
 
   int _currentIndex(bool isLawyer) {
     if (isLawyer) {
-      if (location == '/app-settings' || location == '/profile' || location == '/notification-settings' || location == '/payment-methods' || location == '/help-center' || location == '/lawyer-profile-edit' || location == '/lawyer-availability' || location == '/lawyer-specialization-change' || location == '/lawyer-wallet') return 3;
-      if (location == '/notifications') return 2;
+      if (location == '/app-settings' || location == '/profile' || location == '/notification-settings' || location == '/payment-methods' || location == '/help-center' || location == '/lawyer-profile-edit' || location == '/lawyer-availability' || location == '/lawyer-specialization-change' || location == '/lawyer-wallet') return 2;
       if (location == '/bookings' || location == '/booking-details' || location == '/manual-payment' || location == '/manual-payment-required' || location == '/upload-payment' || location == '/payment-result' || location == '/chats' || location.startsWith('/chat/')) return 1;
       return 0;
     }
@@ -27,7 +26,13 @@ class AppShell extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final user = ref.watch(authStateChangesProvider).valueOrNull;
     final isLawyer = user?.role == 'lawyer';
-    final hidesShellNav = user == null || location == '/create-booking' || location.startsWith('/lawyer-details/') || location == '/booking-details' || location == '/lawyer-profile-edit' || location == '/lawyer-availability';
+    final hidesShellNav = user == null ||
+        location == '/create-booking' ||
+        location.startsWith('/lawyer-details/') ||
+        location == '/booking-details' ||
+        location == '/lawyer-profile-edit' ||
+        location == '/lawyer-availability' ||
+        (isLawyer && location == '/notifications');
 
     if (hidesShellNav) return child;
 
