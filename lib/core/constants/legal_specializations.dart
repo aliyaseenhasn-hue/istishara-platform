@@ -1,4 +1,9 @@
 class LegalSpecializations {
+  static const int maxLawyerSpecializations = 3;
+  static const String uncertainClientChoice = 'لا أعرف التخصص المناسب';
+
+  /// Lawyer-selectable specializations only. A broad/general specialization is
+  /// intentionally excluded so lawyers cannot appear in every category.
   static const List<String> all = [
     'إداري',
     'قوى الأمن الداخلي',
@@ -14,7 +19,6 @@ class LegalSpecializations {
     'مروري',
     'عقود واتفاقيات',
     'صياغة العقود',
-    'استشارات قانونية',
     'تحصيل الديون',
     'تنفيذ الأحكام',
     'دعاوى التعويض',
@@ -45,4 +49,8 @@ class LegalSpecializations {
     'التأمين',
     'الوساطة والتحكيم',
   ];
+
+  /// Client-facing categories add one neutral choice for users who do not know
+  /// which legal field applies to their matter. It is not a lawyer specialty.
+  static const List<String> clientChoices = [uncertainClientChoice, ...all];
 }
