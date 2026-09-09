@@ -7,6 +7,26 @@ class BookingsRepositoryImpl implements BookingsRepository {
   final SupabaseClient _supabase;
   BookingsRepositoryImpl(this._supabase);
 
+  static bool _isTerminalStatus(String status) {
+    final value = status.trim();
+    return const {'مكتمل', 'ملغي', 'مسترد', 'مرفوض'}.contains(value);
+  }
+
+  static List<Booking> _sortBookings(List<Booking> items) {
+    items.sort((a, b) {
+      final aTerminal = _isTerminalStatus(a.status);
+      final bTerminal = _isTerminalStatus(b.status);
+
+      // الاستشارات غير المنتهية تظهر أولاً حسب أقرب موعد استحقاق.
+      if (aTerminal != bTerminal) return aTerminal ? 1 : -1;
+      if (!aTerminal) return a.scheduledAt.compareTo(b.scheduledAt);
+
+      // الاستشارات المنتهية تظهر من الأحدث إلى الأقدم.
+      return b.scheduledAt.compareTo(a.scheduledAt);
+    });
+    return items;
+  }
+
   @override
   Future<Booking> createBooking({
     required String lawyerId,
@@ -54,9 +74,10 @@ class BookingsRepositoryImpl implements BookingsRepository {
         .eq('user_id', userId)
         .isFilter('archived_by_user_at', null)
         .order('created_at', ascending: false);
-    return (response as List)
+    final items = (response as List)
         .map((json) => BookingModel.fromJson(Map<String, dynamic>.from(json as Map)).toEntity())
         .toList();
+    return _sortBookings(items);
   }
 
   @override
@@ -68,9 +89,10 @@ class BookingsRepositoryImpl implements BookingsRepository {
         .isFilter('archived_by_lawyer_at', null)
         .isFilter('deleted_by_lawyer_at', null)
         .order('created_at', ascending: false);
-    return (response as List)
+    final items = (response as List)
         .map((json) => BookingModel.fromJson(Map<String, dynamic>.from(json as Map)).toEntity())
         .toList();
+    return _sortBookings(items);
   }
 
   @override
