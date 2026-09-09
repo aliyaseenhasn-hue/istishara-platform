@@ -167,20 +167,13 @@ class _NavDestination extends StatelessWidget {
             focusColor: AppColors.primary.withValues(alpha: .05),
             borderRadius: BorderRadius.circular(18),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 170),
+              duration: const Duration(milliseconds: 125),
               curve: Curves.easeOutCubic,
               constraints: const BoxConstraints(minHeight: 60),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
               decoration: BoxDecoration(
-                gradient: selected
-                    ? const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [AppColors.primaryDark, AppColors.primary],
-                      )
-                    : null,
                 color: selected
-                    ? null
+                    ? AppColors.primary
                     : AppColors.primaryFixed.withValues(alpha: .82),
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
@@ -189,27 +182,16 @@ class _NavDestination extends StatelessWidget {
                       : AppColors.primaryLight.withValues(alpha: .30),
                   width: selected ? 1.4 : 1,
                 ),
-                boxShadow: selected
-                    ? [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: .18),
-                          blurRadius: 9,
-                          offset: const Offset(0, 3),
-                        ),
-                      ]
-                    : null,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   AnimatedScale(
-                    duration: const Duration(milliseconds: 170),
+                    duration: const Duration(milliseconds: 125),
                     curve: Curves.easeOutCubic,
                     scale: selected ? 1.06 : 1,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 170),
-                      curve: Curves.easeOutCubic,
+                    child: Container(
                       width: 30,
                       height: 30,
                       alignment: Alignment.center,
@@ -233,7 +215,7 @@ class _NavDestination extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 170),
+                    duration: const Duration(milliseconds: 125),
                     curve: Curves.easeOutCubic,
                     style: TextStyle(
                       color: textColor,

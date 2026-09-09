@@ -56,7 +56,6 @@ class _AppShellState extends ConsumerState<AppShell> {
       _CachedTabLayer(
         key: ValueKey<String>(activeKey),
         active: true,
-        exitDx: 0,
         child: activeChild,
       ),
     ];
@@ -70,7 +69,6 @@ class _AppShellState extends ConsumerState<AppShell> {
         _CachedTabLayer(
           key: ValueKey<String>(key),
           active: false,
-          exitDx: index < selectedIndex ? -.018 : .018,
           child: cached,
         ),
       );
@@ -126,13 +124,11 @@ class _AppShellState extends ConsumerState<AppShell> {
 
 class _CachedTabLayer extends StatelessWidget {
   final bool active;
-  final double exitDx;
   final Widget child;
 
   const _CachedTabLayer({
     super.key,
     required this.active,
-    required this.exitDx,
     required this.child,
   });
 
@@ -142,14 +138,10 @@ class _CachedTabLayer extends StatelessWidget {
       ignoring: !active,
       child: ExcludeSemantics(
         excluding: !active,
-        child: AnimatedSlide(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          offset: active ? Offset.zero : Offset(exitDx, 0),
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            opacity: active ? 1 : 0,
+        child: TickerMode(
+          enabled: active,
+          child: Offstage(
+            offstage: !active,
             child: RepaintBoundary(child: child),
           ),
         ),
