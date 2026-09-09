@@ -5,6 +5,7 @@ import webpush from "npm:web-push@3.6.7";
 type NotificationRecord = {
   id?: string;
   user_id?: string | null;
+  actor_profile_id?: string | null;
   title?: string | null;
   body?: string | null;
   type?: string | null;
@@ -99,6 +100,12 @@ export default {
 
     const record = payload.record;
     const targetUserId = record.user_id;
+
+    // Keep self-generated events inside the in-app notification center only.
+    // The counterpart/admin/system still receives a background push normally.
+    if (record.actor_profile_id && record.actor_profile_id === targetUserId) {
+      return json({ sent: 0, removed: 0, skipped: "self_action" });
+    }
 
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
