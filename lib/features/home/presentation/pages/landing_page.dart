@@ -263,6 +263,9 @@ class LandingPage extends ConsumerWidget {
                                     'افتح استشارة في Safari ثم اضغط أيقونة المشاركة في شريط المتصفح.',
                                 asset: 'assets/landing/pwa_iphone_share.svg',
                                 semanticsLabel: 'iPhone Safari share button guide',
+                                iconLeft: .40,
+                                iconTop: .356,
+                                iconSize: .20,
                               ),
                               _PwaInstallStep(
                                 width: cardWidth,
@@ -272,6 +275,9 @@ class LandingPage extends ConsumerWidget {
                                     'من قائمة المشاركة اختر «إضافة إلى الشاشة الرئيسية».',
                                 asset: 'assets/landing/pwa_iphone_add_home.svg',
                                 semanticsLabel: 'iPhone Add to Home Screen guide',
+                                iconLeft: .262,
+                                iconTop: .322,
+                                iconSize: .185,
                               ),
                               _PwaInstallStep(
                                 width: cardWidth,
@@ -281,6 +287,9 @@ class LandingPage extends ConsumerWidget {
                                     'اضغط «إضافة» ليظهر تطبيق استشارة كأيقونة مستقلة على شاشة iPhone.',
                                 asset: 'assets/landing/pwa_iphone_confirm_add.svg',
                                 semanticsLabel: 'iPhone confirm PWA add guide',
+                                iconLeft: .262,
+                                iconTop: .322,
+                                iconSize: .185,
                               ),
                               _PwaInstallStep(
                                 width: cardWidth,
@@ -290,6 +299,9 @@ class LandingPage extends ConsumerWidget {
                                     'اضغط مطولًا على أيقونة استشارة ثم اختر «مشاركة التطبيق» لإرسال الرابط.',
                                 asset: 'assets/landing/pwa_iphone_share_app.svg',
                                 semanticsLabel: 'iPhone share installed app guide',
+                                iconLeft: .208,
+                                iconTop: .206,
+                                iconSize: .185,
                               ),
                             ],
                           );
@@ -503,6 +515,9 @@ class _PwaInstallStep extends StatelessWidget {
     required this.description,
     required this.asset,
     required this.semanticsLabel,
+    required this.iconLeft,
+    required this.iconTop,
+    required this.iconSize,
   });
 
   final double width;
@@ -511,6 +526,9 @@ class _PwaInstallStep extends StatelessWidget {
   final String description;
   final String asset;
   final String semanticsLabel;
+  final double iconLeft;
+  final double iconTop;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
@@ -530,11 +548,35 @@ class _PwaInstallStep extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(14),
               child: AspectRatio(
-                aspectRatio: .82,
-                child: SvgPicture.asset(
-                  asset,
-                  fit: BoxFit.contain,
-                  semanticsLabel: semanticsLabel,
+                aspectRatio: 260 / 360,
+                child: LayoutBuilder(
+                  builder: (context, box) {
+                    final iconSide = box.maxWidth * iconSize;
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        SvgPicture.asset(
+                          asset,
+                          fit: BoxFit.fill,
+                          semanticsLabel: semanticsLabel,
+                        ),
+                        Positioned(
+                          left: box.maxWidth * iconLeft,
+                          top: box.maxHeight * iconTop,
+                          width: iconSide,
+                          height: iconSide,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(iconSide * .22),
+                            child: Image.asset(
+                              'assets/icons/app_icon_v2.png',
+                              fit: BoxFit.cover,
+                              filterQuality: FilterQuality.high,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
