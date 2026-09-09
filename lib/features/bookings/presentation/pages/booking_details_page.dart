@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -92,7 +94,13 @@ class BookingDetailsPage extends ConsumerWidget {
             _infoCard(context, 'هذا الطلب بانتظار مراجعتك. يمكنك الموافقة أو رفض الطلب.', Icons.rule_rounded), const SizedBox(height: 10),
             Row(children: [Expanded(child: ElevatedButton.icon(onPressed: () => _review(context, ref, true), icon: const Icon(Icons.check_circle_outline), label: const Text('الموافقة'))), const SizedBox(width: 10), Expanded(child: OutlinedButton.icon(onPressed: () => _review(context, ref, false), icon: const Icon(Icons.cancel_outlined), label: const Text('رفض الطلب')))]),
           ],
-          if (isLawyer && booking.status == 'مؤكد') _startButton(context, ref, details),
+          if (booking.status == 'مؤكد')
+            _ConsultationStartCountdown(
+              scheduledAt: booking.scheduledAt,
+              durationMinutes: int.tryParse('${details.valueOrNull?['package_duration_minutes'] ?? 30}') ?? 30,
+              canStart: isLawyer,
+              onStart: isLawyer ? () => _updateStatus(context, ref, 'قيد التنفيذ') : null,
+            ),
           if (isLawyer && booking.status == 'قيد التنفيذ') ElevatedButton.icon(onPressed: () => _updateStatus(context, ref, 'مكتمل'), icon: const Icon(Icons.check_circle_outline), label: const Text('إنهاء الاستشارة')),
           if (_canReportNoShow(isLawyer)) OutlinedButton.icon(onPressed: () => _reportNoShow(context, ref, isLawyer), icon: const Icon(Icons.report_problem_outlined), label: Text(isLawyer ? 'الإبلاغ عن عدم حضور طالب الاستشارة' : 'الإبلاغ عن عدم حضور المحامي')),
           if (isOwner && booking.status == 'مكتمل') ElevatedButton.icon(onPressed: () => showDialog(context: context, builder: (_) => ReviewDialog(bookingId: booking.id, lawyerId: booking.lawyerId)), icon: const Icon(Icons.star_outline_rounded), label: const Text('تقييم الاستشارة')),
@@ -105,7 +113,6 @@ class BookingDetailsPage extends ConsumerWidget {
 
   Widget _contactContent(BuildContext context, Map<String, dynamic> c, bool isLawyer) { final s = Theme.of(context).colorScheme; final name = isLawyer ? c['client_name'] ?? 'طالب استشارة' : c['lawyer_name'] ?? 'المحامي'; final phone = isLawyer ? c['client_phone'] : c['lawyer_phone']; final whatsapp = isLawyer ? c['client_whatsapp'] : c['lawyer_whatsapp']; return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [Text(name.toString(), style: TextStyle(fontWeight: FontWeight.bold, color: s.onSurface)), if (phone != null) _row(context, 'رقم الهاتف', phone.toString()), if (whatsapp != null && booking.status == 'قيد التنفيذ') ElevatedButton.icon(onPressed: () => _openWhatsApp(context, whatsapp.toString()), icon: const Icon(Icons.chat_rounded), label: const Text('بدء الاستشارة عبر واتساب'))]); }
   bool _canReportNoShow(bool isLawyer) { final now = DateTime.now(); if (isLawyer) { if (booking.status == 'مؤكد') return !now.isBefore(booking.scheduledAt.add(const Duration(minutes: 10))); if (booking.status == 'قيد التنفيذ' && booking.startedAt != null) return !now.isBefore(booking.startedAt!.add(const Duration(minutes: 10))); return false; } return booking.status == 'مؤكد' && booking.startedAt == null && !now.isBefore(booking.scheduledAt.add(const Duration(minutes: 10))); }
-  Widget _startButton(BuildContext context, WidgetRef ref, AsyncValue<Map<String, dynamic>?> details) { final now = DateTime.now(); final duration = int.tryParse('${details.valueOrNull?['package_duration_minutes'] ?? 30}') ?? 30; final opens = booking.scheduledAt.subtract(const Duration(minutes: 5)); final closes = booking.scheduledAt.add(Duration(minutes: duration)); if (now.isAfter(closes)) return _infoCard(context, 'انتهى وقت بدء الاستشارة لهذا الموعد.', Icons.timer_off_outlined); if (now.isBefore(opens)) return _infoCard(context, 'يمكن بدء الاستشارة قبل الموعد بـ 5 دقائق.', Icons.schedule_rounded); return ElevatedButton.icon(onPressed: () => _updateStatus(context, ref, 'قيد التنفيذ'), icon: const Icon(Icons.play_arrow_rounded), label: const Text('بدء الاستشارة الآن')); }
   Future<void> _review(BuildContext context, WidgetRef ref, bool approved) async { try { await ref.read(bookingsControllerProvider.notifier).reviewBooking(booking.id, approved); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(approved ? 'تمت الموافقة على الحجز' : 'تم رفض الحجز'))); } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Exception: ', '')))); } }
   Future<void> _updateStatus(BuildContext context, WidgetRef ref, String status) async { try { await ref.read(bookingsControllerProvider.notifier).updateBookingStatus(booking.id, status); if (context.mounted) { final updated = booking.copyWith(status: status, startedAt: status == 'قيد التنفيذ' ? DateTime.now() : booking.startedAt); context.pushReplacement('/booking-details', extra: updated); } } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Exception: ', '')))); } }
   Future<void> _reportNoShow(BuildContext context, WidgetRef ref, bool isLawyer) async { try { await ref.read(bookingsControllerProvider.notifier).reportNoShow(booking.id, isLawyer: isLawyer); } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Exception: ', '')))); } }
@@ -117,4 +124,166 @@ class BookingDetailsPage extends ConsumerWidget {
   Widget _section(BuildContext context, String title, IconData icon, Widget child) { final s = Theme.of(context).colorScheme; return Container(padding: const EdgeInsets.all(17), decoration: BoxDecoration(color: s.surfaceContainerLow, borderRadius: BorderRadius.circular(18), border: Border.all(color: s.outlineVariant)), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [Row(children: [Icon(icon, color: s.primary), const SizedBox(width: 8), Expanded(child: Text(title, textAlign: TextAlign.right, style: TextStyle(color: s.onSurface, fontWeight: FontWeight.w800, fontSize: 16)))]), const SizedBox(height: 12), child])); }
   Widget _row(BuildContext context, String label, String value) { final s = Theme.of(context).colorScheme; return Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(children: [Expanded(child: Text(value, textAlign: TextAlign.right, style: TextStyle(color: s.onSurface, fontWeight: FontWeight.w600))), const SizedBox(width: 12), Text(label, style: TextStyle(color: s.onSurfaceVariant))])); }
   Widget _infoCard(BuildContext context, String text, IconData icon) { final s = Theme.of(context).colorScheme; return Container(padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: s.primaryContainer, borderRadius: BorderRadius.circular(16)), child: Row(children: [Icon(icon, color: s.primary), const SizedBox(width: 10), Expanded(child: Text(text, textAlign: TextAlign.right, style: TextStyle(color: s.onPrimaryContainer, height: 1.45)))])); }
+}
+
+class _ConsultationStartCountdown extends StatefulWidget {
+  final DateTime scheduledAt;
+  final int durationMinutes;
+  final bool canStart;
+  final VoidCallback? onStart;
+
+  const _ConsultationStartCountdown({
+    required this.scheduledAt,
+    required this.durationMinutes,
+    required this.canStart,
+    required this.onStart,
+  });
+
+  @override
+  State<_ConsultationStartCountdown> createState() => _ConsultationStartCountdownState();
+}
+
+class _ConsultationStartCountdownState extends State<_ConsultationStartCountdown> {
+  Timer? _timer;
+  late DateTime _now;
+
+  @override
+  void initState() {
+    super.initState();
+    _now = DateTime.now();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final opensAt = widget.scheduledAt.subtract(const Duration(minutes: 5));
+    final closesAt = widget.scheduledAt.add(Duration(minutes: widget.durationMinutes));
+
+    if (_now.isAfter(closesAt)) {
+      return _messageCard(
+        context,
+        'انتهى وقت بدء الاستشارة لهذا الموعد.',
+        Icons.timer_off_outlined,
+      );
+    }
+
+    if (!_now.isBefore(opensAt)) {
+      if (widget.canStart && widget.onStart != null) {
+        return FilledButton.icon(
+          onPressed: widget.onStart,
+          icon: const Icon(Icons.play_arrow_rounded),
+          label: const Text('بدء الاستشارة الآن'),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(54)),
+        );
+      }
+      return _messageCard(
+        context,
+        'أصبح وقت بدء الاستشارة متاحاً الآن. بانتظار المحامي لبدء الاستشارة.',
+        Icons.notifications_active_outlined,
+      );
+    }
+
+    final remaining = opensAt.difference(_now);
+    final totalMinutes = remaining.inMinutes;
+    final days = totalMinutes ~/ (24 * 60);
+    final hours = (totalMinutes % (24 * 60)) ~/ 60;
+    final minutes = totalMinutes % 60;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: scheme.primary.withValues(alpha: .18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.timer_outlined, color: scheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'الوقت المتبقي لإتاحة بدء الاستشارة',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: scheme.onPrimaryContainer,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(child: _timeBox(context, '$minutes', 'دقيقة')),
+              const SizedBox(width: 8),
+              Expanded(child: _timeBox(context, '$hours', 'ساعة')),
+              const SizedBox(width: 8),
+              Expanded(child: _timeBox(context, '$days', 'يوم')),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'سيتاح زر بدء الاستشارة قبل الموعد بـ 5 دقائق.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: scheme.onPrimaryContainer, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _timeBox(BuildContext context, String value, String label) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+      decoration: BoxDecoration(
+        color: scheme.surface.withValues(alpha: .82),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Text(value, style: TextStyle(color: scheme.primary, fontSize: 23, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 2),
+          Text(label, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11)),
+        ],
+      ),
+    );
+  }
+
+  Widget _messageCard(BuildContext context, String text, IconData icon) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: scheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              textAlign: TextAlign.right,
+              style: TextStyle(color: scheme.onPrimaryContainer, height: 1.45),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
