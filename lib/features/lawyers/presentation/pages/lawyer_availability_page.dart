@@ -15,6 +15,8 @@ class LawyerAvailabilityPage extends ConsumerStatefulWidget {
 }
 
 class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage> {
+  static const List<double> _fallbackPriceOptions = <double>[20000, 25000, 30000, 40000, 50000];
+
   late Future<List<Map<String, dynamic>>> _slotsFuture;
   final Set<String> _pendingCancellationBookings = <String>{};
   final Set<String> _submittingCancellationBookings = <String>{};
@@ -30,6 +32,27 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
     if (user == null) return null;
     final row = await SupabaseConfig.client.from('profiles').select('id').eq('auth_id', user.id).maybeSingle();
     return row?['id']?.toString();
+  }
+
+  Future<List<double>> _priceOptions() async {
+    try {
+      final raw = await SupabaseConfig.client.rpc('get_consultation_pricing_config');
+      final row = raw is List && raw.isNotEmpty && raw.first is Map
+          ? Map<String, dynamic>.from(raw.first as Map)
+          : null;
+      final rawOptions = row?['price_options'];
+      if (rawOptions is List) {
+        final values = rawOptions
+            .map((value) => double.tryParse(value.toString()))
+            .whereType<double>()
+            .where((value) => value > 0)
+            .toSet()
+            .toList()
+          ..sort();
+        if (values.isNotEmpty) return values;
+      }
+    } catch (_) {}
+    return _fallbackPriceOptions;
   }
 
   Future<List<Map<String, dynamic>>> _loadSlots() async {
@@ -146,8 +169,10 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
       return;
     }
 
+    final priceOptions = await _priceOptions();
+    if (!mounted) return;
     int duration = 30;
-    final priceController = TextEditingController();
+    double selectedPrice = priceOptions.contains(25000) ? 25000 : priceOptions.first;
     final details = await showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
@@ -158,7 +183,7 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('حدد مدة الاستشارة والسعر الخاص بهذا الموعد.'),
+              const Text('حدد مدة الاستشارة واختر السعر ضمن النطاق المعتمد في المنصة.'),
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
                 initialValue: duration,
@@ -167,27 +192,26 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
                 onChanged: (value) { if (value != null) setDialogState(() => duration = value); },
               ),
               const SizedBox(height: 14),
-              TextField(controller: priceController, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'السعر', suffixText: 'د.ع', hintText: 'مثال: 25000')),
+              DropdownButtonFormField<double>(
+                initialValue: selectedPrice,
+                decoration: const InputDecoration(labelText: 'سعر الاستشارة', helperText: 'السعر مضبوط من إدارة المنصة'),
+                items: priceOptions
+                    .map((price) => DropdownMenuItem<double>(value: price, child: Text('${price.toStringAsFixed(0)} د.ع')))
+                    .toList(growable: false),
+                onChanged: (value) { if (value != null) setDialogState(() => selectedPrice = value); },
+              ),
             ],
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
             FilledButton(
-              onPressed: () {
-                final price = double.tryParse(priceController.text.trim().replaceAll(',', ''));
-                if (price == null || price <= 0) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('يرجى إدخال سعر صحيح أكبر من صفر')));
-                  return;
-                }
-                Navigator.pop(dialogContext, {'duration': duration, 'price': price});
-              },
+              onPressed: () => Navigator.pop(dialogContext, {'duration': duration, 'price': selectedPrice}),
               child: const Text('حفظ الموعد'),
             ),
           ],
         ),
       ),
     );
-    priceController.dispose();
     if (details == null || !mounted) return;
 
     final start = proposedStart;
@@ -221,6 +245,10 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
       if (raw.contains('past') || raw.contains('سابق') || raw.contains('الماضي')) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('لا يمكن إضافة موعد بتاريخ أو وقت سابق. اختر موعداً لاحقاً.')),
+        );
+      } else if (raw.contains('سعر') || raw.contains('price')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('سعر الاستشارة خارج الحدود المعتمدة في المنصة. أعد اختيار السعر.')),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر إضافة الموعد. تحقق من البيانات وحاول مرة أخرى.')));
