@@ -66,6 +66,10 @@ class GoRouterRefreshStream extends ChangeNotifier {
   }
 }
 
+Page<void> _primaryTabPage(GoRouterState state, Widget child) {
+  return NoTransitionPage<void>(key: state.pageKey, child: child);
+}
+
 @riverpod
 GoRouter router(RouterRef ref) {
   final authState = ref.watch(authStateChangesProvider);
@@ -217,12 +221,12 @@ GoRouter router(RouterRef ref) {
       ShellRoute(
         builder: (context, state, child) => AppShell(location: state.matchedLocation, child: child),
         routes: [
-          GoRoute(path: '/home', builder: (c, s) => const HomePage()),
-          GoRoute(path: '/lawyers', builder: (c, s) => const LawyersListPage()),
+          GoRoute(path: '/home', pageBuilder: (c, s) => _primaryTabPage(s, const HomePage())),
+          GoRoute(path: '/lawyers', pageBuilder: (c, s) => _primaryTabPage(s, const LawyersListPage())),
           GoRoute(path: '/lawyers/:id', builder: (c, s) => LawyerDetailsPage(profileId: s.pathParameters['id']!)),
           GoRoute(path: '/legal-categories', builder: (c, s) => const LegalCategoriesPage()),
-          GoRoute(path: '/lawyer-home', builder: (c, s) => const LawyerDashboardPage()),
-          GoRoute(path: '/lawyer-profile-edit', builder: (c, s) => const LawyerProfileEditPage()),
+          GoRoute(path: '/lawyer-home', pageBuilder: (c, s) => _primaryTabPage(s, const LawyerDashboardPage())),
+          GoRoute(path: '/lawyer-profile-edit', pageBuilder: (c, s) => _primaryTabPage(s, const LawyerProfileEditPage())),
           GoRoute(path: '/lawyer-availability', builder: (c, s) => const LawyerAvailabilityPage()),
           GoRoute(path: '/lawyer-specialization-change', builder: (c, s) => const SpecializationChangePage()),
           GoRoute(path: '/lawyer-wallet', builder: (c, s) => const LawyerWalletPage()),
@@ -239,7 +243,7 @@ GoRouter router(RouterRef ref) {
               return CreateBookingPage(lawyer: lawyer, service: e?['service'], isCustom: e?['isCustom'] == true);
             },
           ),
-          GoRoute(path: '/bookings', builder: (c, s) => const BookingsListPage()),
+          GoRoute(path: '/bookings', pageBuilder: (c, s) => _primaryTabPage(s, const BookingsListPage())),
           GoRoute(path: '/archived-bookings', builder: (c, s) => const ArchivedBookingsPage()),
           GoRoute(path: '/chats', builder: (c, s) => const ConversationsPage()),
           GoRoute(
@@ -278,7 +282,7 @@ GoRouter router(RouterRef ref) {
           GoRoute(path: '/notifications', builder: (c, s) => const NotificationsPage()),
           GoRoute(path: '/notification-settings', builder: (c, s) => const NotificationSettingsPage()),
           GoRoute(path: '/payment-methods', builder: (c, s) => const PaymentMethodsPage()),
-          GoRoute(path: '/app-settings', builder: (c, s) => const ProfilePage()),
+          GoRoute(path: '/app-settings', pageBuilder: (c, s) => _primaryTabPage(s, const ProfilePage())),
           GoRoute(path: '/help-center', builder: (c, s) => const HelpCenterPage()),
         ],
       ),
