@@ -66,13 +66,17 @@ class NotificationsPage extends ConsumerWidget {
         await refresh();
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('تم اعتبار جميع الإشعارات مقروءة')),
+            const SnackBar(
+              content: Text('تم اعتبار جميع الإشعارات مقروءة'),
+            ),
           );
         }
       } catch (_) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('تعذر تحديث حالة الإشعارات. حاول مرة أخرى.')),
+            const SnackBar(
+              content: Text('تعذر تحديث حالة الإشعارات. حاول مرة أخرى.'),
+            ),
           );
         }
       }
@@ -111,11 +115,78 @@ class NotificationsPage extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(16, 18, 16, 34),
                   sliver: SliverList.builder(
                     itemCount: items.length,
-                    itemBuilder: (context, index) => _NotificationCard(
-                      item: items[index],
-                      onOpen: () => _open(context, items[index]),
-                      onRefresh: refresh,
-                    ),
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      return Directionality(
+                        textDirection: TextDirection.rtl,
+                        child: Dismissible(
+                          key: ValueKey('notification-${item.id}'),
+                          direction: DismissDirection.endToStart,
+                          dismissThresholds: const {
+                            DismissDirection.endToStart: 0.35,
+                          },
+                          confirmDismiss: (_) async {
+                            try {
+                              await deleteNotification(item.id);
+                              return true;
+                            } catch (_) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'تعذر حذف الإشعار. حاول مرة أخرى.',
+                                    ),
+                                  ),
+                                );
+                              }
+                              return false;
+                            }
+                          },
+                          onDismissed: (_) {
+                            ref.invalidate(notificationsProvider);
+                            ref.invalidate(unreadNotificationsCountProvider);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('تم حذف الإشعار'),
+                                ),
+                              );
+                            }
+                          },
+                          background: Container(
+                            margin: const EdgeInsets.only(bottom: 13),
+                            padding: const EdgeInsets.symmetric(horizontal: 22),
+                            alignment: Alignment.centerLeft,
+                            decoration: BoxDecoration(
+                              color: AppColors.error,
+                              borderRadius: BorderRadius.circular(23),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.delete_outline_rounded,
+                                  color: Colors.white,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'حذف',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          child: _NotificationCard(
+                            item: item,
+                            onOpen: () => _open(context, item),
+                            onRefresh: refresh,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
             ],
@@ -235,6 +306,26 @@ class _NotificationsHeader extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+          const SizedBox(height: 8),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                'اسحب الإشعار إلى اليمين لحذفه',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(width: 6),
+              Icon(
+                Icons.swipe_right_alt_rounded,
+                color: Colors.white70,
+                size: 18,
+              ),
+            ],
           ),
         ],
       ),
