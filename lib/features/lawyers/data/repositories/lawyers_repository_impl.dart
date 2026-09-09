@@ -10,7 +10,9 @@ class LawyersRepositoryImpl implements LawyersRepository {
   final SupabaseClient _supabase;
   LawyersRepositoryImpl(this._supabase);
 
-  static const _cachePrefix = 'public_lawyers_page_';
+  // Versioned so clients do not keep an old empty directory after a backend
+  // filtering/security change.
+  static const _cachePrefix = 'public_lawyers_page_v2_';
   static const _cacheTtl = Duration(minutes: 10);
   static const _backgroundRefreshAfter = Duration(minutes: 2);
   static final Map<String, _MemoryPage> _memoryCache = {};
@@ -25,7 +27,9 @@ class LawyersRepositoryImpl implements LawyersRepository {
     final memory = _memoryCache[key];
     if (memory != null) {
       final age = DateTime.now().difference(memory.timestamp);
-      if (age <= _cacheTtl) return memory.rows;
+      // Do not trust an empty cached first page; retry the live directory so a
+      // temporary backend/filter issue cannot hide every lawyer for 10 minutes.
+      if (age <= _cacheTtl && (offset > 0 || memory.rows.isNotEmpty)) return memory.rows;
       _memoryCache.remove(key);
     }
     try {
@@ -36,6 +40,7 @@ class LawyersRepositoryImpl implements LawyersRepository {
       final cachedAt = DateTime.fromMillisecondsSinceEpoch(timestamp);
       if (DateTime.now().difference(cachedAt) > _cacheTtl) return null;
       final rows = List<dynamic>.from(raw);
+      if (offset == 0 && rows.isEmpty) return null;
       _memoryCache[key] = _MemoryPage(rows, cachedAt);
       return rows;
     } catch (e) {
@@ -46,6 +51,17 @@ class LawyersRepositoryImpl implements LawyersRepository {
 
   Future<void> _writeCachedPage(int limit, int offset, List<dynamic> rows) async {
     final key = _cacheKey(limit, offset);
+    // Never persist an empty first page. An empty directory is too important to
+    // cache because it can be caused by a transient RPC or policy transition.
+    if (offset == 0 && rows.isEmpty) {
+      _memoryCache.remove(key);
+      try {
+        final box = Hive.box('app_cache');
+        await box.delete(key);
+        await box.delete(_cacheTimeKey(limit, offset));
+      } catch (_) {}
+      return;
+    }
     _memoryCache[key] = _MemoryPage(rows, DateTime.now());
     try {
       final box = Hive.box('app_cache');
@@ -99,11 +115,11 @@ class LawyersRepositoryImpl implements LawyersRepository {
     }
 
     try {
-      final response = await _supabase.rpc('get_public_lawyers');
-      final allRows = List<dynamic>.from(response as List);
-      final start = safeOffset.clamp(0, allRows.length);
-      final end = (start + safeLimit).clamp(start, allRows.length);
-      final rows = allRows.sublist(start, end);
+      final response = await _supabase.rpc(
+        'get_public_lawyers',
+        params: {'p_limit': safeLimit, 'p_offset': safeOffset},
+      );
+      final rows = List<dynamic>.from(response as List);
       await _writeCachedPage(safeLimit, safeOffset, rows);
       return _parseRows(rows);
     } catch (e) {
@@ -116,11 +132,11 @@ class LawyersRepositoryImpl implements LawyersRepository {
     final safeLimit = limit.clamp(1, 100);
     final safeOffset = offset < 0 ? 0 : offset;
     try {
-      final response = await _supabase.rpc('get_public_lawyers');
-      final allRows = List<dynamic>.from(response as List);
-      final start = safeOffset.clamp(0, allRows.length);
-      final end = (start + safeLimit).clamp(start, allRows.length);
-      final rows = allRows.sublist(start, end);
+      final response = await _supabase.rpc(
+        'get_public_lawyers',
+        params: {'p_limit': safeLimit, 'p_offset': safeOffset},
+      );
+      final rows = List<dynamic>.from(response as List);
       await _writeCachedPage(safeLimit, safeOffset, rows);
       return _parseRows(rows);
     } catch (e) {
@@ -193,7 +209,7 @@ class LawyersRepositoryImpl implements LawyersRepository {
       _memoryCache.clear();
       _profileMemoryCache.remove(profile.profileId);
       final box = Hive.box('app_cache');
-      final keys = box.keys.where((key) => key.toString().startsWith(_cachePrefix)).toList();
+      final keys = box.keys.where((key) => key.toString().startsWith('public_lawyers_page_')).toList();
       await box.deleteAll(keys);
     } catch (_) {}
   }
