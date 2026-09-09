@@ -127,3 +127,25 @@ Future<void> markAllNotificationsAsRead() async {
   if (profileId == null) return;
   await client.from('notifications').update({'is_read': true}).eq('user_id', profileId).eq('is_read', false);
 }
+
+Future<void> deleteNotification(String id) async {
+  final client = _clientOrNull();
+  if (client == null) {
+    throw StateError('Supabase is not available');
+  }
+  final profileId = await _currentProfileId();
+  if (profileId == null) {
+    throw StateError('No signed-in profile');
+  }
+
+  final deleted = await client
+      .from('notifications')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', profileId)
+      .select('id');
+
+  if ((deleted as List).isEmpty) {
+    throw StateError('Notification was not deleted');
+  }
+}
