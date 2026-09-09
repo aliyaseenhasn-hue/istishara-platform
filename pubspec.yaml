@@ -52,3 +52,7 @@ flutter:
     - assets/icons/app_icon.png
     - assets/icons/app_icon_v2.png
     - assets/landing/lawyer_client.svg
+    - assets/landing/pwa_iphone_share.svg
+    - assets/landing/pwa_iphone_add_home.svg
+    - assets/landing/pwa_iphone_confirm_add.svg
+    - assets/landing/pwa_iphone_share_app.svg
