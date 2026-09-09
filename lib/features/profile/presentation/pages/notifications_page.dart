@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -118,12 +119,12 @@ class NotificationsPage extends ConsumerWidget {
                     itemBuilder: (context, index) {
                       final item = items[index];
                       return Directionality(
-                        textDirection: TextDirection.rtl,
+                        textDirection: ui.TextDirection.ltr,
                         child: Dismissible(
                           key: ValueKey('notification-${item.id}'),
-                          direction: DismissDirection.endToStart,
+                          direction: DismissDirection.startToEnd,
                           dismissThresholds: const {
-                            DismissDirection.endToStart: 0.35,
+                            DismissDirection.startToEnd: 0.30,
                           },
                           confirmDismiss: (_) async {
                             try {
@@ -179,10 +180,13 @@ class NotificationsPage extends ConsumerWidget {
                               ],
                             ),
                           ),
-                          child: _NotificationCard(
-                            item: item,
-                            onOpen: () => _open(context, item),
-                            onRefresh: refresh,
+                          child: Directionality(
+                            textDirection: ui.TextDirection.rtl,
+                            child: _NotificationCard(
+                              item: item,
+                              onOpen: () => _open(context, item),
+                              onRefresh: refresh,
+                            ),
                           ),
                         ),
                       );
