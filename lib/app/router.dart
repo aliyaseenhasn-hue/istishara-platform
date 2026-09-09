@@ -69,6 +69,37 @@ class GoRouterRefreshStream extends ChangeNotifier {
 @riverpod
 GoRouter router(RouterRef ref) {
   final authState = ref.watch(authStateChangesProvider);
+  String? cachedAccountStatus;
+  String? cachedAccountUserId;
+  Future<String?>? accountStatusRequest;
+
+  Future<String?> loadAccountStatus() {
+    final authUser = SupabaseConfig.client.auth.currentUser;
+    if (authUser == null) return Future<String?>.value(null);
+
+    if (cachedAccountUserId == authUser.id && accountStatusRequest == null) {
+      return Future<String?>.value(cachedAccountStatus);
+    }
+
+    if (cachedAccountUserId == authUser.id && accountStatusRequest != null) {
+      return accountStatusRequest!;
+    }
+
+    cachedAccountUserId = authUser.id;
+    accountStatusRequest = SupabaseConfig.client
+        .from('profiles')
+        .select('status')
+        .eq('auth_id', authUser.id)
+        .maybeSingle()
+        .then((profile) {
+          cachedAccountStatus = profile?['status']?.toString();
+          return cachedAccountStatus;
+        })
+        .catchError((_) => null)
+        .whenComplete(() => accountStatusRequest = null);
+    return accountStatusRequest!;
+  }
+
   return GoRouter(
     navigatorKey: AppNavigation.navigatorKey,
     initialLocation: '/',
@@ -112,18 +143,7 @@ GoRouter router(RouterRef ref) {
         return '/login?returnTo=${Uri.encodeComponent(returnTo)}';
       }
 
-      String? accountStatus;
-      try {
-        final authUser = SupabaseConfig.client.auth.currentUser;
-        if (authUser != null) {
-          final profile = await SupabaseConfig.client
-              .from('profiles')
-              .select('status')
-              .eq('auth_id', authUser.id)
-              .maybeSingle();
-          accountStatus = profile?['status']?.toString();
-        }
-      } catch (_) {}
+      final accountStatus = await loadAccountStatus();
 
       if (accountStatus != null && accountStatus != 'active') {
         return unavailable ? null : '/account-unavailable';
