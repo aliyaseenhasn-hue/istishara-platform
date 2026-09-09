@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../../../shared/widgets/loading_widget.dart';
 import '../providers/auth_provider.dart';
 
@@ -45,7 +46,7 @@ class _OtpPageState extends ConsumerState<OtpPage> {
         error: (error, _) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(error.toString().replaceFirst('Exception: ', '')),
+              content: Text(UserFacingError.text(error, fallback: 'تعذر التحقق من الرمز. تحقق منه وحاول مرة أخرى.')),
               backgroundColor: scheme.error,
             ),
           );
