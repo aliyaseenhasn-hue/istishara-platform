@@ -36,69 +36,83 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
         'get_booking_cancellation_summary',
         params: {'p_booking_id': widget.booking.id},
       );
-      if (response is Map) {
-        final summary = Map<String, dynamic>.from(response);
-        final request = summary['cancellation_request'];
-        final creditsRaw = summary['credits'];
-        if (!mounted) return;
-        setState(() {
-          _summary = summary;
-          if (request is Map) {
-            final map = Map<String, dynamic>.from(request);
-            _requestStatus = map['status']?.toString();
-            _pending = _requestStatus == 'بانتظار مراجعة الإدارة';
-          } else {
-            _requestStatus = null;
-            _pending = false;
-          }
-          _credits = creditsRaw is List
-              ? creditsRaw.map((e) => Map<String, dynamic>.from(e as Map)).toList()
-              : const [];
-        });
-      }
+      if (response is! Map || !mounted) return;
+      final summary = Map<String, dynamic>.from(response);
+      final request = summary['cancellation_request'];
+      final creditsRaw = summary['credits'];
+      setState(() {
+        _summary = summary;
+        if (request is Map) {
+          final map = Map<String, dynamic>.from(request);
+          _requestStatus = map['status']?.toString();
+          _pending = _requestStatus == 'بانتظار مراجعة الإدارة';
+        } else {
+          _requestStatus = null;
+          _pending = false;
+        }
+        _credits = creditsRaw is List
+            ? creditsRaw.map((e) => Map<String, dynamic>.from(e as Map)).toList()
+            : const [];
+      });
     } catch (_) {
-      // Cancellation details must not block opening the core booking screen.
+      // Optional details must never block the core booking screen.
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _showRequestDialog() async {
+  Future<String?> _askReason({required bool lawyer}) async {
     final controller = TextEditingController();
-    final reason = await showDialog<String>(
+    final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('طلب إلغاء الحجز'),
+        title: Text(lawyer ? 'طلب إلغاء الحجز' : 'إلغاء الحجز'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('سيُرسل طلب الإلغاء إلى الإدارة للمراجعة. اكتب السبب بوضوح لأنه سيُحفظ ضمن تفاصيل الإلغاء.'),
+            Text(
+              lawyer
+                  ? 'سيُرسل الطلب إلى الإدارة للمراجعة. اكتب السبب بوضوح لأنه سيُحفظ ضمن سجل الإلغاء.'
+                  : 'إذا كان المبلغ مدفوعاً فسيُسجل كامل مبلغ الاستشارة للاسترداد، ثم تحوله الإدارة إلى حساب الاستلام المرتبط.',
+            ),
             const SizedBox(height: 14),
             TextField(
               controller: controller,
-              maxLines: 5,
+              maxLines: 4,
               autofocus: true,
-              decoration: const InputDecoration(labelText: 'سبب الإلغاء', hintText: 'اكتب سبب الإلغاء هنا'),
+              decoration: const InputDecoration(
+                labelText: 'سبب الإلغاء',
+                hintText: 'اكتب سبباً مختصراً وواضحاً',
+              ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('تراجع')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('تراجع')),
           FilledButton(
             onPressed: () {
-              if (controller.text.trim().isEmpty) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('سبب الإلغاء إلزامي')));
+              final value = controller.text.trim();
+              if (value.isEmpty) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('سبب الإلغاء إلزامي')),
+                );
                 return;
               }
-              Navigator.of(dialogContext).pop(controller.text.trim());
+              Navigator.pop(dialogContext, value);
             },
-            child: const Text('إرسال طلب الإلغاء'),
+            child: Text(lawyer ? 'إرسال طلب الإلغاء' : 'تأكيد الإلغاء'),
           ),
         ],
       ),
     );
     controller.dispose();
+    return result;
+  }
+
+  Future<void> _requestForLawyer() async {
+    if (_actionLoading) return;
+    final reason = await _askReason(lawyer: true);
     if (reason == null || !mounted) return;
     try {
       setState(() => _actionLoading = true);
@@ -108,10 +122,11 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
       );
       await _loadCancellationState();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلب الإلغاء إلى الإدارة للمراجعة.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إرسال طلب الإلغاء إلى الإدارة للمراجعة.')),
+      );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_errorText(e))));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_errorText(e))));
     } finally {
       if (mounted) setState(() => _actionLoading = false);
     }
@@ -119,43 +134,7 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
 
   Future<void> _cancelForClient() async {
     if (_actionLoading) return;
-    final controller = TextEditingController();
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('إلغاء الحجز'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'بعد الإلغاء لا يمكن إعادة الحجز نفسه. إذا كان المبلغ مدفوعاً فسيُسجل كامل مبلغ الاستشارة للاسترداد، وتتابع الإدارة تحويله إلى حساب الاستلام المرتبط.',
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: controller,
-              maxLines: 4,
-              decoration: const InputDecoration(labelText: 'سبب الإلغاء', hintText: 'سبب مختصر وواضح'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('تراجع')),
-          FilledButton(
-            onPressed: () {
-              final value = controller.text.trim();
-              if (value.isEmpty) {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('سبب الإلغاء إلزامي')));
-                return;
-              }
-              Navigator.of(dialogContext).pop(value);
-            },
-            child: const Text('تأكيد الإلغاء'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
+    final reason = await _askReason(lawyer: false);
     if (reason == null || !mounted) return;
     try {
       setState(() => _actionLoading = true);
@@ -169,11 +148,10 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
       await _loadCancellationState();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم تسجيل الإلغاء. إذا كان الحجز مدفوعاً فسيظهر الاسترداد ضمن التفاصيل المالية.')),
+        const SnackBar(content: Text('تم تسجيل الإلغاء وتحديث حالة الاستشارة.')),
       );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_errorText(e))));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_errorText(e))));
     } finally {
       if (mounted) setState(() => _actionLoading = false);
     }
@@ -185,24 +163,127 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
         'client' => 'طالب الاستشارة',
         'lawyer' => 'المحامي',
         'admin' => 'الإدارة',
-        'system' => 'النظام / سجل قديم',
+        'system' => 'النظام / سجل سابق',
         _ => 'غير محدد',
       };
 
-  String _creditTitle(Map<String, dynamic> credit) {
-    final type = credit['transaction_type']?.toString();
-    return type == 'استرداد قيمة استشارة' ? 'استرداد مبلغ الاستشارة' : 'تعويض إلغاء من المحامي';
-  }
+  String _sourceLabel(String? source) => switch (source) {
+        'client_direct' => 'إلغاء مباشر من طالب الاستشارة',
+        'lawyer_cancellation_request' => 'طلب إلغاء من المحامي بعد مراجعة الإدارة',
+        'no_show' => 'قرار عدم حضور',
+        'legacy_cancellation' => 'إلغاء سابق',
+        _ => source ?? 'غير محدد',
+      };
+
+  String _creditTitle(Map<String, dynamic> credit) =>
+      credit['transaction_type']?.toString() == 'استرداد قيمة استشارة'
+          ? 'استرداد مبلغ الاستشارة'
+          : 'تعويض إضافي';
 
   String _creditStatus(Map<String, dynamic> credit) {
     final status = credit['status']?.toString() ?? '';
     return switch (status) {
       'مستحق' => 'مستحق وجاهز للتحويل',
       'بانتظار التحويل' => 'بانتظار تنفيذ التحويل',
+      'قيد الانتظار' => 'قيد الانتظار',
       'settled' => 'تم التحويل',
       'بانتظار تحصيل الغرامة' => 'بانتظار تحصيل الغرامة من المحامي',
       _ => status,
     };
+  }
+
+  String _dateTime(dynamic value) {
+    final parsed = DateTime.tryParse('${value ?? ''}')?.toLocal();
+    if (parsed == null) return 'غير محدد';
+    return '${parsed.year}/${parsed.month.toString().padLeft(2, '0')}/${parsed.day.toString().padLeft(2, '0')} - '
+        '${parsed.hour.toString().padLeft(2, '0')}:${parsed.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _showDetails() async {
+    await _loadCancellationState();
+    if (!mounted) return;
+    final requestRaw = _summary?['cancellation_request'];
+    final request = requestRaw is Map ? Map<String, dynamic>.from(requestRaw) : null;
+    final actorRole = _summary?['cancellation_actor_role']?.toString();
+    final actorName = _summary?['cancelled_by_name']?.toString();
+    final reason = _summary?['cancellation_reason']?.toString();
+    final source = _summary?['cancellation_source']?.toString();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            4,
+            20,
+            24 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('تفاصيل الإلغاء والاسترداد', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 14),
+              _DetailCard(
+                title: 'بيانات الإلغاء',
+                icon: Icons.event_busy_outlined,
+                rows: [
+                  ('الحالة الحالية', _summary?['booking_status']?.toString() ?? widget.booking.status),
+                  ('تم الإلغاء بواسطة', actorName?.trim().isNotEmpty == true ? '$actorName (${_actorLabel(actorRole)})' : _actorLabel(actorRole)),
+                  ('مصدر الإلغاء', _sourceLabel(source)),
+                  ('سبب الإلغاء', reason?.trim().isNotEmpty == true ? reason! : request?['reason']?.toString() ?? 'غير محدد'),
+                  ('وقت الإلغاء', _dateTime(_summary?['cancelled_at'])),
+                ],
+              ),
+              if (request != null) ...[
+                const SizedBox(height: 12),
+                _DetailCard(
+                  title: 'قرار الإدارة',
+                  icon: Icons.rule_outlined,
+                  rows: [
+                    ('حالة الطلب', request['status']?.toString() ?? 'غير محدد'),
+                    ('القرار', request['decision']?.toString() ?? 'بانتظار القرار'),
+                    if (request['penalty_rate'] != null) ('نسبة الغرامة', '${request['penalty_rate']}%'),
+                    if (request['penalty_amount'] != null) ('قيمة التعويض', '${request['penalty_amount']} ${request['currency'] ?? 'IQD'}'),
+                    ('تاريخ الطلب', _dateTime(request['requested_at'])),
+                    if (request['reviewed_at'] != null) ('تاريخ المراجعة', _dateTime(request['reviewed_at'])),
+                  ],
+                ),
+              ],
+              if (_credits.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                ..._credits.map((credit) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _DetailCard(
+                        title: _creditTitle(credit),
+                        icon: credit['transaction_type']?.toString() == 'استرداد قيمة استشارة'
+                            ? Icons.undo_rounded
+                            : Icons.volunteer_activism_outlined,
+                        rows: [
+                          ('المبلغ', '${credit['amount']} ${credit['currency'] ?? 'IQD'}'),
+                          ('الحالة', _creditStatus(credit)),
+                          if (credit['provider_type'] != null) ('وسيلة التحويل', credit['provider_type'].toString()),
+                          if (credit['provider_reference']?.toString().trim().isNotEmpty == true)
+                            ('مرجع التحويل', credit['provider_reference'].toString()),
+                          if (credit['paid_at'] != null) ('تاريخ التحويل', _dateTime(credit['paid_at'])),
+                        ],
+                      ),
+                    )),
+              ],
+              if (_credits.isEmpty && ['بانتظار الاسترداد', 'مسترد'].contains(_summary?['booking_status'])) ...[
+                const SizedBox(height: 12),
+                const _InfoBox(
+                  icon: Icons.account_balance_wallet_outlined,
+                  text: 'تم إلغاء الاستشارة مالياً. إذا كان هناك مبلغ مدفوع فسيظهر سجل الاسترداد هنا عند اكتمال إنشائه.',
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -222,83 +303,41 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
     final clientCanCancel = isClient &&
         ['قيد انتظار الدفع', 'قيد معالجة الدفع', 'قيد مراجعة المحامي', 'بانتظار التأكيد', 'مؤكد'].contains(liveBooking.status) &&
         liveBooking.scheduledAt.isAfter(DateTime.now());
+    final hasCancellationDetails = !_loading &&
+        (_summary?['cancellation_actor_role'] != null ||
+            _summary?['cancellation_request'] != null ||
+            _credits.isNotEmpty ||
+            ['ملغي', 'بانتظار الاسترداد', 'مسترد'].contains(liveBooking.status));
 
-    final actorRole = _summary?['cancellation_actor_role']?.toString();
-    final reason = _summary?['cancellation_reason']?.toString();
-    final cancelledAt = DateTime.tryParse(_summary?['cancelled_at']?.toString() ?? '')?.toLocal();
-    final cancelledOrRefunding = ['ملغي', 'بانتظار الاسترداد', 'مسترد'].contains(liveBooking.status) || actorRole != null;
-    final request = _summary?['cancellation_request'];
-    final requestMap = request is Map ? Map<String, dynamic>.from(request) : null;
-
-    final footer = <Widget>[];
+    final buttons = <Widget>[];
     if (isLawyer && !_loading && !needsReview && eligibleCancellation) {
-      footer.add(OutlinedButton.icon(
-        onPressed: _actionLoading ? null : _showRequestDialog,
+      buttons.add(OutlinedButton.icon(
+        onPressed: _actionLoading ? null : _requestForLawyer,
         icon: const Icon(Icons.event_busy_outlined),
         label: const Text('طلب إلغاء الحجز'),
       ));
     } else if (isLawyer && !_loading && _pending) {
-      footer.add(const _InfoBox(icon: Icons.hourglass_top_rounded, text: 'طلب الإلغاء بانتظار مراجعة الإدارة.'));
+      buttons.add(const _InfoBox(icon: Icons.hourglass_top_rounded, text: 'طلب الإلغاء بانتظار مراجعة الإدارة.'));
     } else if (isClient && clientCanCancel) {
-      footer.add(OutlinedButton.icon(
+      buttons.add(OutlinedButton.icon(
         onPressed: _actionLoading ? null : _cancelForClient,
         icon: const Icon(Icons.event_busy_outlined),
         label: const Text('إلغاء الحجز'),
       ));
     }
 
-    if (!_loading && cancelledOrRefunding) {
-      footer.add(_InfoBox(
-        icon: Icons.info_outline_rounded,
-        text: 'تم الإلغاء بواسطة: ${_actorLabel(actorRole)}'
-            '${reason == null || reason.trim().isEmpty ? '' : '\nالسبب: $reason'}'
-            '${cancelledAt == null ? '' : '\nوقت الإلغاء: ${cancelledAt.year}/${cancelledAt.month.toString().padLeft(2, '0')}/${cancelledAt.day.toString().padLeft(2, '0')} - ${cancelledAt.hour.toString().padLeft(2, '0')}:${cancelledAt.minute.toString().padLeft(2, '0')}'}',
-      ));
-    }
-
-    if (isLawyer && requestMap != null && _requestStatus != null && !_pending) {
-      final decision = requestMap['decision']?.toString();
-      final penalty = requestMap['penalty_amount'];
-      footer.add(_InfoBox(
-        icon: Icons.rule_outlined,
-        text: 'قرار الإدارة: ${decision ?? _requestStatus}'
-            '${penalty == null ? '' : '\nالغرامة/التعويض: $penalty ${requestMap['currency'] ?? 'IQD'}'}'
-            '\nالحالة: $_requestStatus',
-      ));
-    }
-
-    if (isClient && _credits.isNotEmpty) {
-      footer.add(Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Row(children: [
-              Icon(Icons.account_balance_wallet_outlined),
-              SizedBox(width: 8),
-              Text('الاسترداد والتعويض', style: TextStyle(fontWeight: FontWeight.w800)),
-            ]),
-            const SizedBox(height: 8),
-            ..._credits.map((credit) => Padding(
-                  padding: const EdgeInsets.only(top: 5),
-                  child: Text(
-                    '${_creditTitle(credit)}: ${credit['amount']} ${credit['currency']}\n${_creditStatus(credit)}',
-                    style: const TextStyle(height: 1.45),
-                  ),
-                )),
-          ],
-        ),
+    if (hasCancellationDetails) {
+      buttons.add(FilledButton.tonalIcon(
+        onPressed: _showDetails,
+        icon: const Icon(Icons.receipt_long_outlined),
+        label: const Text('تفاصيل الإلغاء والاسترداد'),
       ));
     }
 
     return Stack(
       children: [
         BookingDetailsPage(booking: liveBooking),
-        if (footer.isNotEmpty)
+        if (buttons.isNotEmpty)
           Positioned(
             left: 16,
             right: 16,
@@ -307,9 +346,9 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  for (var i = 0; i < footer.length; i++) ...[
+                  for (var i = 0; i < buttons.length; i++) ...[
                     if (i > 0) const SizedBox(height: 8),
-                    SizedBox(width: double.infinity, child: footer[i]),
+                    SizedBox(width: double.infinity, child: buttons[i]),
                   ],
                 ],
               ),
@@ -341,4 +380,46 @@ class _InfoBox extends StatelessWidget {
           ],
         ),
       );
+}
+
+class _DetailCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final List<(String, String)> rows;
+  const _DetailCard({required this.title, required this.icon, required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            Icon(icon, color: scheme.primary),
+            const SizedBox(width: 8),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+          ]),
+          const SizedBox(height: 10),
+          ...rows.map((row) => Padding(
+                padding: const EdgeInsets.only(bottom: 7),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(width: 108, child: Text(row.$1, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12))),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(row.$2, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5))),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
 }
