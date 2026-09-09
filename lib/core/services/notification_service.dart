@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:astshara/core/config/supabase_config.dart';
 import 'package:astshara/core/navigation/app_navigation.dart';
-import '../../features/bookings/data/models/booking_model.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
@@ -61,8 +60,6 @@ class NotificationService {
     _schedulePendingNavigation();
   }
 
-  /// Handles a push payload received from FCM when the app is backgrounded or
-  /// terminated and subsequently opened by the user.
   static Future<void> handleExternalPayload(String payload) async {
     if (payload.trim().isEmpty) return;
     _pendingPayload = payload;
@@ -71,33 +68,53 @@ class NotificationService {
 
   static void _schedulePendingNavigation() {
     _pendingNavigationTimer?.cancel();
-    _pendingNavigationTimer = Timer.periodic(const Duration(milliseconds: 350),
-        (timer) async {
-      if (_pendingPayload == null) {
-        timer.cancel();
-        return;
-      }
-      final context = AppNavigation.navigatorKey.currentContext;
-      if (context == null) return;
-      final payload = _pendingPayload;
-      _pendingPayload = null;
-      timer.cancel();
-      try {
-        await _navigateFromNotification(context, payload!);
-      } catch (e, stack) {
-        debugPrint('Notification navigation error: $e');
-        debugPrintStack(stackTrace: stack);
-      }
-    });
+    var attempts = 0;
+    _pendingNavigationTimer = Timer.periodic(
+      const Duration(milliseconds: 350),
+      (timer) async {
+        attempts += 1;
+        final payload = _pendingPayload;
+        if (payload == null) {
+          timer.cancel();
+          return;
+        }
+
+        final context = AppNavigation.navigatorKey.currentContext;
+        final sessionReady = SupabaseConfig.client.auth.currentUser != null;
+        if (context == null || !sessionReady) {
+          if (attempts >= 60) {
+            timer.cancel();
+          }
+          return;
+        }
+
+        try {
+          final navigated = await _navigateFromNotification(context, payload);
+          if (navigated) {
+            _pendingPayload = null;
+            timer.cancel();
+          } else if (attempts >= 60) {
+            if (context.mounted) GoRouter.of(context).push('/notifications');
+            _pendingPayload = null;
+            timer.cancel();
+          }
+        } catch (e, stack) {
+          debugPrint('Notification navigation error: $e');
+          debugPrintStack(stackTrace: stack);
+          if (attempts >= 60) {
+            if (context.mounted) GoRouter.of(context).push('/notifications');
+            _pendingPayload = null;
+            timer.cancel();
+          }
+        }
+      },
+    );
   }
 
-  static Future<void> _navigateFromNotification(
+  static Future<bool> _navigateFromNotification(
       BuildContext context, String payload) async {
     final notificationId = _decodeNotificationId(payload);
-    if (notificationId == null) {
-      if (context.mounted) GoRouter.of(context).push('/notifications');
-      return;
-    }
+    if (notificationId == null) return false;
 
     final notification = await SupabaseConfig.client
         .from('notifications')
@@ -105,51 +122,43 @@ class NotificationService {
         .eq('id', notificationId)
         .maybeSingle();
 
-    if (notification == null) {
-      if (context.mounted) GoRouter.of(context).push('/notifications');
-      return;
-    }
+    if (notification == null) return false;
 
     final type = notification['type']?.toString();
     final referenceId = notification['reference_id']?.toString();
     final referenceType = notification['reference_type']?.toString();
 
-    if (referenceId != null &&
+    if (referenceId != null && referenceId.isNotEmpty &&
         (referenceType == 'booking' || type == 'booking' || type == 'payment')) {
-      final response = await SupabaseConfig.client.rpc(
-        'get_booking_for_notification',
-        params: {'p_booking_id': referenceId},
-      );
-      Map<String, dynamic>? row;
-      if (response is List && response.isNotEmpty) {
-        row = Map<String, dynamic>.from(response.first as Map);
-      } else if (response is Map && response.isNotEmpty) {
-        row = Map<String, dynamic>.from(response);
-      }
-      if (row != null && context.mounted) {
-        final booking = BookingModel.fromJson(row).toEntity();
-        GoRouter.of(context).push('/booking-details', extra: booking);
-        return;
+      if (context.mounted) {
+        GoRouter.of(context).push(
+          '/booking-details?booking_id=${Uri.encodeQueryComponent(referenceId)}',
+        );
+        return true;
       }
     }
 
-    if (referenceId != null &&
+    if (referenceId != null && referenceId.isNotEmpty &&
         (referenceType == 'conversation' || referenceType == 'chat' || type == 'chat')) {
       if (context.mounted) {
-        GoRouter.of(context).push('/chat/$referenceId');
-        return;
+        GoRouter.of(context).push('/chat/${Uri.encodeComponent(referenceId)}');
+        return true;
       }
     }
 
-    if (referenceId != null &&
+    if (referenceId != null && referenceId.isNotEmpty &&
         (referenceType == 'lawyer' || referenceType == 'lawyer_profile')) {
       if (context.mounted) {
-        GoRouter.of(context).push('/lawyer-details/$referenceId');
-        return;
+        GoRouter.of(context).push('/lawyer-details/${Uri.encodeComponent(referenceId)}');
+        return true;
       }
     }
 
-    if (context.mounted) GoRouter.of(context).push('/notifications');
+    if (context.mounted) {
+      GoRouter.of(context).push('/notifications');
+      return true;
+    }
+    return false;
   }
 
   static String? _decodeNotificationId(String payload) {
