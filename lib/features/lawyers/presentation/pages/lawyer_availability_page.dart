@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -155,10 +156,299 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
     }
   }
 
+  DateTime _dateOnly(DateTime value) => DateTime(value.year, value.month, value.day);
+
+  Future<DateTime?> _pickConsultationDate() async {
+    final now = DateTime.now();
+    final firstDate = _dateOnly(now);
+    final lastDate = firstDate.add(const Duration(days: 90));
+    DateTime selected = firstDate.add(const Duration(days: 1));
+
+    return showModalBottomSheet<DateTime>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final scheme = Theme.of(sheetContext).colorScheme;
+        return StatefulBuilder(
+          builder: (context, setSheetState) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: Container(
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 42,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: scheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: scheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(Icons.calendar_month_rounded, color: scheme.primary),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'تاريخ الاستشارة',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'اختر اليوم من التقويم بوضوح',
+                                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12.5),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: scheme.primaryContainer.withValues(alpha: .42),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: scheme.outlineVariant),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            DateFormat('EEEE', 'ar').format(selected),
+                            style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            DateFormat('d MMMM yyyy', 'ar').format(selected),
+                            style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  CalendarDatePicker(
+                    initialDate: selected,
+                    firstDate: firstDate,
+                    lastDate: lastDate,
+                    onDateChanged: (value) => setSheetState(() => selected = value),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(sheetContext),
+                            child: const Text('إلغاء'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: FilledButton.icon(
+                            onPressed: () => Navigator.pop(sheetContext, selected),
+                            icon: const Icon(Icons.check_rounded),
+                            label: const Text('اعتماد التاريخ'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  TimeOfDay _defaultConsultationTime(DateTime date) {
+    final now = DateTime.now();
+    final isToday = _dateOnly(date) == _dateOnly(now);
+    if (!isToday) return const TimeOfDay(hour: 10, minute: 0);
+
+    final next = now.add(const Duration(minutes: 30));
+    final roundedMinute = ((next.minute + 4) ~/ 5) * 5;
+    final normalized = DateTime(next.year, next.month, next.day, next.hour, 0).add(Duration(minutes: roundedMinute));
+    return TimeOfDay(hour: normalized.hour, minute: normalized.minute);
+  }
+
+  Future<TimeOfDay?> _pickConsultationTime(DateTime date) async {
+    final initialTime = _defaultConsultationTime(date);
+    DateTime selected = DateTime(date.year, date.month, date.day, initialTime.hour, initialTime.minute);
+
+    return showModalBottomSheet<TimeOfDay>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final scheme = Theme.of(sheetContext).colorScheme;
+        return StatefulBuilder(
+          builder: (context, setSheetState) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: Container(
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 42,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: scheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: scheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(Icons.alarm_rounded, color: scheme.primary),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'وقت الاستشارة',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'حرّك عجلات الساعة مثل منبّه الآيفون',
+                                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12.5),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest.withValues(alpha: .55),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            DateFormat('EEEE، d MMMM', 'ar').format(date),
+                            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12.5),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            AppTimeFormat.time12(selected),
+                            style: TextStyle(color: scheme.primary, fontSize: 29, fontWeight: FontWeight.w900),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 220,
+                    child: CupertinoTheme(
+                      data: CupertinoThemeData(
+                        brightness: Theme.of(sheetContext).brightness,
+                        textTheme: CupertinoTextThemeData(
+                          dateTimePickerTextStyle: TextStyle(
+                            color: scheme.onSurface,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      child: CupertinoDatePicker(
+                        mode: CupertinoDatePickerMode.time,
+                        use24hFormat: false,
+                        minuteInterval: 5,
+                        initialDateTime: selected,
+                        onDateTimeChanged: (value) {
+                          setSheetState(() {
+                            selected = DateTime(date.year, date.month, date.day, value.hour, value.minute);
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 18),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(sheetContext),
+                            child: const Text('إلغاء'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: FilledButton.icon(
+                            onPressed: () => Navigator.pop(
+                              sheetContext,
+                              TimeOfDay(hour: selected.hour, minute: selected.minute),
+                            ),
+                            icon: const Icon(Icons.check_rounded),
+                            label: const Text('اعتماد الوقت'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _addSlot() async {
-    final date = await showDatePicker(context: context, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 90)), initialDate: DateTime.now().add(const Duration(days: 1)));
+    final date = await _pickConsultationDate();
     if (date == null || !mounted) return;
-    final time = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 10, minute: 0));
+    final time = await _pickConsultationTime(date);
     if (time == null || !mounted) return;
 
     final proposedStart = DateTime(date.year, date.month, date.day, time.hour, time.minute);
@@ -183,6 +473,34 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(dialogContext).colorScheme.primaryContainer.withValues(alpha: .45),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      DateFormat('EEEE، d MMMM yyyy', 'ar').format(proposedStart),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      AppTimeFormat.time12(proposedStart),
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        color: Theme.of(dialogContext).colorScheme.primary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
               const Text('حدد مدة الاستشارة واختر السعر ضمن النطاق المعتمد في المنصة.'),
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
