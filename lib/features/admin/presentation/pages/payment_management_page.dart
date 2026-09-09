@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/private_storage_reference.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../../payments/domain/entities/payment.dart';
 import '../providers/payment_management_provider.dart';
 
@@ -60,7 +61,7 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تعذر تحميل إعدادات الدفع: $e')),
+          SnackBar(content: Text('تعذر تحميل إعدادات الدفع: ${UserFacingError.text(e)}')),
         );
       }
     } finally {
@@ -102,7 +103,7 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceFirst('PostgrestException(message: ', 'تعذر حفظ الإعدادات: '))),
+          SnackBar(content: Text('تعذر حفظ إعدادات الدفع: ${UserFacingError.text(e)}')),
         );
       }
     } finally {
@@ -172,7 +173,7 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تعذر فتح الإيصال: ${e.toString().replaceFirst('Exception: ', '')}')),
+          SnackBar(content: Text('تعذر فتح الإيصال: ${UserFacingError.text(e)}')),
         );
       }
     }
@@ -267,7 +268,7 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
     final result = ref.read(paymentManagementProvider);
     if (result.hasError) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تعذر حفظ القرار: ${result.error}')),
+        SnackBar(content: Text('تعذر حفظ القرار: ${UserFacingError.text(result.error ?? Exception('تعذر حفظ القرار'))}')),
       );
       return;
     }
@@ -331,7 +332,7 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
               error: (error, _) => Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: scheme.errorContainer, borderRadius: BorderRadius.circular(16)),
-                child: Text('تعذر تحميل الدفعات: $error', style: TextStyle(color: scheme.onErrorContainer)),
+                child: Text('تعذر تحميل الدفعات: ${UserFacingError.text(error)}', style: TextStyle(color: scheme.onErrorContainer)),
               ),
               data: (payments) {
                 if (payments.isEmpty) {
