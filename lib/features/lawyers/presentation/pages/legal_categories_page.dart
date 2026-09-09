@@ -8,6 +8,7 @@ class LegalCategoriesPage extends ConsumerWidget {
   const LegalCategoriesPage({super.key});
 
   IconData _iconFor(String category) {
+    if (category == LegalSpecializations.uncertainClientChoice) return Icons.help_outline_rounded;
     final value = category.toLowerCase();
     if (value.contains('شركات')) return Icons.business_center_rounded;
     if (value.contains('عقاري') || value.contains('عقار')) return Icons.home_work_rounded;
@@ -23,6 +24,8 @@ class LegalCategoriesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final categories = LegalSpecializations.clientChoices;
+
     return Scaffold(
       backgroundColor: scheme.surface,
       appBar: AppBar(
@@ -43,23 +46,26 @@ class LegalCategoriesPage extends ConsumerWidget {
             mainAxisSpacing: 12,
             childAspectRatio: 1.22,
           ),
-          itemCount: LegalSpecializations.all.length,
+          itemCount: categories.length,
           itemBuilder: (context, index) {
-            final category = LegalSpecializations.all[index];
+            final category = categories[index];
+            final uncertain = category == LegalSpecializations.uncertainClientChoice;
             final icon = _iconFor(category);
             return Material(
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(22),
                 onTap: () {
-                  ref.read(selectedCategoryProvider.notifier).setCategory(category);
+                  ref.read(selectedCategoryProvider.notifier).setCategory(uncertain ? null : category);
                   context.push('/lawyers');
                 },
                 child: Ink(
                   decoration: BoxDecoration(
                     color: dark ? scheme.surfaceContainerHighest.withValues(alpha: .72) : scheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: scheme.outlineVariant.withValues(alpha: .75)),
+                    border: Border.all(
+                      color: uncertain ? scheme.primary.withValues(alpha: .45) : scheme.outlineVariant.withValues(alpha: .75),
+                    ),
                     boxShadow: dark ? null : [BoxShadow(color: scheme.shadow.withValues(alpha: .045), blurRadius: 16, offset: const Offset(0, 6))],
                   ),
                   padding: const EdgeInsets.fromLTRB(12, 14, 12, 11),
@@ -76,9 +82,19 @@ class LegalCategoriesPage extends ConsumerWidget {
                         child: Icon(icon, color: scheme.primary, size: 26),
                       ),
                       const SizedBox(height: 11),
-                      Text(category, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w800, fontSize: 13)),
+                      Text(
+                        category,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w800, fontSize: 13),
+                      ),
                       const SizedBox(height: 7),
-                      Icon(Icons.arrow_back_rounded, size: 16, color: scheme.onSurfaceVariant),
+                      Text(
+                        uncertain ? 'اعرض كل المحامين' : 'اختر التخصص',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 10.5, fontWeight: FontWeight.w600),
+                      ),
                     ],
                   ),
                 ),
