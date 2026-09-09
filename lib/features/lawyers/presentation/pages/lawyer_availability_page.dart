@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -173,7 +175,7 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
         final scheme = Theme.of(sheetContext).colorScheme;
         return StatefulBuilder(
           builder: (context, setSheetState) => Directionality(
-            textDirection: TextDirection.rtl,
+            textDirection: ui.TextDirection.rtl,
             child: Container(
               decoration: BoxDecoration(
                 color: scheme.surface,
@@ -310,7 +312,7 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
         final scheme = Theme.of(sheetContext).colorScheme;
         return StatefulBuilder(
           builder: (context, setSheetState) => Directionality(
-            textDirection: TextDirection.rtl,
+            textDirection: ui.TextDirection.rtl,
             child: Container(
               decoration: BoxDecoration(
                 color: scheme.surface,
