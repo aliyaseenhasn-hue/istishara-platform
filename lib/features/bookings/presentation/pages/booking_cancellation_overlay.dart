@@ -75,8 +75,41 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
             Text(
               lawyer
                   ? 'سيُرسل الطلب إلى الإدارة للمراجعة. اكتب السبب بوضوح لأنه سيُحفظ ضمن سجل الإلغاء.'
-                  : 'إذا كان المبلغ مدفوعاً فسيُسجل كامل مبلغ الاستشارة للاسترداد، ثم تحوله الإدارة إلى حساب الاستلام المرتبط.',
+                  : 'إذا كان المبلغ مدفوعاً فسيُسجل مبلغ الاستشارة للاسترداد وفق سياسة الإلغاء، ثم تحوله الإدارة إلى حساب الاستلام المرتبط.',
             ),
+            if (!lawyer) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(dialogContext).colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Theme.of(dialogContext).colorScheme.error.withValues(alpha: .25),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: Theme.of(dialogContext).colorScheme.error,
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        'تنبيه: إذا اعتبرت الإدارة سبب الإلغاء غير مقنع، سيتم استقطاع غرامة قدرها 1% من مبلغ الاستشارة وتحويلها للمحامي.',
+                        style: TextStyle(
+                          color: Theme.of(dialogContext).colorScheme.onErrorContainer,
+                          fontWeight: FontWeight.w800,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 14),
             TextField(
               controller: controller,
