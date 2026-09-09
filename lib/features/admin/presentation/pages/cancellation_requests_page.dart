@@ -19,7 +19,7 @@ class _CancellationRequestsPageState extends State<CancellationRequestsPage> {
   }
 
   Future<List<Map<String, dynamic>>> _load() async {
-    final response = await SupabaseConfig.client.rpc('get_admin_cancellation_requests');
+    final response = await SupabaseConfig.client.rpc('get_admin_cancellation_requests_v2');
     final rows = (response as List).map((row) => Map<String, dynamic>.from(row as Map)).toList();
     await Future.wait(rows.map((row) async {
       try {
@@ -50,20 +50,27 @@ class _CancellationRequestsPageState extends State<CancellationRequestsPage> {
         rate = await showDialog<double>(context: context, builder: (dialogContext) => const _PenaltyRateDialog());
         if (rate == null || !mounted) return;
       }
+
       final bookingPrice = (request['price'] as num?)?.toDouble() ?? 0;
-      if (decision == 'الموافقة مع غرامة' && rate != null) {
-        final amount = bookingPrice * rate / 100;
+      final refundRequired = request['refund_required'] == true;
+      final refundAmount = (request['refund_amount'] as num?)?.toDouble() ?? 0;
+      final compensationAmount = decision == 'الموافقة مع غرامة' && rate != null
+          ? bookingPrice * rate / 100
+          : 0.0;
+
+      if (decision != 'رفض الإلغاء') {
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: const Text('تأكيد القرار المالي', style: TextStyle(fontWeight: FontWeight.w900)),
+            title: const Text('تأكيد قرار الإلغاء المالي', style: TextStyle(fontWeight: FontWeight.w900)),
             content: Text(
               'قيمة الاستشارة: ${bookingPrice.toStringAsFixed(0)} د.ع\n'
-              'نسبة الغرامة: ${rate.toStringAsFixed(0)}%\n'
-              'التعويض الإضافي: ${amount.toStringAsFixed(0)} د.ع\n'
+              'حالة الدفع: ${request['payment_status'] ?? 'لا توجد دفعة مؤكدة'}\n'
+              'الاسترداد الأصلي: ${refundRequired ? '${refundAmount.toStringAsFixed(0)} د.ع — سيعاد كاملاً للعميل' : 'لا يوجد مبلغ مدفوع يحتاج استرداداً'}\n'
+              'التعويض الإضافي: ${compensationAmount.toStringAsFixed(0)} د.ع\n'
               'المستفيد: ${request['client_name']}\n\n'
-              'إذا كانت الاستشارة مدفوعة، فسيُسجل كامل مبلغ الاستشارة للاسترداد للعميل بصورة مستقلة عن هذا التعويض. الغرامة هنا تعويض إضافي على المحامي وليست خصماً من مبلغ الاسترداد.',
+              'الاسترداد والتعويض عمليتان منفصلتان. لا تُخصم قيمة التعويض من أصل المبلغ المسترد.',
             ),
             actions: [
               TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('رجوع')),
@@ -78,6 +85,7 @@ class _CancellationRequestsPageState extends State<CancellationRequestsPage> {
         );
         if (confirmed != true || !mounted) return;
       }
+
       await SupabaseConfig.client.rpc(
         'review_booking_cancellation',
         params: {'p_request_id': request['id'], 'p_decision': decision, 'p_penalty_rate': rate},
@@ -185,6 +193,8 @@ class _RequestCard extends StatelessWidget {
     final rejected = request['status'] == 'تم رفض الطلب';
     final scheduled = request['scheduled_at'] == null ? null : DateTime.tryParse(request['scheduled_at'].toString())?.toLocal();
     final price = (request['price'] as num?)?.toDouble() ?? 0;
+    final refundRequired = request['refund_required'] == true;
+    final refundAmount = (request['refund_amount'] as num?)?.toDouble() ?? 0;
     final summaryRaw = request['cancellation_summary'];
     final summary = summaryRaw is Map ? Map<String, dynamic>.from(summaryRaw) : <String, dynamic>{};
     final creditsRaw = summary['credits'];
@@ -235,11 +245,14 @@ class _RequestCard extends StatelessWidget {
           padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(color: AppColors.surfaceContainerLow, borderRadius: BorderRadius.circular(15)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            _row('مقدم الطلب', 'المحامي'),
             _row('المحامي', request['lawyer_name']),
             _row('طالب الاستشارة', request['client_name']),
             _row('طريقة التنفيذ', request['consultation_mode']),
             _row('الموعد', scheduled == null ? 'غير محدد' : DateFormat('yyyy/MM/dd - hh:mm a').format(scheduled)),
             _row('قيمة الاستشارة', '${price.toStringAsFixed(0)} د.ع'),
+            _row('حالة الدفع', request['payment_status'] ?? 'لا توجد دفعة مؤكدة'),
+            _row('الاسترداد عند القبول', refundRequired ? '${refundAmount.toStringAsFixed(0)} د.ع — كامل المبلغ المدفوع' : 'لا يوجد مبلغ مدفوع للاسترداد'),
             _row('سبب الإلغاء', request['reason']),
             _row('تاريخ الطلب', DateFormat('yyyy/MM/dd - hh:mm a').format(DateTime.parse(request['requested_at'].toString()).toLocal())),
             if (request['decision'] != null) _row('قرار الإدارة', request['decision']),
@@ -300,7 +313,7 @@ class _RequestCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(width: 112, child: Text(title, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w700))),
+        SizedBox(width: 122, child: Text(title, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w700))),
         const SizedBox(width: 6),
         Expanded(child: Text(text == null || text.isEmpty ? 'غير متوفر' : text, style: const TextStyle(fontSize: 12.5, color: AppColors.textPrimary, fontWeight: FontWeight.w700))),
       ]),
@@ -313,42 +326,51 @@ class _DecisionSheet extends StatelessWidget {
   const _DecisionSheet({required this.request});
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-        child: Container(
-          decoration: const BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Center(child: Container(width: 42, height: 4, decoration: BoxDecoration(color: AppColors.outlineVariant, borderRadius: BorderRadius.circular(99)))),
-            const SizedBox(height: 18),
-            const Text('مراجعة طلب إلغاء الحجز', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
-            const SizedBox(height: 8),
-            Text('المحامي: ${request['lawyer_name']}\nطالب الاستشارة: ${request['client_name']}\nالسبب: ${request['reason']}', style: const TextStyle(color: AppColors.textSecondary, height: 1.6)),
-            const SizedBox(height: 10),
-            const Text('عند وجود دفعة مؤكدة، قبول الإلغاء يسجل كامل مبلغ الاستشارة للاسترداد. خيار الغرامة يضيف تعويضاً منفصلاً للعميل.', style: TextStyle(fontSize: 12.5, height: 1.5, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 18),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(context, 'الموافقة بدون غرامة'),
-              icon: const Icon(Icons.check_circle_outline_rounded),
-              label: const Text('قبول الإلغاء بدون تعويض إضافي'),
-              style: FilledButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 13)),
-            ),
-            const SizedBox(height: 9),
-            FilledButton.tonalIcon(
-              onPressed: () => Navigator.pop(context, 'الموافقة مع غرامة'),
-              icon: const Icon(Icons.account_balance_wallet_outlined),
-              label: const Text('قبول الإلغاء + تعويض للعميل'),
-              style: FilledButton.styleFrom(backgroundColor: AppColors.pendingBg, foregroundColor: AppColors.pendingText, padding: const EdgeInsets.symmetric(vertical: 13)),
-            ),
-            const SizedBox(height: 9),
-            OutlinedButton.icon(
-              onPressed: () => Navigator.pop(context, 'رفض الإلغاء'),
-              icon: const Icon(Icons.close_rounded),
-              label: const Text('رفض طلب الإلغاء والإبقاء على الحجز'),
-              style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error), padding: const EdgeInsets.symmetric(vertical: 13)),
-            ),
-          ]),
-        ),
-      );
+  Widget build(BuildContext context) {
+    final refundRequired = request['refund_required'] == true;
+    final refundAmount = (request['refund_amount'] as num?)?.toDouble() ?? 0;
+    return SafeArea(
+      child: Container(
+        decoration: const BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Center(child: Container(width: 42, height: 4, decoration: BoxDecoration(color: AppColors.outlineVariant, borderRadius: BorderRadius.circular(99)))),
+          const SizedBox(height: 18),
+          const Text('مراجعة طلب إلغاء الحجز', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
+          const SizedBox(height: 8),
+          Text('المحامي: ${request['lawyer_name']}\nطالب الاستشارة: ${request['client_name']}\nالسبب: ${request['reason']}', style: const TextStyle(color: AppColors.textSecondary, height: 1.6)),
+          const SizedBox(height: 10),
+          Text(
+            refundRequired
+                ? 'هذه الاستشارة مدفوعة. عند قبول الإلغاء سيُنشأ استرداد كامل بقيمة ${refundAmount.toStringAsFixed(0)} د.ع. أي غرامة تختارها ستكون تعويضاً إضافياً منفصلاً.'
+                : 'لا توجد دفعة مؤكدة تحتاج استرداداً. يمكنك قبول الإلغاء فقط أو إضافة تعويض على المحامي.',
+            style: const TextStyle(fontSize: 12.5, height: 1.5, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(context, 'الموافقة بدون غرامة'),
+            icon: const Icon(Icons.check_circle_outline_rounded),
+            label: const Text('قبول الإلغاء بدون تعويض إضافي'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 13)),
+          ),
+          const SizedBox(height: 9),
+          FilledButton.tonalIcon(
+            onPressed: () => Navigator.pop(context, 'الموافقة مع غرامة'),
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            label: const Text('قبول الإلغاء + تعويض للعميل'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.pendingBg, foregroundColor: AppColors.pendingText, padding: const EdgeInsets.symmetric(vertical: 13)),
+          ),
+          const SizedBox(height: 9),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pop(context, 'رفض الإلغاء'),
+            icon: const Icon(Icons.close_rounded),
+            label: const Text('رفض طلب الإلغاء والإبقاء على الحجز'),
+            style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error), padding: const EdgeInsets.symmetric(vertical: 13)),
+          ),
+        ]),
+      ),
+    );
+  }
 }
 
 class _PenaltyRateDialog extends StatefulWidget {
