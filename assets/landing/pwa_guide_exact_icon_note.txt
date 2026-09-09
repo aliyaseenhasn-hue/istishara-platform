@@ -1,0 +1,1 @@
+The iPhone PWA guide SVGs embed the exact generated Istishara icon artwork as a compact PNG data URI so the instructional screens match the current app branding.
