@@ -50,4 +50,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icons/app_icon.png
+    - assets/icons/app_icon_v2.png
     - assets/landing/lawyer_client.svg

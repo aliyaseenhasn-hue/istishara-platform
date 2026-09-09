@@ -48,7 +48,7 @@ class HomePage extends ConsumerWidget {
                               border: Border.all(color: AppColors.primary.withValues(alpha: .25)),
                               boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: .12), blurRadius: 10, offset: const Offset(0, 3))],
                             ),
-                            child: ClipRRect(borderRadius: BorderRadius.circular(11), child: Image.asset('assets/icons/app_icon.png', fit: BoxFit.cover)),
+                            child: ClipRRect(borderRadius: BorderRadius.circular(11), child: Image.asset('assets/icons/app_icon_v2.png', fit: BoxFit.cover)),
                           ),
                           const SizedBox(width: 10),
                           const Expanded(

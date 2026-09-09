@@ -250,7 +250,7 @@ class _DirectoryHeader extends StatelessWidget {
               border: Border.all(color: scheme.primary.withValues(alpha: .28)),
               boxShadow: [BoxShadow(color: scheme.primary.withValues(alpha: .12), blurRadius: 10, offset: const Offset(0, 3))],
             ),
-            child: ClipRRect(borderRadius: BorderRadius.circular(11), child: Image.asset('assets/icons/app_icon.png', fit: BoxFit.cover)),
+            child: ClipRRect(borderRadius: BorderRadius.circular(11), child: Image.asset('assets/icons/app_icon_v2.png', fit: BoxFit.cover)),
           ),
         ]),
         const Spacer(),

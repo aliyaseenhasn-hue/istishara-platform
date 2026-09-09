@@ -31,9 +31,10 @@ self.addEventListener('fetch', (event) => {
   const isNavigation = event.request.mode === 'navigate' ||
       url.pathname.endsWith('/index.html') ||
       url.pathname.endsWith('/flutter_bootstrap.js');
+  const isIconAsset = url.pathname.endsWith('/app_icon.png') || url.pathname.endsWith('/app_icon_v2.png');
 
   event.respondWith(
-    fetch(event.request, isNavigation ? { cache: 'no-store' } : undefined)
+    fetch(event.request, (isNavigation || isIconAsset) ? { cache: 'no-store' } : undefined)
       .then((response) => {
         if (response.ok) {
           const copy = response.clone();
@@ -52,8 +53,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'استشارة';
   const options = {
     body: data.body || 'لديك إشعار جديد',
-    icon: data.icon || './icons/Icon-192.png',
-    badge: data.badge || './icons/Icon-192.png',
+    icon: data.icon || './assets/assets/icons/app_icon_v2.png',
+    badge: data.badge || './assets/assets/icons/app_icon_v2.png',
     dir: 'rtl',
     lang: 'ar',
     tag: data.tag || 'astshara-notification',
