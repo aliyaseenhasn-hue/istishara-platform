@@ -1,0 +1,158 @@
+name: Fix notification mark-all visibility
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-notification-mark-all-visible.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - name: Make mark-all action permanently visible
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/features/profile/presentation/pages/notifications_page.dart')
+          text = path.read_text()
+
+          old_action = """                  onMarkAll: unread == 0
+                      ? null
+                      : () async {
+                          try {
+                            await markAllNotificationsAsRead();
+                            await refresh();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('تم تحديد جميع الإشعارات كمقروءة')),
+                              );
+                            }
+                          } catch (_) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('تعذر تحديث حالة الإشعارات. حاول مرة أخرى.')),
+                              );
+                            }
+                          }
+                        },
+"""
+          new_action = """                  onMarkAll: () async {
+                    try {
+                      await markAllNotificationsAsRead();
+                      await refresh();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('تم اعتبار جميع الإشعارات مقروءة')),
+                        );
+                      }
+                    } catch (_) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('تعذر تحديث حالة الإشعارات. حاول مرة أخرى.')),
+                        );
+                      }
+                    }
+                  },
+"""
+          if old_action not in text:
+              raise SystemExit('Expected mark-all action block not found')
+          text = text.replace(old_action, new_action, 1)
+
+          old_type = "final Future<void> Function()? onMarkAll;"
+          new_type = "final Future<void> Function() onMarkAll;"
+          if old_type not in text:
+              raise SystemExit('Expected nullable onMarkAll type not found')
+          text = text.replace(old_type, new_type, 1)
+
+          old_controls = """          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (onMarkAll != null)
+                TextButton.icon(
+                  onPressed: onMarkAll,
+                  icon: const Icon(Icons.done_all_rounded, size: 17),
+                  label: const Text('تحديد الكل كمقروء'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                )
+              else
+                const SizedBox.shrink(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.goldLight.withValues(alpha: .18),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.goldLight.withValues(alpha: .30)),
+                ),
+                child: Text(
+                  unread == 0 ? 'كل شيء محدث' : '$unread تنبيه غير مقروء',
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+"""
+          new_controls = """          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.goldLight.withValues(alpha: .18),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.goldLight.withValues(alpha: .30)),
+              ),
+              child: Text(
+                unread == 0 ? 'كل شيء محدث' : '$unread تنبيه غير مقروء',
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: onMarkAll,
+              icon: const Icon(Icons.done_all_rounded, size: 19),
+              label: const Text(
+                'اعتبار جميع الإشعارات مقروءة',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                backgroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ),
+"""
+          if old_controls not in text:
+              raise SystemExit('Expected notification header controls not found')
+          text = text.replace(old_controls, new_controls, 1)
+
+          path.write_text(text)
+          PY
+
+      - name: Remove one-time workflow and commit
+        run: |
+          rm -f .github/workflows/fix-notification-mark-all-visible.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/features/profile/presentation/pages/notifications_page.dart .github/workflows/fix-notification-mark-all-visible.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: always show mark-all notifications action"
+          git pull --rebase origin main
+          git push origin HEAD:main
