@@ -40,13 +40,11 @@ bool _matchesSearch(LawyerProfile lawyer, String query) {
 
 @Riverpod(keepAlive: true)
 Future<List<LawyerProfile>> lawyersList(LawyersListRef ref) async {
-  final category = ref.watch(selectedCategoryProvider);
-  final searchQuery = ref.watch(searchQueryProvider);
+  // هذه القائمة تستخدمها الصفحة الرئيسية والصفحات العامة لعرض المحامين.
+  // لا نربطها بحالة البحث أو التصنيف حتى لا تختفي الاقتراحات بسبب فلتر
+  // بقي محفوظاً من صفحة دليل المحامين. صفحة الدليل تملك فلترها المحلي المستقل.
   final lawyers = await ref.watch(lawyersRepositoryProvider).getLawyers();
-  Iterable<LawyerProfile> filtered = lawyers;
-  if (searchQuery.trim().isNotEmpty) filtered = filtered.where((lawyer) => _matchesSearch(lawyer, searchQuery));
-  if (category != null && category.isNotEmpty) filtered = filtered.where((lawyer) => _matchesCategory(lawyer, category));
-  final list = filtered.toList()..sort((a, b) {
+  final list = lawyers.toList()..sort((a, b) {
     if (a.availability && !b.availability) return -1;
     if (!a.availability && b.availability) return 1;
     final r = b.rating.compareTo(a.rating);
