@@ -22,6 +22,8 @@ class CompleteProfilePage extends ConsumerStatefulWidget {
 }
 
 class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
+  static const int _maxSpecializations = LegalSpecializations.maxLawyerSpecializations;
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -73,6 +75,23 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     }
   }
 
+  void _toggleSpecialization(String spec, bool value) {
+    if (value) {
+      if (_selectedSpecializations.contains(spec)) return;
+      if (_selectedSpecializations.length >= _maxSpecializations) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('يمكنك اختيار تخصص رئيسي واحد وتخصصين إضافيين فقط.'),
+          ),
+        );
+        return;
+      }
+      setState(() => _selectedSpecializations.add(spec));
+      return;
+    }
+    setState(() => _selectedSpecializations.remove(spec));
+  }
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final authId = Supabase.instance.client.auth.currentUser?.id;
@@ -92,7 +111,13 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
       }
       if (_selectedSpecializations.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('يرجى اختيار تخصص واحد على الأقل'), backgroundColor: AppColors.error),
+          const SnackBar(content: Text('يرجى اختيار تخصص رئيسي واحد على الأقل'), backgroundColor: AppColors.error),
+        );
+        return;
+      }
+      if (_selectedSpecializations.length > _maxSpecializations) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('الحد الأقصى ثلاثة تخصصات فقط.')),
         );
         return;
       }
@@ -308,23 +333,22 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
             const SizedBox(height: 22),
             Text('التخصصات القانونية', style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onSurface)),
             const SizedBox(height: 4),
-            Text('اختر تخصصاً واحداً أو أكثر', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+            Text(
+              'اختر التخصص الرئيسي أولاً، ثم يمكنك إضافة تخصصين فقط (${_selectedSpecializations.length}/$_maxSpecializations)',
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+            ),
             const SizedBox(height: 11),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: _specializations.map((spec) {
                 final selected = _selectedSpecializations.contains(spec);
+                final position = selected ? _selectedSpecializations.indexOf(spec) : -1;
+                final suffix = position == 0 ? ' • رئيسي' : (position > 0 ? ' • إضافي' : '');
                 return FilterChip(
-                  label: Text(spec),
+                  label: Text('$spec$suffix'),
                   selected: selected,
-                  onSelected: (value) => setState(() {
-                    if (value) {
-                      _selectedSpecializations.add(spec);
-                    } else {
-                      _selectedSpecializations.remove(spec);
-                    }
-                  }),
+                  onSelected: (value) => _toggleSpecialization(spec, value),
                   selectedColor: scheme.primaryContainer,
                   checkmarkColor: scheme.primary,
                   side: BorderSide(color: selected ? scheme.primary : scheme.outlineVariant),
