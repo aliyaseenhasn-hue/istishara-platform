@@ -21,6 +21,7 @@ class MainBottomNav extends ConsumerWidget {
   static const _lawyerItems = <_NavItem>[
     _NavItem(Icons.home_outlined, Icons.home_rounded, 'الرئيسية'),
     _NavItem(Icons.calendar_month_outlined, Icons.calendar_month_rounded, 'استشاراتي'),
+    _NavItem(Icons.badge_outlined, Icons.badge_rounded, 'الملف المهني'),
     _NavItem(Icons.settings_outlined, Icons.settings_rounded, 'الإعدادات'),
   ];
 
@@ -58,7 +59,7 @@ class MainBottomNav extends ConsumerWidget {
 
   void _navigate(BuildContext context, int index) {
     final target = isLawyer
-        ? switch (index) {0 => '/lawyer-home', 1 => '/bookings', 2 => '/app-settings', _ => '/lawyer-home'}
+        ? switch (index) {0 => '/lawyer-home', 1 => '/bookings', 2 => '/lawyer-profile-edit', 3 => '/app-settings', _ => '/lawyer-home'}
         : switch (index) {0 => '/', 1 => '/lawyers', 2 => '/bookings', 3 => '/app-settings', _ => '/'};
     if (GoRouterState.of(context).uri.path != target) context.go(target);
   }

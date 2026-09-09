@@ -19,7 +19,7 @@ class HomePage extends ConsumerWidget {
     final bookings = ref.watch(userBookingsProvider);
     final lawyers = ref.watch(lawyersListProvider);
     final unread = ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
-    final categories = LegalSpecializations.all.take(8).toList();
+    final categories = LegalSpecializations.all;
     final registeredName = user?.fullName?.trim();
     final name = registeredName != null && registeredName.isNotEmpty ? registeredName : 'طالب استشارة';
     final avatarUrl = user?.avatarUrl;
@@ -107,10 +107,10 @@ class HomePage extends ConsumerWidget {
                   childCount: categories.length,
                 ),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 18,
-                  childAspectRatio: .74,
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: .88,
                 ),
               ),
             ),

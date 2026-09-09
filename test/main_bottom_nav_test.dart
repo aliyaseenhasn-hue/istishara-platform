@@ -42,6 +42,7 @@ void main() {
     expect(find.text('التنبيهات'), findsNothing);
     expect(find.text('الرئيسية'), findsOneWidget);
     expect(find.text('استشاراتي'), findsOneWidget);
+    expect(find.text('الملف المهني'), findsOneWidget);
     expect(find.text('الإعدادات'), findsOneWidget);
     expect(find.byTooltip('المزيد من أدوات المحامي'), findsNothing);
 
@@ -50,7 +51,7 @@ void main() {
     expect(find.text('/app-settings'), findsOneWidget);
   });
 
-  testWidgets('lawyer home menu exposes every unique secondary destination', (tester) async {
+  testWidgets('lawyer home menu keeps professional profile out of secondary tools', (tester) async {
     final router = GoRouter(
       initialLocation: '/lawyer-home',
       routes: [
@@ -60,7 +61,7 @@ void main() {
             appBar: _TestLawyerAppBar(),
           ),
         ),
-        for (final path in ['/lawyer-profile-edit', '/lawyer-availability', '/lawyer-wallet'])
+        for (final path in ['/lawyer-availability', '/lawyer-wallet'])
           GoRoute(
             path: path,
             builder: (_, state) => Scaffold(body: Text(state.uri.path)),
@@ -73,7 +74,7 @@ void main() {
     await tester.tap(find.byTooltip('المزيد من أدوات المحامي'));
     await tester.pumpAndSettle();
 
-    expect(find.text('ملفي المهني'), findsOneWidget);
+    expect(find.text('ملفي المهني'), findsNothing);
     expect(find.text('أوقات التوفر'), findsOneWidget);
     expect(find.text('المحفظة'), findsOneWidget);
 
@@ -107,7 +108,7 @@ void main() {
           home: const MediaQuery(
             data: MediaQueryData(textScaler: TextScaler.linear(2)),
             child: Scaffold(
-              bottomNavigationBar: MainBottomNav(currentIndex: 2, isLawyer: true),
+              bottomNavigationBar: MainBottomNav(currentIndex: 3, isLawyer: true),
             ),
           ),
         ),
