@@ -115,7 +115,7 @@
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('pwa_service_worker_v5.js', { scope: './' }).catch((error) => console.warn('PWA service worker registration failed:', error));
+        navigator.serviceWorker.register('pwa_service_worker_v5.js?v=8', { scope: './' }).catch((error) => console.warn('PWA service worker registration failed:', error));
       });
     }
   </script>
