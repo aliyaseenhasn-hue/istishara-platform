@@ -13,8 +13,16 @@ class BookingsListPage extends ConsumerWidget {
     return const {'مكتمل', 'ملغي', 'مسترد', 'مرفوض'}.contains(value);
   }
 
+  static bool _awaitsAdminReview(String status) {
+    final value = status.trim();
+    return value == 'بانتظار مراجعة الإدارة' ||
+        value == 'بانتظار مراجعة عدم الحضور' ||
+        value == 'بانتظار الاسترداد';
+  }
+
   static bool _needsLawyerReview(String status) {
     final value = status.trim();
+    if (_awaitsAdminReview(value)) return false;
     if (value.contains('رفض') || value.contains('إلغاء') || value == 'مكتمل' || value == 'قيد التنفيذ' || value == 'مؤكد' || value == 'مقبول') {
       return false;
     }
@@ -308,6 +316,8 @@ class _IncomingBookingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final needsReview = BookingsListPage._needsLawyerReview(status);
+    final awaitsAdminReview = BookingsListPage._awaitsAdminReview(status);
+    final highlighted = needsReview || awaitsAdminReview;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
@@ -315,7 +325,7 @@ class _IncomingBookingCard extends StatelessWidget {
       color: scheme.surfaceContainerLowest,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
-        side: BorderSide(color: needsReview ? scheme.primary.withValues(alpha: .38) : scheme.outlineVariant),
+        side: BorderSide(color: highlighted ? scheme.primary.withValues(alpha: .38) : scheme.outlineVariant),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
@@ -328,10 +338,10 @@ class _IncomingBookingCard extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: needsReview ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+                  color: highlighted ? scheme.primaryContainer : scheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(Icons.person_outline_rounded, color: needsReview ? scheme.onPrimaryContainer : scheme.onSurfaceVariant),
+                child: Icon(Icons.person_outline_rounded, color: highlighted ? scheme.onPrimaryContainer : scheme.onSurfaceVariant),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -354,7 +364,7 @@ class _IncomingBookingCard extends StatelessWidget {
                 _InfoLine(icon: Icons.schedule_rounded, label: 'الموعد', value: BookingsListPage._formatDate(scheduledAt)),
               ]),
             ),
-            if (needsReview) ...[
+            if (highlighted) ...[
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -362,7 +372,12 @@ class _IncomingBookingCard extends StatelessWidget {
                 child: Row(children: [
                   Icon(Icons.notifications_active_outlined, size: 19, color: scheme.onSecondaryContainer),
                   const SizedBox(width: 8),
-                  Expanded(child: Text('هذا الطلب بانتظار مراجعتك', style: TextStyle(color: scheme.onSecondaryContainer, fontWeight: FontWeight.w800, fontSize: 12.5))),
+                  Expanded(
+                    child: Text(
+                      awaitsAdminReview ? 'هذا الطلب بانتظار مراجعة الإدارة' : 'هذا الطلب بانتظار مراجعتك',
+                      style: TextStyle(color: scheme.onSecondaryContainer, fontWeight: FontWeight.w800, fontSize: 12.5),
+                    ),
+                  ),
                 ]),
               ),
             ],
