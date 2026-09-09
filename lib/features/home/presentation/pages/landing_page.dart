@@ -48,26 +48,6 @@ class LandingPage extends ConsumerWidget {
                     ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(
-                    left: 14,
-                    right: 4,
-                    top: 8,
-                    bottom: 8,
-                  ),
-                  child: FilledButton(
-                    onPressed: () => context.push('/signup'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _gold,
-                      foregroundColor: _navy,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                    ),
-                    child: const Text(
-                      'إنشاء حساب',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-                    ),
-                  ),
-                ),
               ],
             ),
             SliverToBoxAdapter(
@@ -133,6 +113,29 @@ class LandingPage extends ConsumerWidget {
                           ),
                           child: const Text(
                             'اطلب استشارة الآن',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: FilledButton.icon(
+                          onPressed: () => context.push('/signup'),
+                          icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _gold,
+                            foregroundColor: _navy,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          label: const Text(
+                            'إنشاء حساب',
                             style: TextStyle(
                               fontWeight: FontWeight.w800,
                               fontSize: 15,
@@ -415,8 +418,7 @@ class LandingPage extends ConsumerWidget {
                       Center(
                         child: TextButton(
                           onPressed: () => context.push('/lawyers'),
-                          child: const Text('عرض جميع المحامين'),
-                        ),
+                          child: const Text('عرض جميع المحامين')),
                       ),
                     ]),
                   ),
