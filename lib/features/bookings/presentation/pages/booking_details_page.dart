@@ -222,10 +222,11 @@ class _ConsultationStartCountdownState extends State<_ConsultationStartCountdown
     }
 
     final remaining = opensAt.difference(_now);
-    final totalMinutes = remaining.inMinutes;
-    final days = totalMinutes ~/ (24 * 60);
-    final hours = (totalMinutes % (24 * 60)) ~/ 60;
-    final minutes = totalMinutes % 60;
+    final totalSeconds = remaining.inSeconds;
+    final days = totalSeconds ~/ (24 * 60 * 60);
+    final hours = (totalSeconds % (24 * 60 * 60)) ~/ (60 * 60);
+    final minutes = (totalSeconds % (60 * 60)) ~/ 60;
+    final seconds = totalSeconds % 60;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -256,10 +257,12 @@ class _ConsultationStartCountdownState extends State<_ConsultationStartCountdown
           const SizedBox(height: 14),
           Row(
             children: [
-              Expanded(child: _timeBox(context, '$minutes', 'دقيقة')),
-              const SizedBox(width: 8),
-              Expanded(child: _timeBox(context, '$hours', 'ساعة')),
-              const SizedBox(width: 8),
+              Expanded(child: _timeBox(context, seconds.toString().padLeft(2, '0'), 'ثانية')),
+              const SizedBox(width: 6),
+              Expanded(child: _timeBox(context, minutes.toString().padLeft(2, '0'), 'دقيقة')),
+              const SizedBox(width: 6),
+              Expanded(child: _timeBox(context, hours.toString().padLeft(2, '0'), 'ساعة')),
+              const SizedBox(width: 6),
               Expanded(child: _timeBox(context, '$days', 'يوم')),
             ],
           ),
@@ -277,16 +280,16 @@ class _ConsultationStartCountdownState extends State<_ConsultationStartCountdown
   Widget _timeBox(BuildContext context, String value, String label) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
       decoration: BoxDecoration(
         color: scheme.surface.withValues(alpha: .82),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         children: [
-          Text(value, style: TextStyle(color: scheme.primary, fontSize: 23, fontWeight: FontWeight.w900)),
+          Text(value, style: TextStyle(color: scheme.primary, fontSize: 22, fontWeight: FontWeight.w900)),
           const SizedBox(height: 2),
-          Text(label, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11)),
+          Text(label, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 10.5)),
         ],
       ),
     );
