@@ -192,13 +192,13 @@ class BookingsController extends _$BookingsController {
   }
 
   Future<void> reportNoShow(String bookingId, {required bool isLawyer}) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      await ref.read(bookingsRepositoryProvider).reportNoShow(bookingId, isLawyer);
-      ref.invalidate(userBookingsProvider);
-      ref.invalidate(lawyerBookingsProvider);
-      ref.invalidate(bookingDetailsProvider(bookingId));
-    });
+    // This action does not need to drive the AsyncNotifier's own state.
+    // Keeping it as a plain awaited command avoids completing the provider's
+    // internal future twice when realtime invalidations arrive at the same time.
+    await ref.read(bookingsRepositoryProvider).reportNoShow(bookingId, isLawyer);
+    ref.invalidate(userBookingsProvider);
+    ref.invalidate(lawyerBookingsProvider);
+    ref.invalidate(bookingDetailsProvider(bookingId));
   }
 
   Future<void> archiveBooking(String bookingId, {required bool isLawyer}) async {
