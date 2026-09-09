@@ -56,6 +56,8 @@ class NotificationsPage extends ConsumerWidget {
     Future<void> refresh() async {
       ref.invalidate(notificationsProvider);
       ref.invalidate(unreadNotificationsCountProvider);
+      await ref.read(notificationsProvider.future);
+      await ref.read(unreadNotificationsCountProvider.future);
     }
 
     return Scaffold(
@@ -79,8 +81,21 @@ class NotificationsPage extends ConsumerWidget {
                   onMarkAll: unread == 0
                       ? null
                       : () async {
-                          await markAllNotificationsAsRead();
-                          await refresh();
+                          try {
+                            await markAllNotificationsAsRead();
+                            await refresh();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('تم تحديد جميع الإشعارات كمقروءة')),
+                              );
+                            }
+                          } catch (_) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('تعذر تحديث حالة الإشعارات. حاول مرة أخرى.')),
+                              );
+                            }
+                          }
                         },
                 ),
               ),
@@ -170,7 +185,7 @@ class _NotificationsHeader extends StatelessWidget {
                 TextButton.icon(
                   onPressed: onMarkAll,
                   icon: const Icon(Icons.done_all_rounded, size: 17),
-                  label: const Text('قراءة الكل'),
+                  label: const Text('تحديد الكل كمقروء'),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     backgroundColor: Colors.white,
