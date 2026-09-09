@@ -5,6 +5,13 @@ class UserFacingError {
     var value = error.toString().trim();
     if (value.isEmpty) return fallback;
 
+    final lower = value.toLowerCase();
+    if (lower.contains('future already completed') ||
+        lower.contains('bad state') ||
+        lower.contains('completer') && lower.contains('completed')) {
+      return 'تم تحديث الحالة في نفس اللحظة أكثر من مرة. تحقق من الحالة الحالية، وإن لم تتغير انتظر لحظة ثم أعد المحاولة.';
+    }
+
     value = value.replaceFirst(RegExp(r'^Exception:\s*'), '').trim();
 
     final messageMatch = RegExp(
