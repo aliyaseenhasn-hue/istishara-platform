@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:astshara/core/config/supabase_config.dart';
+import 'package:astshara/core/services/push_notification_service.dart';
+import 'package:astshara/core/services/pwa_notification_service.dart';
 import '../../../../shared/providers/global_loading_provider.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/entities/app_user.dart';
@@ -47,8 +49,34 @@ class AuthController extends _$AuthController {
     finally { ref.read(globalLoadingProvider.notifier).setLoading(false); }
   }
 
-  Future<void> logout() async { ref.read(globalLoadingProvider.notifier).setLoading(true); try { await ref.read(authRepositoryProvider).signOut(); state = const AsyncData(null); } catch (e, st) { state = AsyncValue.error(e, st); } finally { ref.read(globalLoadingProvider.notifier).setLoading(false); } }
-  Future<void> deleteAccount() async { ref.read(globalLoadingProvider.notifier).setLoading(true); state = const AsyncLoading(); try { await ref.read(authRepositoryProvider).deleteAccount(); state = const AsyncData(null); } catch (e, st) { state = AsyncValue.error(e, st); } finally { ref.read(globalLoadingProvider.notifier).setLoading(false); } }
+  Future<void> logout() async {
+    ref.read(globalLoadingProvider.notifier).setLoading(true);
+    try {
+      await PwaNotificationService.releaseForCurrentUser();
+      await PushNotificationService.releaseForCurrentUser();
+      await ref.read(authRepositoryProvider).signOut();
+      state = const AsyncData(null);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    } finally {
+      ref.read(globalLoadingProvider.notifier).setLoading(false);
+    }
+  }
+
+  Future<void> deleteAccount() async {
+    ref.read(globalLoadingProvider.notifier).setLoading(true);
+    state = const AsyncLoading();
+    try {
+      await PwaNotificationService.releaseForCurrentUser();
+      await PushNotificationService.releaseForCurrentUser();
+      await ref.read(authRepositoryProvider).deleteAccount();
+      state = const AsyncData(null);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    } finally {
+      ref.read(globalLoadingProvider.notifier).setLoading(false);
+    }
+  }
 
   Future<void> signInWithPhone(String phone) async {
     if (phone.isEmpty) { state = AsyncValue.error(Exception('رقم الهاتف مطلوب'), StackTrace.current); return; }
