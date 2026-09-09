@@ -65,6 +65,39 @@
       if (window.visualViewport) window.visualViewport.addEventListener('resize', syncViewportHeight, { passive: true });
     })();
 
+    window.astsharaGetPushDeviceKey = function() {
+      try {
+        const storageKey = 'astshara_push_device_key_v1';
+        let value = localStorage.getItem(storageKey);
+        if (!value) {
+          value = (window.crypto && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : 'dev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+          localStorage.setItem(storageKey, value);
+        }
+        return value;
+      } catch (_) {
+        return '';
+      }
+    };
+
+    async function astsharaCurrentPushSubscription() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return null;
+      if (Notification.permission !== 'granted') return null;
+      const registration = await navigator.serviceWorker.ready;
+      return await registration.pushManager.getSubscription();
+    }
+
+    window.astsharaGetExistingPushSubscription = async function() {
+      try {
+        const subscription = await astsharaCurrentPushSubscription();
+        return subscription ? JSON.stringify(subscription.toJSON()) : null;
+      } catch (error) {
+        console.warn('PWA existing push subscription lookup failed:', error);
+        return null;
+      }
+    };
+
     window.astsharaEnablePush = async function(vapidPublicKey) {
       try {
         if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return null;
