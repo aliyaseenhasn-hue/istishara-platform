@@ -91,19 +91,6 @@ class PushNotificationService {
     return message.data['payload']?.toString() ?? '';
   }
 
-  static Future<String?> _currentProfileId() async {
-    final user = SupabaseConfig.client.auth.currentUser;
-    if (user == null) return null;
-
-    final profile = await SupabaseConfig.client
-        .from('profiles')
-        .select('id')
-        .eq('auth_id', user.id)
-        .maybeSingle();
-
-    return profile?['id']?.toString();
-  }
-
   static Future<void> _registerToken(String? token) async {
     if (token == null || token.isEmpty || kIsWeb || _registrationInProgress) return;
 
@@ -115,35 +102,15 @@ class PushNotificationService {
 
     _registrationInProgress = true;
     try {
-      String? profileId;
-      for (var attempt = 0; attempt < 3 && profileId == null; attempt++) {
-        try {
-          profileId = await _currentProfileId();
-        } catch (error) {
-          debugPrint('FCM profile lookup attempt ${attempt + 1} failed: $error');
-        }
-        if (profileId == null && attempt < 2) {
-          await Future<void>.delayed(Duration(milliseconds: 500 * (attempt + 1)));
-        }
-      }
-
-      if (profileId == null) {
-        debugPrint('FCM token registration skipped: no profile for ${user.id}');
-        return;
-      }
-
-      await SupabaseConfig.client.from('push_device_tokens').upsert(
-        {
-          'user_id': profileId,
-          'token': token,
-          'platform': defaultTargetPlatform.name,
-          'is_active': true,
-          'last_seen_at': DateTime.now().toUtc().toIso8601String(),
+      await SupabaseConfig.client.rpc(
+        'register_current_push_device_token',
+        params: <String, dynamic>{
+          'p_token': token,
+          'p_platform': defaultTargetPlatform.name,
         },
-        onConflict: 'token',
       );
 
-      debugPrint('FCM token registered successfully for profile $profileId');
+      debugPrint('FCM token registered successfully for current account');
     } catch (error, stackTrace) {
       debugPrint('FCM token registration failed: $error');
       debugPrintStack(stackTrace: stackTrace);
@@ -159,6 +126,23 @@ class PushNotificationService {
       await _registerToken(token);
     } catch (error, stackTrace) {
       debugPrint('FCM token retrieval failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
+
+  /// Detaches this native device token from the current account before logout.
+  /// The token itself remains reusable and will be rebound on the next login.
+  static Future<void> releaseForCurrentUser() async {
+    if (kIsWeb || !_initialized || SupabaseConfig.client.auth.currentUser == null) return;
+    try {
+      final token = await _messaging.getToken();
+      if (token == null || token.isEmpty) return;
+      await SupabaseConfig.client.rpc(
+        'unregister_current_push_device_token',
+        params: <String, dynamic>{'p_token': token},
+      );
+    } catch (error, stackTrace) {
+      debugPrint('FCM token release failed: $error');
       debugPrintStack(stackTrace: stackTrace);
     }
   }
