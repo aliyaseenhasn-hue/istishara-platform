@@ -7,6 +7,7 @@ import '../../../../shared/widgets/lawyer_more_menu_button.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../../../bookings/domain/entities/booking.dart';
 import '../../../bookings/presentation/providers/bookings_provider.dart';
+import '../../../profile/presentation/providers/notifications_provider.dart';
 import '../../domain/entities/lawyer_profile.dart';
 import '../providers/lawyers_provider.dart';
 
@@ -17,6 +18,7 @@ class LawyerDashboardPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authStateChangesProvider).value;
     final bookings = ref.watch(lawyerBookingsProvider);
+    final unread = ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
     final profileIdAsync = ref.watch(currentProfileIdProvider);
     final profileAsync = profileIdAsync.when(
       data: (id) => id == null ? const AsyncValue<LawyerProfile?>.data(null) : ref.watch(ownLawyerProfileProvider(id)),
@@ -32,6 +34,15 @@ class LawyerDashboardPage extends ConsumerWidget {
         leading: const Padding(padding: EdgeInsetsDirectional.only(start: 14), child: LawyerMoreMenuButton()),
         title: const Text('الرئيسية', style: TextStyle(fontWeight: FontWeight.w900)),
         centerTitle: true,
+        actions: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: 8),
+            child: _LawyerNotificationBell(
+              unreadCount: unread,
+              onTap: () => context.push('/notifications'),
+            ),
+          ),
+        ],
       ),
       body: bookings.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -50,6 +61,7 @@ class LawyerDashboardPage extends ConsumerWidget {
           return RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(lawyerBookingsProvider);
+              ref.invalidate(unreadNotificationsCountProvider);
               if (profileIdAsync.value != null) ref.invalidate(ownLawyerProfileProvider(profileIdAsync.value!));
               await Future<void>.delayed(const Duration(milliseconds: 250));
             },
@@ -80,6 +92,67 @@ class LawyerDashboardPage extends ConsumerWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _LawyerNotificationBell extends StatelessWidget {
+  final int unreadCount;
+  final VoidCallback onTap;
+
+  const _LawyerNotificationBell({required this.unreadCount, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 52,
+      height: 52,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(16),
+                child: const Center(
+                  child: Icon(
+                    Icons.notifications_none_rounded,
+                    color: AppColors.primary,
+                    size: 27,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (unreadCount > 0)
+            Positioned(
+              top: 1,
+              right: 1,
+              child: IgnorePointer(
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 18),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.tertiary,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    unreadCount > 99 ? '99+' : '$unreadCount',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
