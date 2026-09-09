@@ -82,11 +82,11 @@ class MainBottomNav extends ConsumerWidget {
             _ => '/lawyer-home',
           }
         : switch (index) {
-            0 => '/',
+            0 => '/home',
             1 => '/lawyers',
             2 => '/bookings',
             3 => '/app-settings',
-            _ => '/',
+            _ => '/home',
           };
     if (GoRouterState.of(context).uri.path != target) context.go(target);
   }
@@ -134,7 +134,7 @@ class _NavDestination extends StatelessWidget {
             focusColor: AppColors.primary.withValues(alpha: .05),
             borderRadius: BorderRadius.circular(18),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 240),
+              duration: const Duration(milliseconds: 190),
               curve: Curves.easeOutCubic,
               constraints: const BoxConstraints(minHeight: 60),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
@@ -157,9 +157,9 @@ class _NavDestination extends StatelessWidget {
                 boxShadow: selected
                     ? [
                         BoxShadow(
-                          color: AppColors.primary.withValues(alpha: .22),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                          color: AppColors.primary.withValues(alpha: .18),
+                          blurRadius: 9,
+                          offset: const Offset(0, 3),
                         ),
                       ]
                     : null,
@@ -168,38 +168,37 @@ class _NavDestination extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 240),
+                  AnimatedScale(
+                    duration: const Duration(milliseconds: 190),
                     curve: Curves.easeOutCubic,
-                    width: selected ? 31 : 29,
-                    height: selected ? 31 : 29,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? Colors.white.withValues(alpha: .14)
-                          : AppColors.surface.withValues(alpha: .88),
-                      shape: BoxShape.circle,
-                      border: Border.all(
+                    scale: selected ? 1.06 : 1,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 190),
+                      curve: Curves.easeOutCubic,
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
                         color: selected
-                            ? Colors.white.withValues(alpha: .20)
-                            : AppColors.primaryLight.withValues(alpha: .25),
+                            ? Colors.white.withValues(alpha: .14)
+                            : AppColors.surface.withValues(alpha: .88),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: selected
+                              ? Colors.white.withValues(alpha: .20)
+                              : AppColors.primaryLight.withValues(alpha: .25),
+                        ),
                       ),
-                    ),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
                       child: Icon(
-                        selected ? item.activeIcon : item.icon,
-                        key: ValueKey<bool>(selected),
+                        item.activeIcon,
                         color: iconColor,
-                        size: selected ? 23 : 22,
+                        size: 22.5,
                       ),
                     ),
                   ),
                   const SizedBox(height: 4),
                   AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 220),
+                    duration: const Duration(milliseconds: 190),
                     curve: Curves.easeOutCubic,
                     style: TextStyle(
                       color: textColor,
