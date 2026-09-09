@@ -3,148 +3,53 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/authentication/presentation/providers/auth_provider.dart';
 import 'main_bottom_nav.dart';
 
-class AppShell extends ConsumerStatefulWidget {
+class AppShell extends ConsumerWidget {
   final Widget child;
   final String location;
 
   const AppShell({super.key, required this.child, required this.location});
 
-  @override
-  ConsumerState<AppShell> createState() => _AppShellState();
-}
-
-class _AppShellState extends ConsumerState<AppShell> {
-  final Map<String, Widget> _cachedTabs = <String, Widget>{};
-  String? _roleCacheKey;
-
   int _currentIndex(bool isLawyer) {
-    final location = widget.location;
+    final currentLocation = location;
     if (isLawyer) {
-      if (location == '/lawyer-profile-edit') return 2;
-      if (location == '/app-settings' || location == '/profile' || location == '/notification-settings' || location == '/payment-methods' || location == '/help-center' || location == '/lawyer-availability' || location == '/lawyer-specialization-change' || location == '/lawyer-wallet') return 3;
-      if (location == '/bookings' || location == '/booking-details' || location == '/manual-payment' || location == '/manual-payment-required' || location == '/upload-payment' || location == '/payment-result' || location == '/chats' || location.startsWith('/chat/')) return 1;
+      if (currentLocation == '/lawyer-profile-edit') return 2;
+      if (currentLocation == '/app-settings' || currentLocation == '/profile' || currentLocation == '/notification-settings' || currentLocation == '/payment-methods' || currentLocation == '/help-center' || currentLocation == '/lawyer-availability' || currentLocation == '/lawyer-specialization-change' || currentLocation == '/lawyer-wallet') return 3;
+      if (currentLocation == '/bookings' || currentLocation == '/booking-details' || currentLocation == '/manual-payment' || currentLocation == '/manual-payment-required' || currentLocation == '/upload-payment' || currentLocation == '/payment-result' || currentLocation == '/chats' || currentLocation.startsWith('/chat/')) return 1;
       return 0;
     }
-    if (location == '/app-settings' || location == '/profile' || location == '/notification-settings' || location == '/payment-methods' || location == '/help-center') return 3;
-    if (location == '/bookings' || location == '/booking-details' || location == '/manual-payment' || location == '/manual-payment-required' || location == '/upload-payment' || location == '/payment-result' || location == '/chats' || location.startsWith('/chat/')) return 2;
-    if (location == '/lawyers' || location.startsWith('/lawyer-details/')) return 1;
+    if (currentLocation == '/app-settings' || currentLocation == '/profile' || currentLocation == '/notification-settings' || currentLocation == '/payment-methods' || currentLocation == '/help-center') return 3;
+    if (currentLocation == '/bookings' || currentLocation == '/booking-details' || currentLocation == '/manual-payment' || currentLocation == '/manual-payment-required' || currentLocation == '/upload-payment' || currentLocation == '/payment-result' || currentLocation == '/chats' || currentLocation.startsWith('/chat/')) return 2;
+    if (currentLocation == '/lawyers' || currentLocation.startsWith('/lawyer-details/')) return 1;
     return 0;
   }
 
-  bool _isPrimaryTab(bool isLawyer) {
-    final location = widget.location;
-    if (isLawyer) {
-      return location == '/lawyer-home' ||
-          location == '/bookings' ||
-          location == '/lawyer-profile-edit' ||
-          location == '/app-settings';
-    }
-    return location == '/home' ||
-        location == '/lawyers' ||
-        location == '/bookings' ||
-        location == '/app-settings';
-  }
-
-  String _tabKey(bool isLawyer, int index) => '${isLawyer ? 'lawyer' : 'client'}-$index';
-
-  Widget _buildCachedTabs(bool isLawyer, int selectedIndex) {
-    final activeKey = _tabKey(isLawyer, selectedIndex);
-    final activeChild = _cachedTabs[activeKey];
-    if (activeChild == null) return widget.child;
-
-    final layers = <Widget>[
-      _CachedTabLayer(
-        key: ValueKey<String>(activeKey),
-        active: true,
-        child: activeChild,
-      ),
-    ];
-
-    for (var index = 0; index < 4; index++) {
-      if (index == selectedIndex) continue;
-      final key = _tabKey(isLawyer, index);
-      final cached = _cachedTabs[key];
-      if (cached == null) continue;
-      layers.add(
-        _CachedTabLayer(
-          key: ValueKey<String>(key),
-          active: false,
-          child: cached,
-        ),
-      );
-    }
-
-    return Stack(fit: StackFit.expand, children: layers);
-  }
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final user = ref.watch(authStateChangesProvider).valueOrNull;
     final isLawyer = user?.role == 'lawyer';
-    final roleKey = isLawyer ? 'lawyer' : 'client';
-
-    if (_roleCacheKey != roleKey) {
-      _roleCacheKey = roleKey;
-      _cachedTabs.clear();
-    }
-
     final selectedIndex = _currentIndex(isLawyer);
-    final isPrimaryTab = _isPrimaryTab(isLawyer);
-    if (isPrimaryTab) {
-      _cachedTabs[_tabKey(isLawyer, selectedIndex)] = widget.child;
-    }
 
     final hidesShellNav = user == null ||
-        widget.location == '/create-booking' ||
-        widget.location.startsWith('/lawyer-details/') ||
-        widget.location == '/booking-details' ||
-        widget.location == '/lawyer-availability' ||
-        (isLawyer && widget.location == '/notifications');
+        location == '/create-booking' ||
+        location.startsWith('/lawyer-details/') ||
+        location == '/booking-details' ||
+        location == '/lawyer-availability' ||
+        (isLawyer && location == '/notifications');
 
-    if (hidesShellNav) return widget.child;
+    if (hidesShellNav) return child;
 
     return Scaffold(
       backgroundColor: scheme.surface,
       body: ColoredBox(
         color: scheme.surface,
         child: ClipRect(
-          child: isPrimaryTab
-              ? _buildCachedTabs(isLawyer, selectedIndex)
-              : widget.child,
+          child: RepaintBoundary(child: child),
         ),
       ),
       bottomNavigationBar: MainBottomNav(
         currentIndex: selectedIndex,
         isLawyer: isLawyer,
-      ),
-    );
-  }
-}
-
-class _CachedTabLayer extends StatelessWidget {
-  final bool active;
-  final Widget child;
-
-  const _CachedTabLayer({
-    super.key,
-    required this.active,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      ignoring: !active,
-      child: ExcludeSemantics(
-        excluding: !active,
-        child: TickerMode(
-          enabled: active,
-          child: Offstage(
-            offstage: !active,
-            child: RepaintBoundary(child: child),
-          ),
-        ),
       ),
     );
   }
