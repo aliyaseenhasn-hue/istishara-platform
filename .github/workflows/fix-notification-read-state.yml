@@ -90,3 +90,5 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m "fix: clear notification badge after marking read"
           git push origin HEAD:main
+
+# Triggered once to apply the targeted notification fix.
