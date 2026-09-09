@@ -38,8 +38,45 @@ class AppShell extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: scheme.surface,
-      body: ColoredBox(color: scheme.surface, child: child),
-      bottomNavigationBar: MainBottomNav(currentIndex: _currentIndex(isLawyer), isLawyer: isLawyer),
+      body: ColoredBox(
+        color: scheme.surface,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 240),
+          reverseDuration: const Duration(milliseconds: 180),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          layoutBuilder: (currentChild, previousChildren) => Stack(
+            fit: StackFit.expand,
+            children: [
+              ...previousChildren,
+              if (currentChild != null) currentChild,
+            ],
+          ),
+          transitionBuilder: (page, animation) {
+            final fade = CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+              reverseCurve: Curves.easeInCubic,
+            );
+            final slide = Tween<Offset>(
+              begin: const Offset(.025, 0),
+              end: Offset.zero,
+            ).animate(fade);
+            return FadeTransition(
+              opacity: fade,
+              child: SlideTransition(position: slide, child: page),
+            );
+          },
+          child: KeyedSubtree(
+            key: ValueKey<String>(location),
+            child: child,
+          ),
+        ),
+      ),
+      bottomNavigationBar: MainBottomNav(
+        currentIndex: _currentIndex(isLawyer),
+        isLawyer: isLawyer,
+      ),
     );
   }
 }
