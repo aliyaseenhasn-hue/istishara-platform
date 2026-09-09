@@ -86,7 +86,7 @@ class BookingDetailsPage extends ConsumerWidget {
             )),
           if (['مؤكد', 'قيد التنفيذ', 'مكتمل'].contains(booking.status)) ...[
             const SizedBox(height: 12),
-            _section(context, 'معلومات التواصل', Icons.contact_phone_outlined, contact.when(data: (c) => c == null ? const Text('لا توجد معلومات تواصل متاحة.') : _contactContent(context, c, isLawyer), loading: () => const LinearProgressIndicator(), error: (e, _) => Text(e.toString().replaceFirst('Exception: ', '')))),
+            _section(context, 'معلومات التواصل', Icons.contact_phone_outlined, contact.when(data: (c) => c == null ? const Text('لا توجد معلومات تواصل متاحة.') : _contactContent(context, c, isLawyer), loading: () => const LinearProgressIndicator(), error: (e, _) => Text(_friendlyError(e)))),
           ],
           const SizedBox(height: 20),
           if (isOwner && booking.paymentRequired && booking.status == 'قيد انتظار الدفع') ElevatedButton.icon(onPressed: () => context.push('/upload-payment', extra: booking), icon: const Icon(Icons.payment_rounded), label: const Text('إكمال الدفع')),
@@ -113,14 +113,43 @@ class BookingDetailsPage extends ConsumerWidget {
 
   Widget _contactContent(BuildContext context, Map<String, dynamic> c, bool isLawyer) { final s = Theme.of(context).colorScheme; final name = isLawyer ? c['client_name'] ?? 'طالب استشارة' : c['lawyer_name'] ?? 'المحامي'; final phone = isLawyer ? c['client_phone'] : c['lawyer_phone']; final whatsapp = isLawyer ? c['client_whatsapp'] : c['lawyer_whatsapp']; return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [Text(name.toString(), style: TextStyle(fontWeight: FontWeight.bold, color: s.onSurface)), if (phone != null) _row(context, 'رقم الهاتف', phone.toString()), if (whatsapp != null && booking.status == 'قيد التنفيذ') ElevatedButton.icon(onPressed: () => _openWhatsApp(context, whatsapp.toString()), icon: const Icon(Icons.chat_rounded), label: const Text('بدء الاستشارة عبر واتساب'))]); }
   bool _canReportNoShow(bool isLawyer) { final now = DateTime.now(); if (isLawyer) { if (booking.status == 'مؤكد') return !now.isBefore(booking.scheduledAt.add(const Duration(minutes: 10))); if (booking.status == 'قيد التنفيذ' && booking.startedAt != null) return !now.isBefore(booking.startedAt!.add(const Duration(minutes: 10))); return false; } return booking.status == 'مؤكد' && booking.startedAt == null && !now.isBefore(booking.scheduledAt.add(const Duration(minutes: 10))); }
-  Future<void> _review(BuildContext context, WidgetRef ref, bool approved) async { try { await ref.read(bookingsControllerProvider.notifier).reviewBooking(booking.id, approved); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(approved ? 'تمت الموافقة على الحجز' : 'تم رفض الحجز'))); } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Exception: ', '')))); } }
-  Future<void> _updateStatus(BuildContext context, WidgetRef ref, String status) async { try { await ref.read(bookingsControllerProvider.notifier).updateBookingStatus(booking.id, status); if (context.mounted) { final updated = booking.copyWith(status: status, startedAt: status == 'قيد التنفيذ' ? DateTime.now() : booking.startedAt); context.pushReplacement('/booking-details', extra: updated); } } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Exception: ', '')))); } }
-  Future<void> _reportNoShow(BuildContext context, WidgetRef ref, bool isLawyer) async { try { await ref.read(bookingsControllerProvider.notifier).reportNoShow(booking.id, isLawyer: isLawyer); } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Exception: ', '')))); } }
+  Future<void> _review(BuildContext context, WidgetRef ref, bool approved) async { try { await ref.read(bookingsControllerProvider.notifier).reviewBooking(booking.id, approved); if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(approved ? 'تمت الموافقة على الحجز' : 'تم رفض الحجز'))); } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_friendlyError(e)))); } }
+  Future<void> _updateStatus(BuildContext context, WidgetRef ref, String status) async { try { await ref.read(bookingsControllerProvider.notifier).updateBookingStatus(booking.id, status); if (context.mounted) { final updated = booking.copyWith(status: status, startedAt: status == 'قيد التنفيذ' ? DateTime.now() : booking.startedAt); context.pushReplacement('/booking-details', extra: updated); } } catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_friendlyError(e)))); } }
+  Future<void> _reportNoShow(BuildContext context, WidgetRef ref, bool isLawyer) async {
+    try {
+      await ref.read(bookingsControllerProvider.notifier).reportNoShow(booking.id, isLawyer: isLawyer);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم إرسال بلاغ عدم الحضور إلى الإدارة للمراجعة.')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_friendlyError(e))));
+      }
+    }
+  }
   Future<void> _openWhatsApp(BuildContext context, String value) async { var phone = value.replaceAll(RegExp(r'[^0-9+]'), ''); if (phone.startsWith('00')) phone = '+${phone.substring(2)}'; if (phone.startsWith('07')) phone = '+964${phone.substring(1)}'; final ok = await launchUrl(Uri.parse('https://wa.me/${phone.replaceAll('+', '')}'), mode: LaunchMode.externalApplication); if (!ok && context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر فتح واتساب'))); }
   Future<void> _openUrl(BuildContext context, String value) async { final ok = await launchUrl(Uri.parse(value), mode: LaunchMode.externalApplication); if (!ok && context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر فتح المستند'))); }
   String _consultationMethod(String? type, String? mode) { if (mode == 'في المكتب') return 'حضور في مكتب المحامي'; return switch (type) { 'نصية' => 'محادثة نصية عبر واتساب', 'صوتية' => 'تواصل صوتي عبر واتساب', 'فيديو' => 'مكالمة فيديو عبر واتساب', _ => 'عن بعد', }; }
   String _paymentStatus(String value) => switch (value) { 'pending' || 'قيد الانتظار' => 'قيد الانتظار', 'submitted' || 'قيد المعالجة' => 'قيد المعالجة', 'processing' => 'قيد المراجعة', 'approved' || 'مقبول' || 'paid' => 'تمت الموافقة', 'rejected' || 'مرفوض' => 'مرفوض', 'refunded' || 'مسترد' => 'مسترد', 'cancelled' || 'ملغي' => 'ملغي', _ => value, };
   String _paymentMethod(String value) => value.trim().isEmpty ? 'غير محددة' : value;
+  String _friendlyError(Object error) {
+    final raw = error.toString().trim();
+    final lower = raw.toLowerCase();
+    if (lower.contains('future already completed') || lower.contains('bad state')) {
+      return 'تعذر إكمال العملية بسبب تزامن تحديث الحالة. انتظر لحظة ثم أعد المحاولة.';
+    }
+    if (lower.contains('postgrestexception')) {
+      final match = RegExp(r'message:\s*([^,\)]+)', caseSensitive: false).firstMatch(raw);
+      final message = match?.group(1)?.trim();
+      if (message != null && message.isNotEmpty && !message.toLowerCase().contains('null')) return message;
+      return 'تعذر تنفيذ العملية حالياً. يرجى المحاولة مرة أخرى.';
+    }
+    final cleaned = raw.replaceFirst('Exception: ', '').trim();
+    if (cleaned.isEmpty) return 'تعذر تنفيذ العملية حالياً. يرجى المحاولة مرة أخرى.';
+    return cleaned;
+  }
   Widget _section(BuildContext context, String title, IconData icon, Widget child) { final s = Theme.of(context).colorScheme; return Container(padding: const EdgeInsets.all(17), decoration: BoxDecoration(color: s.surfaceContainerLow, borderRadius: BorderRadius.circular(18), border: Border.all(color: s.outlineVariant)), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [Row(children: [Icon(icon, color: s.primary), const SizedBox(width: 8), Expanded(child: Text(title, textAlign: TextAlign.right, style: TextStyle(color: s.onSurface, fontWeight: FontWeight.w800, fontSize: 16)))]), const SizedBox(height: 12), child])); }
   Widget _row(BuildContext context, String label, String value) { final s = Theme.of(context).colorScheme; return Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(children: [Expanded(child: Text(value, textAlign: TextAlign.right, style: TextStyle(color: s.onSurface, fontWeight: FontWeight.w600))), const SizedBox(width: 12), Text(label, style: TextStyle(color: s.onSurfaceVariant))])); }
   Widget _infoCard(BuildContext context, String text, IconData icon) { final s = Theme.of(context).colorScheme; return Container(padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: s.primaryContainer, borderRadius: BorderRadius.circular(16)), child: Row(children: [Icon(icon, color: s.primary), const SizedBox(width: 10), Expanded(child: Text(text, textAlign: TextAlign.right, style: TextStyle(color: s.onPrimaryContainer, height: 1.45)))])); }
