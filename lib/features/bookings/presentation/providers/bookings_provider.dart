@@ -223,7 +223,7 @@ class BookingsController extends _$BookingsController {
       final user = ref.read(authStateChangesProvider).value;
       if (user == null) throw Exception('يجب تسجيل الدخول أولاً');
       if (!(user.role == 'user' || user.role == 'client')) {
-        throw Exception('فقط طالب الاستشارة يمكنه طلب موعد خاص');
+        throw Exception('فقط طالب الاستشارة يمكنه اقتراح موعد');
       }
       if (windows.isEmpty || windows.length > 3) {
         throw Exception('حدد من فترة واحدة إلى ثلاث فترات مناسبة');
