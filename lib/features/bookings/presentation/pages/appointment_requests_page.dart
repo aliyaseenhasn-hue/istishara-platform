@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -59,11 +60,21 @@ class _AppointmentRequestsPageState
   @override
   void dispose() {
     final channel = _channel;
-    if (channel != null) SupabaseConfig.client.removeChannel(channel);
+    if (channel != null) {
+      unawaited(SupabaseConfig.client.removeChannel(channel));
+    }
     super.dispose();
   }
 
   Future<List<Map<String, dynamic>>> _load() async {
+    // Expire due requests immediately when either participant opens this page.
+    // The scheduled DB job remains the fallback when nobody has the app open.
+    try {
+      await SupabaseConfig.client.rpc('expire_stale_custom_appointment_requests');
+    } catch (_) {
+      // Do not block reading the request history if the housekeeping call fails.
+    }
+
     final rows = await SupabaseConfig.client
         .from('custom_appointment_requests')
         .select()
@@ -176,7 +187,7 @@ class _AppointmentRequestsPageState
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  'اختر من موعد واحد إلى ثلاثة مواعيد. سيظهر الاقتراح للعميل في نفس بطاقة الطلب ليقبله أو يغيره أو يرفضه.',
+                  'اختر من موعد واحد إلى ثلاثة مواعيد. تُحجز هذه الأوقات مؤقتاً للعميل حتى انتهاء مهلة رده.',
                   textAlign: TextAlign.right,
                 ),
                 const SizedBox(height: 12),
@@ -238,7 +249,7 @@ class _AppointmentRequestsPageState
           'p_reject_reason': null,
         },
       );
-      _message('تم إرسال المواعيد المقترحة إلى العميل.');
+      _message('تم إرسال المواعيد وحجزها مؤقتاً للعميل حتى انتهاء مهلة الرد.');
       await _refresh();
     } catch (error) {
       _message(UserFacingError.text(error));
@@ -303,7 +314,7 @@ class _AppointmentRequestsPageState
           'p_reject_reason': null,
         },
       );
-      _message('تم إرسال الموعد المحدد إلى العميل للتأكيد النهائي.');
+      _message('تم إرسال الموعد وحجزه مؤقتاً للعميل حتى يؤكده أو تنتهي المهلة.');
       await _refresh();
     } catch (error) {
       _message(UserFacingError.text(error));
@@ -395,7 +406,7 @@ class _AppointmentRequestsPageState
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  'حدد من فترة واحدة إلى ثلاث فترات جديدة تناسبك. سيعود الطلب للمحامي دون تحرير المبلغ المحجوز.',
+                  'حدد من فترة واحدة إلى ثلاث فترات جديدة تناسبك. ستتحرر مواعيد المحامي الحالية ويعود الطلب إليه للرد.',
                   textAlign: TextAlign.right,
                 ),
                 const SizedBox(height: 12),
@@ -567,6 +578,15 @@ class _AppointmentRequestsPageState
     });
   }
 
+  void _rebook(Map<String, dynamic> request) {
+    final lawyerId = request['lawyer_id']?.toString();
+    if (lawyerId == null || lawyerId.isEmpty) {
+      _message('تعذر تحديد المحامي لهذا الطلب.');
+      return;
+    }
+    context.push('/lawyer-details/${Uri.encodeComponent(lawyerId)}');
+  }
+
   @override
   Widget build(BuildContext context) {
     final role = ref.watch(authStateChangesProvider).valueOrNull?.role;
@@ -632,6 +652,7 @@ class _AppointmentRequestsPageState
                     onClientReject: () => _clientReject(item),
                     onConfirm: (option) => _confirm(item, option),
                     onCancel: () => _cancel(item),
+                    onRebook: () => _rebook(item),
                   ),
                 );
               },
@@ -657,6 +678,7 @@ class _RequestCard extends StatelessWidget {
   final VoidCallback onClientReject;
   final ValueChanged<int> onConfirm;
   final VoidCallback onCancel;
+  final VoidCallback onRebook;
 
   const _RequestCard({
     required this.request,
@@ -672,9 +694,26 @@ class _RequestCard extends StatelessWidget {
     required this.onClientReject,
     required this.onConfirm,
     required this.onCancel,
+    required this.onRebook,
   });
 
   DateTime? _date(dynamic value) => DateTime.tryParse('$value')?.toLocal();
+
+  String _expiredMessage(String? waitingOn) {
+    if (waitingOn == 'lawyer') {
+      return isLawyer
+          ? 'لم ترد على طلب الموعد ضمن المهلة المحددة، لذلك أُلغي الطلب تلقائياً.'
+          : 'لم يرد المحامي ضمن المهلة المحددة، لذلك أُلغي طلب الموعد تلقائياً وأُعيد المبلغ المحجوز إلى محفظتك.';
+    }
+    if (waitingOn == 'client') {
+      return isLawyer
+          ? 'لم يرد العميل على المواعيد المقترحة ضمن المهلة المحددة، لذلك أُلغي الطلب تلقائياً.'
+          : 'لم ترد على المواعيد المقترحة ضمن المهلة المحددة، لذلك أُلغي الطلب تلقائياً وأُعيد المبلغ المحجوز إلى محفظتك.';
+    }
+    return isLawyer
+        ? 'انتهت مهلة الرد على هذا الطلب، لذلك أُلغي تلقائياً.'
+        : 'انتهت مهلة الرد على هذا الطلب، لذلك أُلغي تلقائياً وأُعيد المبلغ المحجوز إلى محفظتك.';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -682,10 +721,13 @@ class _RequestCard extends StatelessWidget {
     final status = request['status']?.toString() ?? '';
     final pendingLawyer = status == 'بانتظار رد المحامي';
     final pendingClient = status == 'بانتظار اختيار العميل';
+    final expired = status == 'منتهي';
     final round = int.tryParse('${request['negotiation_round'] ?? 1}') ?? 1;
     final rejectedBy = request['rejected_by']?.toString();
+    final expiredWaitingOn = request['expired_waiting_on']?.toString();
     final price = double.tryParse('${request['price'] ?? 0}') ?? 0;
     final expiry = _date(request['expires_at']);
+    final expiredAt = _date(request['expired_at']);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
@@ -750,20 +792,63 @@ class _RequestCard extends StatelessWidget {
             if (expiry != null && (pendingLawyer || pendingClient)) ...[
               const SizedBox(height: 6),
               Text(
-                'تنتهي مهلة الرد: ${AppointmentRequestsPageStateDate.format(expiry)}',
+                '${pendingLawyer ? (isLawyer ? 'مهلة ردك' : 'مهلة رد المحامي') : (isLawyer ? 'مهلة رد العميل' : 'مهلة ردك')} تنتهي: ${AppointmentRequestsPageStateDate.format(expiry)}',
                 textAlign: TextAlign.right,
                 style: TextStyle(
                   color: scheme.onSurfaceVariant,
                   fontSize: 12,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
+            ],
+            if (expired) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  color: scheme.errorContainer.withValues(alpha: .45),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: scheme.error.withValues(alpha: .35)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      _expiredMessage(expiredWaitingOn),
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        color: scheme.onErrorContainer,
+                        fontWeight: FontWeight.w800,
+                        height: 1.45,
+                      ),
+                    ),
+                    if (expiredAt != null) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        'وقت الإلغاء: ${AppointmentRequestsPageStateDate.format(expiredAt)}',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          color: scheme.onErrorContainer.withValues(alpha: .78),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (!isLawyer) ...[
+                const SizedBox(height: 10),
+                FilledButton.icon(
+                  onPressed: onRebook,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('احجز مرة أخرى'),
+                ),
+              ],
             ],
             if (clientWindows.isNotEmpty) ...[
               const SizedBox(height: 14),
               Text(
-                isLawyer
-                    ? 'الأوقات التي اقترحها العميل'
-                    : 'الأوقات التي اقترحتها',
+                isLawyer ? 'الأوقات التي اقترحها العميل' : 'الأوقات التي اقترحتها',
                 textAlign: TextAlign.right,
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
@@ -790,6 +875,17 @@ class _RequestCard extends StatelessWidget {
                 textAlign: TextAlign.right,
                 style: const TextStyle(fontWeight: FontWeight.w900),
               ),
+              if (pendingClient) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'هذه الأوقات محجوزة مؤقتاً لهذا الطلب حتى انتهاء مهلة الرد.',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
               ...lawyerOptions.asMap().entries.map((entry) {
                 final start = _date(entry.value['start']);
@@ -931,17 +1027,26 @@ class _StatusBadge extends StatelessWidget {
   const _StatusBadge({required this.status});
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(99),
+  Widget build(BuildContext context) {
+    final label = status == 'منتهي' ? 'أُلغي لعدم الرد' : status;
+    final scheme = Theme.of(context).colorScheme;
+    final expired = status == 'منتهي';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: expired ? scheme.errorContainer : scheme.primaryContainer,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: expired ? scheme.onErrorContainer : null,
         ),
-        child: Text(
-          status,
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
-        ),
-      );
+      ),
+    );
+  }
 }
 
 class AppointmentRequestsPageStateDate {
