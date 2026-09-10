@@ -9,6 +9,7 @@ import '../../../bookings/presentation/providers/bookings_provider.dart';
 import '../../../lawyers/domain/entities/lawyer_profile.dart';
 import '../../../lawyers/presentation/providers/lawyers_provider.dart';
 import '../../../profile/presentation/providers/notifications_provider.dart';
+import '../../../payments/presentation/providers/client_wallet_provider.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -19,6 +20,7 @@ class HomePage extends ConsumerWidget {
     final bookings = ref.watch(userBookingsProvider);
     final lawyers = ref.watch(lawyersListProvider);
     final unread = ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
+    final wallet = ref.watch(clientWalletProvider);
     final categories = LegalSpecializations.all;
     final registeredName = user?.fullName?.trim();
     final name = registeredName != null && registeredName.isNotEmpty ? registeredName : 'طالب استشارة';
@@ -73,6 +75,16 @@ class HomePage extends ConsumerWidget {
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 40),
               sliver: SliverToBoxAdapter(child: _ClientProfileHeader(name: name, avatarUrl: avatarUrl)),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 4),
+              sliver: SliverToBoxAdapter(
+                child: _ClientWalletCard(
+                  wallet: wallet,
+                  onTap: () => context.push('/client-wallet'),
+                  onAppointments: () => context.push('/appointment-requests'),
+                ),
+              ),
             ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
@@ -138,6 +150,78 @@ class HomePage extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+class _ClientWalletCard extends StatelessWidget {
+  final AsyncValue<ClientWalletSummary> wallet;
+  final VoidCallback onTap;
+  final VoidCallback onAppointments;
+
+  const _ClientWalletCard({
+    required this.wallet,
+    required this.onTap,
+    required this.onAppointments,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Expanded(
+        child: HoverLift(
+          borderRadius: 17,
+          child: Material(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(17),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(17),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                child: Row(textDirection: TextDirection.rtl, children: [
+                  const Icon(Icons.account_balance_wallet_outlined, color: Colors.white),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: wallet.when(
+                      loading: () => const Text('المحفظة', textAlign: TextAlign.right, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                      error: (_, __) => const Text('فتح المحفظة', textAlign: TextAlign.right, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                      data: (value) => Column(crossAxisAlignment: CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
+                        const Text('الرصيد المتاح', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                        Text('${value.availableBalance.toStringAsFixed(0)} د.ع', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
+                      ]),
+                    ),
+                  ),
+                  const Icon(Icons.chevron_left_rounded, color: Colors.white70),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(width: 9),
+      Expanded(
+        child: HoverLift(
+          borderRadius: 17,
+          child: Material(
+            color: AppColors.tertiary,
+            borderRadius: BorderRadius.circular(17),
+            child: InkWell(
+              onTap: onAppointments,
+              borderRadius: BorderRadius.circular(17),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+                child: Row(textDirection: TextDirection.rtl, children: [
+                  Icon(Icons.event_note_outlined, color: Colors.white),
+                  SizedBox(width: 9),
+                  Expanded(child: Text('طلبات المواعيد', textAlign: TextAlign.right, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900))),
+                  Icon(Icons.chevron_left_rounded, color: Colors.white70),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ]);
   }
 }
 

@@ -24,11 +24,22 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
   bool _enabled = false;
   bool _settingsLoading = true;
   bool _settingsSaving = false;
+  late Future<List<Map<String, dynamic>>> _walletTopupsFuture;
 
   @override
   void initState() {
     super.initState();
+    _walletTopupsFuture = _loadWalletTopups();
     _loadSettings();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadWalletTopups() async {
+    final raw = await SupabaseConfig.client.rpc('get_pending_client_wallet_topups');
+    if (raw is! List) return const <Map<String, dynamic>>[];
+    return raw
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false);
   }
 
   @override
@@ -95,7 +106,7 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
         SnackBar(
           content: Text(
             _enabled
-                ? 'تم تفعيل الدفع اليدوي للمنصة. الحجوزات الجديدة ستتطلب الدفع ورفع الإيصال.'
+                ? 'تم تفعيل شحن محفظة العميل بالدفع اليدوي. بعد اعتماد الرصيد يصبح الحجز فورياً.'
                 : 'تم إيقاف الدفع اليدوي.',
           ),
         ),
@@ -111,11 +122,11 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
     }
   }
 
-  Future<void> _showReceipt(Payment payment) async {
+  Future<void> _showReceipt(String? receiptReference) async {
     try {
       final url = await PrivateStorageReference.resolve(
         SupabaseConfig.client,
-        payment.receiptUrl,
+        receiptReference,
         expiresIn: 300,
       );
       if (!mounted) return;
@@ -174,6 +185,61 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('تعذر فتح الإيصال: ${UserFacingError.text(e)}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _reviewWalletTopup(
+    Map<String, dynamic> topup,
+    bool approved,
+  ) async {
+    final noteController = TextEditingController();
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(approved ? 'اعتماد شحن المحفظة' : 'رفض طلب الشحن'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(
+            approved
+                ? 'تأكد من وصول ${topup['amount']} د.ع فعلياً إلى حساب المنصة. سيضاف المبلغ فوراً إلى محفظة العميل.'
+                : 'لن يضاف أي رصيد إلى محفظة العميل.',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: noteController,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(labelText: 'ملاحظة الإدارة (اختياري)'),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: Text(approved ? 'تأكيد وصول المبلغ' : 'رفض الإيصال')),
+        ],
+      ),
+    );
+    final note = noteController.text.trim();
+    noteController.dispose();
+    if (proceed != true) return;
+    try {
+      await SupabaseConfig.client.rpc(
+        'admin_review_client_wallet_topup',
+        params: {
+          'p_topup_id': topup['id'],
+          'p_approved': approved,
+          'p_note': note.isEmpty ? null : note,
+        },
+      );
+      if (!mounted) return;
+      setState(() => _walletTopupsFuture = _loadWalletTopups());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(approved ? 'تم اعتماد الشحن وإضافة الرصيد.' : 'تم رفض طلب الشحن.')),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذر حفظ القرار: ${UserFacingError.text(error)}')),
         );
       }
     }
@@ -284,7 +350,10 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
   }
 
   Future<void> _refresh() async {
+    final topups = _loadWalletTopups();
+    if (mounted) setState(() => _walletTopupsFuture = topups);
     await Future.wait([
+      topups,
       _loadSettings(),
       ref.read(paymentManagementProvider.notifier).refresh(),
     ]);
@@ -312,10 +381,43 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
           children: [
             _buildSettingsCard(context),
             const SizedBox(height: 18),
+            Row(children: [
+              const Expanded(child: Text('شحن المحافظ بانتظار المراجعة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
+              const Chip(label: Text('مهلة 30 دقيقة')),
+            ]),
+            const SizedBox(height: 10),
+            FutureBuilder<List<Map<String, dynamic>>>(
+              future: _walletTopupsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(padding: EdgeInsets.all(28), child: Center(child: CircularProgressIndicator()));
+                }
+                if (snapshot.hasError) {
+                  return Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(color: scheme.errorContainer, borderRadius: BorderRadius.circular(16)),
+                    child: Text('تعذر تحميل طلبات الشحن: ${UserFacingError.text(snapshot.error!)}'),
+                  );
+                }
+                final topups = snapshot.data ?? const <Map<String, dynamic>>[];
+                if (topups.isEmpty) {
+                  return const Card(child: Padding(padding: EdgeInsets.all(20), child: Text('لا توجد طلبات شحن تحتاج مراجعة.', textAlign: TextAlign.center)));
+                }
+                return Column(
+                  children: topups.map((topup) => _WalletTopupReviewCard(
+                    topup: topup,
+                    onReceipt: () => _showReceipt(topup['receipt_url']?.toString()),
+                    onApprove: () => _reviewWalletTopup(topup, true),
+                    onReject: () => _reviewWalletTopup(topup, false),
+                  )).toList(),
+                );
+              },
+            ),
+            const SizedBox(height: 22),
             Row(
               children: [
                 const Expanded(
-                  child: Text('إيصالات بانتظار المراجعة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                  child: Text('إيصالات مرتبطة بحجوزات سابقة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
                 ),
                 paymentsAsync.maybeWhen(
                   data: (items) => Chip(label: Text('${items.length}')),
@@ -354,7 +456,7 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
                 return Column(
                   children: payments.map((payment) => _PaymentReviewCard(
                     payment: payment,
-                    onReceipt: () => _showReceipt(payment),
+                    onReceipt: () => _showReceipt(payment.receiptUrl),
                     onApprove: () => _review(payment, true),
                     onReject: () => _review(payment, false),
                   )).toList(),
@@ -386,7 +488,7 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
                   const Text('حساب استلام أموال الاستشارات', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
                   const SizedBox(height: 6),
                   Text(
-                    'عند التفعيل تُوقف الفترة التجريبية المجانية، ويُطلب من العميل تحويل المبلغ للمنصة ورفع الإيصال قبل تأكيد الدفع.',
+                    'عند التفعيل تُوقف الفترة التجريبية المجانية، ويشحن العميل محفظته ويرفع الإيصال. بعد اعتماد الإدارة يختار الموعد ويحجزه فوراً.',
                     style: TextStyle(color: scheme.onSurfaceVariant, height: 1.5),
                   ),
                   const SizedBox(height: 14),
@@ -435,6 +537,67 @@ class _PaymentManagementPageState extends ConsumerState<PaymentManagementPage> {
       ),
     );
   }
+}
+
+class _WalletTopupReviewCard extends StatelessWidget {
+  final Map<String, dynamic> topup;
+  final VoidCallback onReceipt;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
+
+  const _WalletTopupReviewCard({
+    required this.topup,
+    required this.onReceipt,
+    required this.onApprove,
+    required this.onReject,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final overdue = topup['is_overdue'] == true;
+    final createdAt = DateTime.tryParse('${topup['created_at'] ?? ''}')?.toLocal();
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
+      color: overdue ? scheme.errorContainer.withValues(alpha: .45) : scheme.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: overdue ? scheme.error : scheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            Icon(overdue ? Icons.priority_high_rounded : Icons.account_balance_wallet_outlined, color: overdue ? scheme.error : scheme.primary),
+            const SizedBox(width: 9),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(topup['client_name']?.toString() ?? 'طالب استشارة', style: const TextStyle(fontWeight: FontWeight.w900)),
+              Text(overdue ? 'تجاوز مهلة المراجعة — أولوية عاجلة' : 'ضمن مهلة المراجعة', style: TextStyle(color: overdue ? scheme.error : scheme.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w700)),
+            ])),
+            if (createdAt != null) Text(DateFormat('hh:mm a', 'ar').format(createdAt), style: const TextStyle(fontSize: 11)),
+          ]),
+          const SizedBox(height: 12),
+          _adminRow('المبلغ', '${topup['amount']} د.ع'),
+          const SizedBox(height: 6),
+          _adminRow('رقم العملية', topup['transaction_number']?.toString() ?? 'غير متوفر'),
+          const SizedBox(height: 12),
+          FilledButton.tonalIcon(onPressed: onReceipt, icon: const Icon(Icons.visibility_outlined), label: const Text('عرض إيصال الشحن')),
+          const SizedBox(height: 9),
+          Row(children: [
+            Expanded(child: OutlinedButton.icon(onPressed: onReject, icon: Icon(Icons.close_rounded, color: scheme.error), label: Text('رفض', style: TextStyle(color: scheme.error)))),
+            const SizedBox(width: 9),
+            Expanded(flex: 2, child: FilledButton.icon(onPressed: onApprove, icon: const Icon(Icons.check_rounded), label: const Text('اعتماد وإضافة الرصيد'))),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  Widget _adminRow(String label, String value) => Row(children: [
+        Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w700)),
+        Expanded(child: Text(value, textAlign: TextAlign.end)),
+      ]);
 }
 
 class _PaymentReviewCard extends StatelessWidget {

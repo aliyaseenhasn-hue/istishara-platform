@@ -165,6 +165,50 @@ class BookingsController extends _$BookingsController {
     return requestBooking(lawyerId: lawyerId, scheduledAt: when, slotId: slotId, packageName: packageName, consultationType: consultationType, consultationMode: consultationMode, description: description, documentBytes: documentBytes, documentName: documentName);
   }
 
+  Future<Map<String, dynamic>?> requestCustomAppointment({
+    required String lawyerId,
+    required String packageName,
+    required String consultationType,
+    required String consultationMode,
+    required String description,
+    required List<Map<String, String>> windows,
+    dynamic documentBytes,
+    String? documentName,
+  }) async {
+    state = const AsyncLoading();
+    Map<String, dynamic>? createdRequest;
+    state = await AsyncValue.guard(() async {
+      final user = ref.read(authStateChangesProvider).value;
+      if (user == null) throw Exception('يجب تسجيل الدخول أولاً');
+      if (!(user.role == 'user' || user.role == 'client')) {
+        throw Exception('فقط طالب الاستشارة يمكنه طلب موعد خاص');
+      }
+      if (windows.isEmpty || windows.length > 3) {
+        throw Exception('حدد من فترة واحدة إلى ثلاث فترات مناسبة');
+      }
+      String? documentUrl;
+      if (documentBytes != null && documentName != null) {
+        documentUrl = await ref
+            .read(bookingsRepositoryProvider)
+            .uploadDocument(documentBytes, documentName);
+      }
+      final response = await SupabaseConfig.client.rpc(
+        'submit_custom_appointment_request',
+        params: {
+          'p_lawyer_id': lawyerId,
+          'p_package_name': packageName,
+          'p_consultation_type': consultationType,
+          'p_consultation_mode': consultationMode,
+          'p_description': description,
+          'p_document_url': documentUrl,
+          'p_client_windows': windows,
+        },
+      );
+      createdRequest = Map<String, dynamic>.from(response as Map);
+    });
+    return state.hasError ? null : createdRequest;
+  }
+
   Future<Booking?> recordManualPayment({required String bookingId, required double amount}) async {
     state = const AsyncLoading();
     Booking? updated;
