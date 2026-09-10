@@ -373,13 +373,10 @@ class _TopupCard extends StatelessWidget {
             child: Text(
               value.isEmpty ? 'اضغط لإدخال المبلغ' : value,
               textAlign: TextAlign.right,
-              textDirection: TextDirection.ltr,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: enabled
-                    ? null
-                    : Colors.grey,
+                color: enabled ? null : Colors.grey,
               ),
             ),
           ),
@@ -581,7 +578,6 @@ class _AmountKeypadSheetState extends State<_AmountKeypadSheet> {
             child: Text(
               '$_formattedAmount د.ع',
               textAlign: TextAlign.center,
-              textDirection: TextDirection.rtl,
               style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
             ),
           ),
