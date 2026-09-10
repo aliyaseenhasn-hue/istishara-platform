@@ -11,6 +11,7 @@ import '../../../bookings/presentation/providers/bookings_provider.dart';
 import '../../../profile/presentation/providers/notifications_provider.dart';
 import '../../domain/entities/lawyer_profile.dart';
 import '../providers/lawyers_provider.dart';
+import '../widgets/lawyer_appointment_requests_card.dart';
 
 class LawyerDashboardPage extends ConsumerWidget {
   const LawyerDashboardPage({super.key});
@@ -108,6 +109,8 @@ class LawyerDashboardPage extends ConsumerWidget {
                 ]),
                 const SizedBox(height: 9),
                 _WalletCard(onTap: () => context.push('/lawyer-wallet')),
+                const SizedBox(height: 9),
+                const LawyerAppointmentRequestsCard(),
                 const SizedBox(height: 16),
                 Row(children: [
                   const Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
