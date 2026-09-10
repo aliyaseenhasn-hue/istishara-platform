@@ -111,6 +111,10 @@ class AppShell extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: scheme.surface,
+      // ClientWalletPage has its own Scaffold. Let that inner Scaffold be the
+      // single owner of keyboard resizing so iOS does not squeeze the wallet
+      // form twice when the numeric keyboard opens.
+      resizeToAvoidBottomInset: location != '/client-wallet',
       body: _body(context, isLawyer: isLawyer),
       bottomNavigationBar: MainBottomNav(
         currentIndex: selectedIndex,
