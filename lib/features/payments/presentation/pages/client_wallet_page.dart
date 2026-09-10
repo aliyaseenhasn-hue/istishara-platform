@@ -171,7 +171,7 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
               const SizedBox(height: 12),
               _NoticeCard(
                 text:
-                    'المبلغ المطلوب للحجز: ${_money(widget.requiredAmount!)} د.ع. بعد اعتماد الشحن ارجع إلى المحامي واختر الموعد.',
+                    'المبلغ المطلوب للحجز: ${_money(widget.requiredAmount!)} د.ع. بعد اعتماد الشحن ارجع إلى المحامي واختر موعداً متاحاً أو اقترح الأوقات التي تناسبك.',
               ),
             ],
             const SizedBox(height: 16),
@@ -358,7 +358,7 @@ class _LedgerCard extends StatelessWidget {
     final labels = <String, String>{
       'topup': 'شحن معتمد',
       'booking_payment': 'دفع استشارة',
-      'appointment_hold': 'حجز مبلغ لموعد خاص',
+      'appointment_hold': 'حجز مبلغ لطلب الموعد',
       'appointment_release': 'إعادة مبلغ محجوز',
       'appointment_capture': 'تأكيد دفع الموعد',
       'admin_adjustment': 'تسوية إدارية',
