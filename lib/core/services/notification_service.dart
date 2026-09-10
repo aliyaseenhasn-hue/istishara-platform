@@ -222,7 +222,6 @@ class NotificationService {
       );
 
       const iosDetails = DarwinNotificationDetails(
-        sound: 'notification.caf',
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
