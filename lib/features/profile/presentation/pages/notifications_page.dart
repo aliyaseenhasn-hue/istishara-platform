@@ -1,10 +1,14 @@
 import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../shared/styles/priority_visuals.dart';
+import '../../../../shared/widgets/loading_widget.dart';
 import '../../../bookings/data/models/booking_model.dart';
 import '../providers/notifications_provider.dart';
 
@@ -40,8 +44,10 @@ class NotificationsPage extends ConsumerWidget {
           row = Map<String, dynamic>.from(response);
         }
         if (row != null && context.mounted) {
-          final booking = BookingModel.fromJson(row).toEntity();
-          context.push('/booking-details', extra: booking);
+          context.push(
+            '/booking-details',
+            extra: BookingModel.fromJson(row).toEntity(),
+          );
           return;
         }
       } catch (_) {}
@@ -76,9 +82,7 @@ class NotificationsPage extends ConsumerWidget {
         await refresh();
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم اعتبار جميع الإشعارات مقروءة'),
-            ),
+            const SnackBar(content: Text('تم اعتبار جميع الإشعارات مقروءة')),
           );
         }
       } catch (_) {
@@ -98,9 +102,7 @@ class NotificationsPage extends ConsumerWidget {
         color: AppColors.teal,
         onRefresh: refresh,
         child: async.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.teal),
-          ),
+          loading: () => const LoadingWidget(size: 30),
           error: (_, __) => _NotificationState(
             icon: Icons.notifications_off_rounded,
             title: 'تعذر تحميل التنبيهات',
@@ -108,6 +110,7 @@ class NotificationsPage extends ConsumerWidget {
             onAction: refresh,
           ),
           data: (items) => CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
                 child: _NotificationsHeader(
@@ -155,13 +158,6 @@ class NotificationsPage extends ConsumerWidget {
                           onDismissed: (_) {
                             ref.invalidate(notificationsProvider);
                             ref.invalidate(unreadNotificationsCountProvider);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('تم حذف الإشعار'),
-                                ),
-                              );
-                            }
                           },
                           background: Container(
                             margin: const EdgeInsets.only(bottom: 13),
@@ -174,10 +170,7 @@ class NotificationsPage extends ConsumerWidget {
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  Icons.delete_outline_rounded,
-                                  color: Colors.white,
-                                ),
+                                Icon(Icons.delete_outline_rounded, color: Colors.white),
                                 SizedBox(width: 8),
                                 Text(
                                   'حذف',
@@ -250,7 +243,6 @@ class _NotificationsHeader extends StatelessWidget {
               const Spacer(),
               const Text(
                 'التنبيهات',
-                textAlign: TextAlign.right,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 22,
@@ -308,12 +300,9 @@ class _NotificationsHeader extends StatelessWidget {
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
               style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                backgroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
+                foregroundColor: AppColors.primaryDark,
+                backgroundColor: AppColors.goldLight,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -361,27 +350,35 @@ class _NotificationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final unread = !item.isRead;
-    final visual = _visualFor(item.type);
-    final time = DateFormat(
-      'yyyy/MM/dd - HH:mm',
-      'ar',
-    ).format(item.createdAt.toLocal());
+    final visual = PriorityVisuals.notification(
+      type: item.type,
+      title: item.title,
+      body: item.body,
+    );
+    final time = DateFormat('yyyy/MM/dd - HH:mm', 'ar').format(
+      item.createdAt.toLocal(),
+    );
+    final prominent = unread || visual.level >= 3;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 13),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerLowest,
+        color: prominent
+            ? Color.alphaBlend(
+                visual.accent.withValues(alpha: unread ? .08 : .045),
+                scheme.surface,
+              )
+            : scheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(23),
         border: Border.all(
-          color: unread
-              ? visual.color.withValues(alpha: .55)
-              : scheme.outlineVariant,
+          color: visual.accent.withValues(alpha: prominent ? .55 : .22),
+          width: visual.level >= 3 ? 1.4 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: unread ? .10 : .045),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: visual.accent.withValues(alpha: prominent ? .11 : .035),
+            blurRadius: 18,
+            offset: const Offset(0, 7),
           ),
         ],
       ),
@@ -394,102 +391,119 @@ class _NotificationCard extends StatelessWidget {
             await onRefresh();
             await onOpen();
           },
-          child: Padding(
-            padding: const EdgeInsets.all(15),
+          child: IntrinsicHeight(
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _NotificationIcon(
-                  icon: visual.icon,
-                  color: visual.color,
-                  unread: unread,
+                Container(
+                  width: visual.level >= 3 ? 5 : 3,
+                  decoration: BoxDecoration(
+                    color: visual.accent,
+                    borderRadius: const BorderRadius.horizontal(
+                      right: Radius.circular(23),
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (unread)
-                            Container(
-                              margin: const EdgeInsetsDirectional.only(
-                                start: 8,
-                                top: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(15),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _NotificationIcon(
+                          icon: visual.icon,
+                          color: visual.accent,
+                          unread: unread,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (prominent)
+                                    Container(
+                                      margin: const EdgeInsetsDirectional.only(
+                                        start: 8,
+                                        top: 2,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: visual.background,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        unread ? '${visual.label} • جديد' : visual.label,
+                                        style: TextStyle(
+                                          color: visual.foreground,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                  Expanded(
+                                    child: Text(
+                                      item.title,
+                                      textAlign: TextAlign.right,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: scheme.onSurface,
+                                        fontSize: 15,
+                                        height: 1.35,
+                                        fontWeight: prominent
+                                            ? FontWeight.w900
+                                            : FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: visual.color.withValues(alpha: .12),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                'جديد',
+                              const SizedBox(height: 7),
+                              Text(
+                                item.body,
+                                textAlign: TextAlign.right,
+                                maxLines: 4,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: visual.color,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w900,
+                                  color: scheme.onSurfaceVariant,
+                                  fontSize: 13,
+                                  height: 1.55,
                                 ),
                               ),
-                            ),
-                          Expanded(
-                            child: Text(
-                              item.title,
-                              textAlign: TextAlign.right,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: scheme.onSurface,
-                                fontSize: 15,
-                                height: 1.35,
-                                fontWeight: unread
-                                    ? FontWeight.w900
-                                    : FontWeight.w700,
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      time,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: scheme.outline,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Icon(
+                                    Icons.schedule_rounded,
+                                    size: 14,
+                                    color: visual.accent,
+                                  ),
+                                ],
                               ),
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 7),
-                      Text(
-                        item.body,
-                        textAlign: TextAlign.right,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: scheme.onSurfaceVariant,
-                          fontSize: 13,
-                          height: 1.55,
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              time,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: scheme.outline,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Icon(
-                            Icons.schedule_rounded,
-                            size: 14,
-                            color: visual.color,
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -499,59 +513,6 @@ class _NotificationCard extends StatelessWidget {
       ),
     );
   }
-
-  _NotificationVisual _visualFor(String type) {
-    switch (type.toLowerCase()) {
-      case 'chat':
-      case 'message':
-        return const _NotificationVisual(
-          Icons.chat_bubble_rounded,
-          AppColors.teal,
-        );
-      case 'payment':
-        return const _NotificationVisual(
-          Icons.payments_rounded,
-          AppColors.success,
-        );
-      case 'booking':
-        return const _NotificationVisual(
-          Icons.event_available_rounded,
-          AppColors.primaryLight,
-        );
-      case 'appointment_options_ready':
-      case 'appointment_client_counter_offer':
-      case 'appointment_request_new':
-      case 'appointment_request_rejected':
-      case 'appointment_request_rejected_by_client':
-        return const _NotificationVisual(
-          Icons.edit_calendar_rounded,
-          AppColors.teal,
-        );
-      case 'profile':
-        return const _NotificationVisual(
-          Icons.person_rounded,
-          Color(0xFF7C4DFF),
-        );
-      case 'warning':
-      case 'alert':
-        return const _NotificationVisual(
-          Icons.warning_amber_rounded,
-          AppColors.warning,
-        );
-      default:
-        return const _NotificationVisual(
-          Icons.notifications_rounded,
-          AppColors.secondary,
-        );
-    }
-  }
-}
-
-class _NotificationVisual {
-  final IconData icon;
-  final Color color;
-
-  const _NotificationVisual(this.icon, this.color);
 }
 
 class _NotificationIcon extends StatelessWidget {
@@ -573,16 +534,14 @@ class _NotificationIcon extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            color.withValues(alpha: .19),
-            color.withValues(alpha: .07),
+            color.withValues(alpha: unread ? .22 : .15),
+            color.withValues(alpha: .06),
           ],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(
-          color: color.withValues(alpha: unread ? .30 : .18),
-        ),
+        border: Border.all(color: color.withValues(alpha: unread ? .34 : .20)),
       ),
       child: Icon(icon, color: color, size: 25),
     );
@@ -694,20 +653,18 @@ class _NotificationState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            FilledButton(
+            FilledButton.icon(
               onPressed: onAction,
+              icon: const Icon(Icons.refresh_rounded),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.teal,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: Text(
+              label: Text(
                 actionLabel,
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
