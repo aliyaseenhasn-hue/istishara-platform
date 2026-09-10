@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:astshara/core/config/supabase_config.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../shared/widgets/loading_widget.dart';
 
 class LawyerWalletPage extends StatefulWidget {
   const LawyerWalletPage({super.key});
@@ -138,6 +140,10 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
                   child: const Text('إلغاء'),
                 ),
                 FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.teal,
+                    foregroundColor: Colors.white,
+                  ),
                   onPressed: () => Navigator.of(dialogContext).pop([
                     selectedType,
                     numberController.text.trim(),
@@ -226,6 +232,10 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
             child: const Text('إلغاء'),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.teal,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () => Navigator.of(dialogContext).pop(
               double.tryParse(controller.text.trim()),
             ),
@@ -291,12 +301,14 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('محفظتي المالية')),
       body: RefreshIndicator(
+        color: AppColors.teal,
         onRefresh: _load,
         child: loading
             ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 children: const [
-                  SizedBox(height: 300),
-                  Center(child: CircularProgressIndicator()),
+                  SizedBox(height: 280),
+                  LoadingWidget(size: 30),
                 ],
               )
             : ListView(
@@ -334,9 +346,25 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
                           SizedBox(
                             width: double.infinity,
                             child: FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.teal,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 13),
+                              ),
                               onPressed: submitting ? null : _requestPayout,
-                              icon: const Icon(Icons.payments_outlined),
-                              label: const Text('طلب سحب'),
+                              icon: submitting
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: LoadingWidget(
+                                        size: 18,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.payments_outlined),
+                              label: Text(
+                                submitting ? 'جاري الإرسال...' : 'طلب سحب',
+                              ),
                             ),
                           ),
                         ],
@@ -361,10 +389,11 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
                           ? const SizedBox(
                               width: 22,
                               height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: LoadingWidget(size: 18),
                             )
                           : IconButton(
                               onPressed: _editMethod,
+                              color: AppColors.primary,
                               icon: const Icon(Icons.edit_outlined),
                             ),
                     ),
