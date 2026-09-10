@@ -59,6 +59,17 @@
 - commit: `1938cb0a49b5720212388df3031c559f6619ca5a`.
 - الهدف من رفع النسخة هو حذف Cache `v10` عند تفعيل العامل الجديد ومنع بقاء PWA على غلاف قديم أثناء اختبار الإصلاح.
 
+## الإصلاح 5 — منع Auto-Zoom عند التركيز على حقل Flutter في iOS
+- الملف: `web/index.html`.
+- commit: `8be58442749500c110ca3eb28d27f42e161a89b0`.
+- أضيف حد أدنى 16px لعناصر الإدخال DOM الداخلية التي يستخدمها Flutter Web:
+  - `input`
+  - `textarea`
+  - العناصر `contenteditable`
+- السبب: WebKit على iOS قد يكبر الصفحة تلقائياً عند التركيز على input بحجم خط فعلي أقل من 16px، وهذا قد يجعل المستخدم يرى الحقل وحده تقريباً بينما تختفي بقية عناصر Flutter خارج المساحة المرئية.
+- استخدم الإصلاح CSS فقط ولم يتم تعطيل تكبير الصفحة للمستخدم عبر `user-scalable=no`، حفاظاً على الوصولية.
+- لا يغير هذا شكل TextField المرسوم داخل Flutter؛ يستهدف سطح تحرير DOM الذي ينشئه Flutter Web خلف الكواليس.
+
 ## النطاق
 - لم يتغير منطق الشحن أو رفع الإيصال أو اعتماد الإدارة أو رصيد المحفظة.
 - لم تتغير RPCs أو قاعدة البيانات.
@@ -66,7 +77,7 @@
 
 ## التحقق
 - الإصلاح السابق حتى `9f71643e4ffca7df28bccdab766bec034156c1fe` وصل فعلياً إلى GitHub Pages بنجاح، واستمرار المشكلة بعده أثبت الحاجة إلى إصلاح طبقة `visualViewport`.
-- يجب اعتماد GitHub Actions على آخر HEAD بعد إصلاح `visualViewport` ورفع Service Worker إلى `v11`:
+- يجب اعتماد GitHub Actions على آخر HEAD بعد إصلاح `visualViewport` ورفع Service Worker إلى `v11` وإضافة حماية Auto-Zoom:
   - Flutter Analyze.
   - Flutter Tests.
   - Flutter Web Build.
