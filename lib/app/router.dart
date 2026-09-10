@@ -39,10 +39,12 @@ import '../features/bookings/presentation/pages/booking_cancellation_overlay.dar
 import '../features/bookings/presentation/pages/booking_notification_target_page.dart';
 import '../features/bookings/presentation/pages/manual_payment_page.dart';
 import '../features/bookings/presentation/pages/manual_payment_required_page.dart';
+import '../features/bookings/presentation/pages/appointment_requests_page.dart';
 import '../features/chat/presentation/pages/chat_page.dart';
 import '../features/chat/presentation/pages/conversations_page.dart';
 import '../features/payments/presentation/pages/payment_upload_page.dart';
 import '../features/payments/presentation/pages/payment_result_page.dart';
+import '../features/payments/presentation/pages/client_wallet_page.dart';
 import '../features/profile/presentation/pages/profile_page.dart';
 import '../features/profile/presentation/pages/notification_settings_page.dart';
 import '../features/profile/presentation/pages/notifications_page.dart';
@@ -245,6 +247,15 @@ GoRouter router(RouterRef ref) {
           ),
           GoRoute(path: '/bookings', pageBuilder: (c, s) => _primaryTabPage(s, const BookingsListPage())),
           GoRoute(path: '/archived-bookings', builder: (c, s) => const ArchivedBookingsPage()),
+          GoRoute(path: '/appointment-requests', builder: (c, s) => const AppointmentRequestsPage()),
+          GoRoute(
+            path: '/client-wallet',
+            builder: (c, s) => ClientWalletPage(
+              requiredAmount: double.tryParse(
+                s.uri.queryParameters['required_amount'] ?? '',
+              ),
+            ),
+          ),
           GoRoute(path: '/chats', builder: (c, s) => const ConversationsPage()),
           GoRoute(
             path: '/booking-details',

@@ -42,7 +42,7 @@ class BookingsRepositoryImpl implements BookingsRepository {
     if (user == null) throw Exception('يجب تسجيل الدخول أولاً');
     final profile = await _supabase.from('profiles').select('whatsapp_number').eq('auth_id', user.id).maybeSingle();
     final whatsapp = profile?['whatsapp_number']?.toString().trim();
-    final response = await _supabase.rpc('create_booking', params: {
+    final response = await _supabase.rpc('create_wallet_funded_booking', params: {
       'p_lawyer_id': lawyerId,
       'p_scheduled_at': scheduledAt.toIso8601String(),
       'p_slot_id': slotId,

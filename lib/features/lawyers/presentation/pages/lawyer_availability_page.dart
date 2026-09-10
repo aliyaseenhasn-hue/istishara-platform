@@ -630,8 +630,56 @@ class _LawyerAvailabilityPageState extends ConsumerState<LawyerAvailabilityPage>
           if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
           if (snapshot.hasError) return const Center(child: Text('تعذر تحميل المواعيد.'));
           final slots = snapshot.data ?? const <Map<String, dynamic>>[];
-          if (slots.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('أضف موعداً وحدد مدة الاستشارة والسعر حتى يتمكن طالب الاستشارة من اختيار ما يناسبه.', textAlign: TextAlign.center)));
-          return RefreshIndicator(onRefresh: _refresh, child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 130), children: slots.map(_slotCard).toList()));
+          final availableNextWeek = slots.where((slot) {
+            final startsAt = DateTime.tryParse('${slot['starts_at']}')?.toLocal();
+            return slot['is_available'] == true &&
+                startsAt != null &&
+                startsAt.isAfter(DateTime.now()) &&
+                startsAt.isBefore(DateTime.now().add(const Duration(days: 7)));
+          }).length;
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 130),
+              children: [
+                Card(
+                  elevation: 0,
+                  color: availableNextWeek >= 3
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : Theme.of(context).colorScheme.tertiaryContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.all(15),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      Text(
+                        availableNextWeek >= 3
+                            ? 'لديك $availableNextWeek مواعيد متاحة خلال الأيام السبعة القادمة.'
+                            : 'أضف ${3 - availableNextWeek} مواعيد أخرى على الأقل خلال الأيام السبعة القادمة حتى يجد العملاء وقتاً مناسباً.',
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(fontWeight: FontWeight.w800, height: 1.5),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () => context.push('/appointment-requests'),
+                        icon: const Icon(Icons.event_note_outlined),
+                        label: const Text('طلبات المواعيد الخاصة'),
+                      ),
+                    ]),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (slots.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text(
+                      'لا توجد مواعيد بعد. أضف موعداً وحدد المدة والسعر، أو راجع طلبات المواعيد الخاصة.',
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                else
+                  ...slots.map(_slotCard),
+              ],
+            ),
+          );
         },
       ),
       bottomNavigationBar: SafeArea(

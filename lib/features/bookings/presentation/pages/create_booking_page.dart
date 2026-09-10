@@ -4,11 +4,13 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../../../lawyers/domain/entities/lawyer_profile.dart';
+import '../../../payments/presentation/providers/client_wallet_provider.dart';
 import '../providers/bookings_provider.dart';
 
 class CreateBookingPage extends ConsumerStatefulWidget {
@@ -28,6 +30,8 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
   String _consultationType = 'نصية';
   String _consultationMode = 'عن بعد';
   AvailableBookingSlot? _selectedSlot;
+  bool _usingCustomAppointment = false;
+  final List<_ProposedWindow> _customWindows = <_ProposedWindow>[];
   final _descriptionController = TextEditingController();
   final _customConsultationTypeController = TextEditingController();
   Uint8List? _fileBytes;
@@ -100,8 +104,8 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
         return false;
       }
     }
-    if (_step == 2 && _selectedSlot == null) {
-      _showMessage('يرجى اختيار موعد');
+    if (_step == 2 && _selectedSlot == null && _customWindows.isEmpty) {
+      _showMessage('اختر موعداً متاحاً أو اقترح فترات مناسبة للمحامي');
       return false;
     }
     return true;
@@ -125,6 +129,58 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     });
   }
 
+  Future<void> _addProposedWindow() async {
+    if (_customWindows.length >= 3) return;
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now.add(const Duration(days: 1)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 90)),
+      locale: const Locale('ar'),
+    );
+    if (date == null || !mounted) return;
+    final startTime = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 9, minute: 0),
+      helpText: 'بداية الفترة المناسبة',
+    );
+    if (startTime == null || !mounted) return;
+    final endTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: (startTime.hour + 3) % 24,
+        minute: startTime.minute,
+      ),
+      helpText: 'نهاية الفترة المناسبة',
+    );
+    if (endTime == null) return;
+    final start = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      startTime.hour,
+      startTime.minute,
+    );
+    final end = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      endTime.hour,
+      endTime.minute,
+    );
+    if (!start.isAfter(now.add(const Duration(minutes: 30))) ||
+        !end.isAfter(start)) {
+      _showMessage('اختر فترة مستقبلية واضحة، ويجب أن تكون النهاية بعد البداية.');
+      return;
+    }
+    setState(() {
+      _usingCustomAppointment = true;
+      _selectedSlot = null;
+      _customWindows.add(_ProposedWindow(start: start, end: end));
+    });
+  }
+
   String _bookingDescription() {
     final details = _descriptionController.text.trim();
     if (!_usesCustomConsultation) return details;
@@ -139,6 +195,61 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
       _showMessage('يرجى تسجيل الدخول أولاً');
       return;
     }
+    final release = ref.read(appReleaseSettingsProvider).valueOrNull;
+    final paymentRequired = release?['free_beta_enabled'] != true;
+    final expectedPrice = _expectedPrice();
+    if (paymentRequired) {
+      try {
+        final wallet = await ref.read(clientWalletProvider.future);
+        if (wallet.availableBalance < expectedPrice) {
+          _showMessage('رصيد المحفظة غير كافٍ. اشحنها وانتظر اعتماد الإدارة أولاً.');
+          await context.push('/client-wallet?required_amount=${expectedPrice.toStringAsFixed(0)}');
+          ref.invalidate(clientWalletProvider);
+          return;
+        }
+      } catch (_) {
+        _showMessage('تعذر التحقق من رصيد المحفظة حالياً. حاول مرة أخرى.');
+        return;
+      }
+    }
+
+    if (_selectedSlot == null) {
+      final request = await ref
+          .read(bookingsControllerProvider.notifier)
+          .requestCustomAppointment(
+            lawyerId: widget.lawyer.profileId,
+            packageName: _usesCustomConsultation
+                ? 'استشارة مختلفة'
+                : (_package?.id ?? ''),
+            consultationType: _consultationType,
+            consultationMode: _consultationMode,
+            description: _bookingDescription(),
+            windows: _customWindows
+                .map(
+                  (window) => {
+                    'start': window.start.toUtc().toIso8601String(),
+                    'end': window.end.toUtc().toIso8601String(),
+                  },
+                )
+                .toList(growable: false),
+            documentBytes: _fileBytes,
+            documentName: _fileName,
+          );
+      if (!mounted) return;
+      if (request == null) {
+        final error = ref.read(bookingsControllerProvider).error;
+        _showMessage(
+          error?.toString().replaceFirst('Exception: ', '') ??
+              'تعذر إرسال طلب الموعد',
+        );
+        return;
+      }
+      ref.invalidate(clientWalletProvider);
+      _showMessage('تم إرسال طلب الموعد إلى المحامي، ولديه 12 ساعة للرد.');
+      context.go('/appointment-requests');
+      return;
+    }
+
     final booking = await ref.read(bookingsControllerProvider.notifier).createBooking(
       lawyerId: widget.lawyer.profileId,
       serviceId: _usesCustomConsultation ? null : _package?.id,
@@ -156,7 +267,16 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
       _showMessage(error?.toString().replaceFirst('Exception: ', '') ?? 'تعذر إنشاء الحجز');
       return;
     }
-    await context.push(booking.paymentRequired ? '/upload-payment' : '/booking-details', extra: booking);
+    ref.invalidate(clientWalletProvider);
+    ref.invalidate(clientWalletLedgerProvider);
+    await context.push('/booking-details', extra: booking);
+  }
+
+  double _expectedPrice() {
+    return _selectedSlot?.price ??
+        _package?.price ??
+        widget.lawyer.consultationPrice ??
+        0;
   }
 
   @override
@@ -164,8 +284,8 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     final state = ref.watch(bookingsControllerProvider);
     final slots = ref.watch(availableSlotsProvider(widget.lawyer.profileId));
     final releaseSettings = ref.watch(appReleaseSettingsProvider);
+    final wallet = ref.watch(clientWalletProvider);
     final hasLoadedSlots = slots.hasValue;
-    final noSlots = hasLoadedSlots && (slots.valueOrNull?.isEmpty ?? true);
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -181,14 +301,6 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
             action: FilledButton.icon(onPressed: () => ref.invalidate(availableSlotsProvider(widget.lawyer.profileId)), icon: const Icon(Icons.refresh_rounded), label: const Text('إعادة المحاولة')),
           ),
           data: (items) {
-            if (items.isEmpty) {
-              return _NoSlotsView(
-                lawyer: widget.lawyer,
-                loading: _followingLawyer,
-                onFollow: _followLawyerAndReturnHome,
-                onCancel: () => context.go('/home'),
-              );
-            }
             return Column(
               children: [
                 _ProgressHeader(step: _step),
@@ -206,6 +318,14 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                         error: (_, __) => const SizedBox.shrink(),
                       ),
                       if (releaseSettings.valueOrNull?['free_beta_enabled'] == true) const SizedBox(height: 14),
+                      if (releaseSettings.valueOrNull?['free_beta_enabled'] != true) ...[
+                        _WalletStatusCard(
+                          wallet: wallet,
+                          requiredAmount: _expectedPrice(),
+                          onOpen: () => context.push('/client-wallet'),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
                       _buildStepContent(items),
                     ]),
                   ),
@@ -215,7 +335,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
           },
         ),
       ),
-      bottomNavigationBar: !hasLoadedSlots || noSlots
+      bottomNavigationBar: !hasLoadedSlots
           ? null
           : SafeArea(
               minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -265,11 +385,70 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
           child: TextField(controller: _descriptionController, minLines: 6, maxLines: 9, decoration: const InputDecoration(labelText: 'تفاصيل الاستشارة', hintText: 'اكتب الوقائع أو السؤال القانوني الذي تريد مناقشته...', alignLabelWithHint: true)),
         );
       case 2:
+        final customSchedule = _usingCustomAppointment || slots.isEmpty;
         return _StepCard(
-          title: 'اختر الموعد والمدة',
-          subtitle: 'كل موعد يوضح المدة والسعر الذي حدده المحامي.',
+          title: customSchedule ? 'اقترح فترات مناسبة' : 'اختر الموعد والمدة',
+          subtitle: customSchedule
+              ? 'حدد حتى ثلاث فترات، وسيقترح المحامي مواعيد نهائية لتختار أحدها.'
+              : 'المواعيد المعروضة موافق عليها مسبقاً وتُحجز فوراً.',
           icon: Icons.calendar_month_outlined,
-          child: Column(children: slots.map((slot) => _SelectableSlot(slot: slot, selected: _selectedSlot?.id == slot.id, onTap: () => setState(() => _selectedSlot = slot))).toList()),
+          child: customSchedule
+              ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  if (slots.isEmpty)
+                    const _InlineNotice(
+                      text: 'لا توجد مواعيد معروضة حالياً، لكن يمكنك طلب موعد خاص بدلاً من مغادرة الصفحة.',
+                    ),
+                  ..._customWindows.asMap().entries.map(
+                    (entry) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(_formatWindow(entry.value), textAlign: TextAlign.right),
+                      trailing: IconButton(
+                        onPressed: () => setState(() => _customWindows.removeAt(entry.key)),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _customWindows.length >= 3 ? null : _addProposedWindow,
+                    icon: const Icon(Icons.add_rounded),
+                    label: Text(_customWindows.isEmpty ? 'إضافة فترة مناسبة' : 'إضافة فترة أخرى'),
+                  ),
+                  if (slots.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => setState(() {
+                        _usingCustomAppointment = false;
+                        _customWindows.clear();
+                      }),
+                      child: const Text('العودة إلى المواعيد المعروضة'),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _followingLawyer ? null : _followLawyerAndReturnHome,
+                    icon: const Icon(Icons.notifications_active_outlined),
+                    label: const Text('متابعة المحامي عند إضافة مواعيد'),
+                  ),
+                ])
+              : Column(children: [
+                  ...slots.map((slot) => _SelectableSlot(
+                        slot: slot,
+                        selected: _selectedSlot?.id == slot.id,
+                        onTap: () => setState(() {
+                          _selectedSlot = slot;
+                          _customWindows.clear();
+                        }),
+                      )),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () => setState(() {
+                      _usingCustomAppointment = true;
+                      _selectedSlot = null;
+                    }),
+                    icon: const Icon(Icons.edit_calendar_outlined),
+                    label: const Text('لا يناسبني أي موعد — طلب موعد خاص'),
+                  ),
+                ]),
         );
       case 3:
         return _StepCard(
@@ -286,6 +465,9 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
               _ReviewRow(label: 'الموعد', value: _formatSlot(_selectedSlot!)),
               _ReviewRow(label: 'المدة', value: '${_selectedSlot!.durationMinutes} دقيقة'),
               _ReviewRow(label: 'السعر', value: _selectedSlot!.price == null ? 'حسب الباقة' : '${_selectedSlot!.price!.toStringAsFixed(0)} د.ع'),
+            ] else ...[
+              _ReviewRow(label: 'طريقة الموعد', value: 'طلب موعد خاص'),
+              _ReviewRow(label: 'الفترات المقترحة', value: '${_customWindows.length}'),
             ],
             const SizedBox(height: 14),
             SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: _pickFile, icon: const Icon(Icons.attach_file_rounded), label: Text(_fileName ?? 'إرفاق مستند (اختياري)'))),
@@ -301,6 +483,69 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     final time = TimeOfDay.fromDateTime(slot.startsAt).format(context);
     return '$date $time';
   }
+
+  String _formatWindow(_ProposedWindow window) {
+    final start = DateFormat('EEEE، d MMMM – hh:mm a', 'ar').format(window.start);
+    final end = DateFormat('hh:mm a', 'ar').format(window.end);
+    return '$start إلى $end';
+  }
+}
+
+class _ProposedWindow {
+  final DateTime start;
+  final DateTime end;
+  const _ProposedWindow({required this.start, required this.end});
+}
+
+class _WalletStatusCard extends StatelessWidget {
+  final AsyncValue<ClientWalletSummary> wallet;
+  final double requiredAmount;
+  final VoidCallback onOpen;
+  const _WalletStatusCard({required this.wallet, required this.requiredAmount, required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 0,
+      color: scheme.primaryContainer.withValues(alpha: .5),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(children: [
+            Icon(Icons.account_balance_wallet_outlined, color: scheme.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: wallet.when(
+                loading: () => const Text('جاري تحميل رصيد المحفظة...'),
+                error: (_, __) => const Text('اضغط لفتح المحفظة والتحقق من الرصيد'),
+                data: (value) => Text(
+                  'الرصيد المتاح: ${value.availableBalance.toStringAsFixed(0)} د.ع${requiredAmount > 0 ? ' • المطلوب: ${requiredAmount.toStringAsFixed(0)} د.ع' : ''}',
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_left_rounded),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineNotice extends StatelessWidget {
+  final String text;
+  const _InlineNotice({required this.text});
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(13),
+        decoration: BoxDecoration(color: Theme.of(context).colorScheme.secondaryContainer, borderRadius: BorderRadius.circular(14)),
+        child: Text(text, textAlign: TextAlign.right, style: const TextStyle(height: 1.5, fontWeight: FontWeight.w700)),
+      );
 }
 
 class _NoSlotsView extends StatelessWidget {

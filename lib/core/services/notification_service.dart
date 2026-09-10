@@ -128,6 +128,30 @@ class NotificationService {
     final referenceId = notification['reference_id']?.toString();
     final referenceType = notification['reference_type']?.toString();
 
+    if (referenceType == 'wallet_topup') {
+      final authId = SupabaseConfig.client.auth.currentUser?.id;
+      String? role;
+      if (authId != null) {
+        final profile = await SupabaseConfig.client
+            .from('profiles')
+            .select('role')
+            .eq('auth_id', authId)
+            .maybeSingle();
+        role = profile?['role']?.toString();
+      }
+      if (context.mounted) {
+        GoRouter.of(context).push(role == 'admin' ? '/admin/payments' : '/client-wallet');
+        return true;
+      }
+    }
+
+    if (referenceType == 'appointment_request') {
+      if (context.mounted) {
+        GoRouter.of(context).push('/appointment-requests');
+        return true;
+      }
+    }
+
     if (referenceId != null && referenceId.isNotEmpty &&
         (referenceType == 'booking' || type == 'booking' || type == 'payment')) {
       if (context.mounted) {
