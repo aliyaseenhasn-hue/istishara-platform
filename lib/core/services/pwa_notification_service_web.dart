@@ -25,7 +25,9 @@ external JSString _getPushDeviceKey();
 class PwaNotificationService {
   static const String _vapidPublicKey = String.fromEnvironment('VAPID_PUBLIC_KEY');
   static StreamSubscription<AuthState>? _authSubscription;
+  static Timer? _repairTimer;
   static bool _initialized = false;
+  static bool _syncInProgress = false;
 
   static bool get supported => _vapidPublicKey.isNotEmpty;
 
@@ -38,6 +40,15 @@ class PwaNotificationService {
       if (event == AuthChangeEvent.signedIn ||
           event == AuthChangeEvent.tokenRefreshed ||
           event == AuthChangeEvent.initialSession) {
+        unawaited(syncForCurrentUser());
+      }
+    });
+
+    // A browser can keep Notification permission while losing its PushSubscription
+    // during a service-worker update. Periodic repair recreates/rebinds it without
+    // showing another permission prompt when permission is already granted.
+    _repairTimer ??= Timer.periodic(const Duration(minutes: 2), (_) {
+      if (SupabaseConfig.client.auth.currentUser != null) {
         unawaited(syncForCurrentUser());
       }
     });
@@ -93,6 +104,19 @@ class PwaNotificationService {
     }
   }
 
+  static Future<String?> _existingOrRecreatedSubscription() async {
+    final state = jsonDecode((await _getPushState().toDart).toDart) as Map<String, dynamic>;
+    if (state['permission'] != 'granted') return null;
+
+    final existing = await _getExistingPushSubscription().toDart;
+    if (existing != null) return existing.toDart;
+
+    // Permission is already granted, so this call only recreates the missing
+    // PushSubscription; browsers do not need to show a second permission dialog.
+    final recreated = await _enablePush(_vapidPublicKey.toJS).toDart;
+    return recreated?.toDart;
+  }
+
   static Future<bool> enable() async {
     if (!supported) return false;
 
@@ -105,16 +129,27 @@ class PwaNotificationService {
     }
   }
 
-  /// Rebind an already-authorized browser subscription to the currently
-  /// authenticated account without showing a permission prompt.
+  /// Rebinds an already-authorized browser subscription to the currently
+  /// authenticated account. If the browser permission survived but the
+  /// subscription/database row did not, it repairs both automatically.
   static Future<bool> syncForCurrentUser() async {
-    if (!supported || SupabaseConfig.client.auth.currentUser == null) return false;
+    if (!supported || SupabaseConfig.client.auth.currentUser == null || _syncInProgress) return false;
+    _syncInProgress = true;
     try {
-      final result = await _getExistingPushSubscription().toDart;
-      if (result == null) return false;
-      return _registerSubscription(result.toDart);
-    } catch (_) {
+      for (var attempt = 0; attempt < 3; attempt++) {
+        try {
+          final raw = await _existingOrRecreatedSubscription();
+          if (raw != null && await _registerSubscription(raw)) return true;
+        } catch (_) {
+          // Service-worker/session startup can briefly race the first attempt.
+        }
+        if (attempt < 2) {
+          await Future<void>.delayed(Duration(seconds: attempt + 1));
+        }
+      }
       return false;
+    } finally {
+      _syncInProgress = false;
     }
   }
 
