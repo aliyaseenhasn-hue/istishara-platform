@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/utils/user_facing_error.dart';
+import '../../../../shared/widgets/loading_widget.dart';
 
 class PaymentMethodsPage extends StatefulWidget {
   const PaymentMethodsPage({super.key});
@@ -136,7 +138,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
         scrolledUnderElevation: 0,
       ),
       body: loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingWidget(size: 30)
           : SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(AppSizes.p20, 10, AppSizes.p20, 32),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -239,10 +241,14 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
                       FilledButton.icon(
                         onPressed: saving ? null : _save,
                         icon: saving
-                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            ? const SizedBox(width: 22, height: 22, child: LoadingWidget(size: 18, color: Colors.white))
                             : const Icon(Icons.save_outlined),
                         label: Text(saving ? 'جاري الحفظ...' : connected ? 'تحديث حساب الاستلام' : 'حفظ حساب الاستلام'),
-                        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(52),
+                          backgroundColor: AppColors.teal,
+                          foregroundColor: Colors.white,
+                        ),
                       ),
                     ]),
                   ),
