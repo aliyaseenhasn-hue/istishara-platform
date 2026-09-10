@@ -19,6 +19,7 @@ create table if not exists public.client_wallet_topups (
   status text not null default 'قيد المراجعة'
     check (status in ('قيد المراجعة','معتمد','مرفوض')),
   review_deadline_at timestamptz not null default (now() + interval '30 minutes'),
+  escalated_at timestamptz,
   reviewed_at timestamptz,
   reviewed_by uuid references public.profiles(id) on delete set null,
   admin_note text,
@@ -379,6 +380,42 @@ begin
 end;
 $$;
 
+create or replace function public.escalate_overdue_client_wallet_topups()
+returns integer
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  r record;
+  v_admin record;
+  v_count integer:=0;
+begin
+  for r in
+    select t.id,t.amount,coalesce(nullif(trim(p.full_name),''),'طالب استشارة') as client_name
+    from public.client_wallet_topups t
+    join public.profiles p on p.id=t.user_id
+    where t.status='قيد المراجعة'
+      and t.review_deadline_at<=now()
+      and t.escalated_at is null
+    for update of t skip locked
+  loop
+    update public.client_wallet_topups
+    set escalated_at=now(),updated_at=now()
+    where id=r.id;
+    for v_admin in select id from public.profiles where role='admin' and status='active' loop
+      perform public.enqueue_user_notification(
+        v_admin.id,'تأخر اعتماد شحن محفظة',
+        'تجاوز إيصال '||r.client_name||' بقيمة '||to_char(r.amount,'FM999G999G999G990')||' د.ع مهلة المراجعة. يرجى تدقيقه فوراً.',
+        'wallet_topup_overdue',r.id,'wallet_topup'
+      );
+    end loop;
+    v_count:=v_count+1;
+  end loop;
+  return v_count;
+end;
+$$;
+
 create or replace function public.submit_custom_appointment_request(
   p_lawyer_id uuid,
   p_package_name text,
@@ -704,6 +741,7 @@ revoke all on function public.lawyer_respond_custom_appointment_request(uuid,jso
 revoke all on function public.client_confirm_custom_appointment(uuid,integer) from public,anon;
 revoke all on function public.cancel_custom_appointment_request(uuid) from public,anon;
 revoke all on function public.expire_stale_custom_appointment_requests() from public,anon,authenticated;
+revoke all on function public.escalate_overdue_client_wallet_topups() from public,anon,authenticated;
 
 grant execute on function public.get_my_client_wallet() to authenticated;
 grant execute on function public.submit_client_wallet_topup(numeric,text,text) to authenticated;
@@ -723,6 +761,18 @@ begin
   perform cron.schedule(
     'expire-custom-appointment-requests','*/5 * * * *',
     'select public.expire_stale_custom_appointment_requests();'
+  );
+end;
+$$;
+
+do $$
+declare v_job_id bigint;
+begin
+  select jobid into v_job_id from cron.job where jobname='escalate-overdue-wallet-topups' limit 1;
+  if v_job_id is not null then perform cron.unschedule(v_job_id); end if;
+  perform cron.schedule(
+    'escalate-overdue-wallet-topups','*/5 * * * *',
+    'select public.escalate_overdue_client_wallet_topups();'
   );
 end;
 $$;
