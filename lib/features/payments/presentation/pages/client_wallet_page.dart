@@ -6,7 +6,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/config/supabase_config.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/user_facing_error.dart';
+import '../../../../shared/widgets/loading_widget.dart';
 import '../../data/repositories/payments_repository_impl.dart';
 import '../providers/client_wallet_provider.dart';
 
@@ -133,6 +135,7 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
           IconButton(
             tooltip: 'طلبات المواعيد',
             onPressed: () => context.push('/appointment-requests'),
+            color: AppColors.primary,
             icon: const Icon(Icons.event_note_outlined),
           ),
           IconButton(
@@ -142,11 +145,13 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
               ref.invalidate(clientWalletTopupsProvider);
               ref.invalidate(clientWalletLedgerProvider);
             },
+            color: AppColors.teal,
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
       ),
       body: RefreshIndicator(
+        color: AppColors.teal,
         onRefresh: () async {
           ref.invalidate(clientWalletProvider);
           ref.invalidate(clientWalletTopupsProvider);
@@ -159,7 +164,7 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
             wallet.when(
               loading: () => const SizedBox(
                 height: 150,
-                child: Center(child: CircularProgressIndicator()),
+                child: LoadingWidget(size: 30),
               ),
               error: (error, _) => _ErrorCard(text: UserFacingError.text(error)),
               data: (value) => _BalanceCard(
@@ -182,7 +187,7 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
                   return const Card(
                     child: Padding(
                       padding: EdgeInsets.all(28),
-                      child: Center(child: CircularProgressIndicator()),
+                      child: LoadingWidget(size: 26),
                     ),
                   );
                 }
@@ -206,7 +211,7 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
             const Text('طلبات الشحن', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
             const SizedBox(height: 8),
             topups.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const LoadingWidget(size: 26),
               error: (error, _) => _ErrorCard(text: UserFacingError.text(error)),
               data: (items) => items.isEmpty
                   ? const _EmptyCard(text: 'لا توجد طلبات شحن حتى الآن.')
@@ -218,7 +223,7 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
             const Text('حركة المحفظة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
             const SizedBox(height: 8),
             ledger.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const LoadingWidget(size: 26),
               error: (error, _) => _ErrorCard(text: UserFacingError.text(error)),
               data: (items) => items.isEmpty
                   ? const _EmptyCard(text: 'لا توجد حركات مالية حتى الآن.')
@@ -301,16 +306,30 @@ class _TopupCard extends StatelessWidget {
           if (accountName.isNotEmpty) _InfoLine(label: 'اسم الحساب', value: accountName),
           Row(children: [
             Expanded(child: _InfoLine(label: 'رقم الحساب/المحفظة', value: accountNumber.isEmpty ? 'غير محدد' : accountNumber)),
-            if (accountNumber.isNotEmpty) IconButton(onPressed: () => onCopy(accountNumber), icon: const Icon(Icons.copy_rounded)),
+            if (accountNumber.isNotEmpty) IconButton(onPressed: () => onCopy(accountNumber), color: AppColors.primary, icon: const Icon(Icons.copy_rounded)),
           ]),
           const SizedBox(height: 12),
           TextField(controller: amountController, enabled: enabled && !submitting, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مبلغ الشحن بالدينار', prefixIcon: Icon(Icons.payments_outlined))),
           const SizedBox(height: 10),
           TextField(controller: transactionController, enabled: enabled && !submitting, decoration: const InputDecoration(labelText: 'رقم عملية التحويل', prefixIcon: Icon(Icons.numbers_rounded))),
           const SizedBox(height: 10),
-          OutlinedButton.icon(onPressed: enabled && !submitting ? onPickReceipt : null, icon: Icon(receipt == null ? Icons.upload_file_rounded : Icons.check_circle_outline_rounded), label: Text(receipt == null ? 'رفع إيصال التحويل' : 'تم اختيار الإيصال')),
+          OutlinedButton.icon(
+            onPressed: enabled && !submitting ? onPickReceipt : null,
+            style: receipt == null
+                ? null
+                : OutlinedButton.styleFrom(foregroundColor: AppColors.success, side: BorderSide(color: AppColors.success.withValues(alpha: .55))),
+            icon: Icon(receipt == null ? Icons.upload_file_rounded : Icons.check_circle_outline_rounded),
+            label: Text(receipt == null ? 'رفع إيصال التحويل' : 'تم اختيار الإيصال'),
+          ),
           const SizedBox(height: 12),
-          FilledButton.icon(onPressed: enabled && !submitting ? onSubmit : null, icon: submitting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_rounded), label: Text(submitting ? 'جاري الإرسال...' : enabled ? 'إرسال للمراجعة' : 'الشحن غير متاح حالياً')),
+          FilledButton.icon(
+            onPressed: enabled && !submitting ? onSubmit : null,
+            style: FilledButton.styleFrom(backgroundColor: AppColors.teal, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 13)),
+            icon: submitting
+                ? const SizedBox(width: 22, height: 22, child: LoadingWidget(size: 18, color: Colors.white))
+                : const Icon(Icons.send_rounded),
+            label: Text(submitting ? 'جاري الإرسال...' : enabled ? 'إرسال للمراجعة' : 'الشحن غير متاح حالياً'),
+          ),
         ]),
       ),
     );
@@ -335,7 +354,7 @@ class _TopupHistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = item['status']?.toString() ?? '';
     final scheme = Theme.of(context).colorScheme;
-    final color = status == 'معتمد' ? Colors.green : status == 'مرفوض' ? scheme.error : scheme.tertiary;
+    final color = status == 'معتمد' ? AppColors.success : status == 'مرفوض' ? scheme.error : AppColors.goldDark;
     final amount = double.tryParse('${item['amount'] ?? 0}') ?? 0;
     final date = DateTime.tryParse('${item['created_at'] ?? ''}')?.toLocal();
     return Card(
@@ -365,7 +384,7 @@ class _LedgerCard extends StatelessWidget {
     };
     return Card(
       child: ListTile(
-        leading: Icon(amount >= 0 ? Icons.add_circle_outline : Icons.remove_circle_outline, color: amount >= 0 ? Colors.green : Theme.of(context).colorScheme.error),
+        leading: Icon(amount >= 0 ? Icons.add_circle_outline : Icons.remove_circle_outline, color: amount >= 0 ? AppColors.success : Theme.of(context).colorScheme.error),
         title: Text(labels[item['entry_type']] ?? 'حركة محفظة', style: const TextStyle(fontWeight: FontWeight.w800)),
         subtitle: Text('الرصيد بعد الحركة: ${NumberFormat('#,##0', 'ar').format(double.tryParse('${item['balance_after'] ?? 0}') ?? 0)} د.ع'),
         trailing: Text('${amount > 0 ? '+' : ''}${NumberFormat('#,##0', 'ar').format(amount)}', style: const TextStyle(fontWeight: FontWeight.w900)),
