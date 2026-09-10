@@ -352,7 +352,6 @@ class _ClientAppointmentRequestsHomeCardState
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
-                textDirection: TextDirection.rtl,
                 children: [
                   const Icon(Icons.edit_calendar_rounded, color: AppColors.teal),
                   const SizedBox(width: 8),
