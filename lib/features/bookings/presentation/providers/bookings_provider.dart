@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:astshara/core/config/supabase_config.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../../data/repositories/bookings_repository_impl.dart';
@@ -23,12 +24,43 @@ Future<String?> _getProfileId(String authUid) async {
   return row?['id'] as String?;
 }
 
+RealtimeChannel _watchBookingChanges({
+  required String ownerColumn,
+  required String ownerId,
+  required void Function() onChange,
+}) {
+  return SupabaseConfig.client
+      .channel('bookings-$ownerColumn-$ownerId-${DateTime.now().microsecondsSinceEpoch}')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'bookings',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: ownerColumn,
+          value: ownerId,
+        ),
+        callback: (_) => onChange(),
+      )
+      .subscribe();
+}
+
 @Riverpod(keepAlive: true)
 Future<List<Booking>> userBookings(UserBookingsRef ref) async {
   final user = ref.watch(authStateChangesProvider).value;
   if (user == null) return [];
   final id = await _getProfileId(user.id);
   if (id == null) return [];
+
+  final channel = _watchBookingChanges(
+    ownerColumn: 'user_id',
+    ownerId: id,
+    onChange: () => ref.invalidateSelf(),
+  );
+  ref.onDispose(() {
+    unawaited(SupabaseConfig.client.removeChannel(channel));
+  });
+
   return ref.read(bookingsRepositoryProvider).getUserBookings(id);
 }
 
@@ -38,6 +70,16 @@ Future<List<Booking>> lawyerBookings(LawyerBookingsRef ref) async {
   if (user == null) return [];
   final id = await _getProfileId(user.id);
   if (id == null) return [];
+
+  final channel = _watchBookingChanges(
+    ownerColumn: 'lawyer_id',
+    ownerId: id,
+    onChange: () => ref.invalidateSelf(),
+  );
+  ref.onDispose(() {
+    unawaited(SupabaseConfig.client.removeChannel(channel));
+  });
+
   return ref.read(bookingsRepositoryProvider).getLawyerBookings(id);
 }
 
