@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../authentication/presentation/providers/auth_provider.dart';
+
 import '../../../../core/constants/app_colors.dart';
+import '../../../authentication/presentation/providers/auth_provider.dart';
+import '../../domain/entities/booking.dart';
+import '../providers/booking_timing_provider.dart';
 import '../providers/bookings_provider.dart';
 
 class BookingsListPage extends ConsumerWidget {
@@ -23,15 +28,35 @@ class BookingsListPage extends ConsumerWidget {
   static bool _needsLawyerReview(String status) {
     final value = status.trim();
     if (_awaitsAdminReview(value)) return false;
-    if (value.contains('رفض') || value.contains('إلغاء') || value == 'مكتمل' || value == 'قيد التنفيذ' || value == 'مؤكد' || value == 'مقبول') {
+    if (value.contains('رفض') ||
+        value.contains('إلغاء') ||
+        value == 'مكتمل' ||
+        value == 'قيد التنفيذ' ||
+        value == 'مؤكد' ||
+        value == 'مقبول') {
       return false;
     }
-    return value.contains('انتظار') || value.contains('معلق') || value.contains('جديد') || value.contains('طلب') || value.isEmpty;
+    return value.contains('انتظار') ||
+        value.contains('معلق') ||
+        value.contains('جديد') ||
+        value.contains('طلب') ||
+        value.isEmpty;
   }
 
   static String _formatDate(DateTime date) {
     final local = date.toLocal();
     return '${local.year}/${local.month.toString().padLeft(2, '0')}/${local.day.toString().padLeft(2, '0')} - ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+
+  static DateTime? _dateFrom(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString())?.toLocal();
+  }
+
+  static String _friendlyError(Object error) {
+    final raw = error.toString().replaceFirst('Exception: ', '').trim();
+    final match = RegExp(r'message:\s*([^,\)]+)', caseSensitive: false).firstMatch(raw);
+    return match?.group(1)?.trim() ?? (raw.isEmpty ? 'تعذر تنفيذ العملية حالياً.' : raw);
   }
 
   Future<void> _archiveBooking(
@@ -69,6 +94,27 @@ class BookingsListPage extends ConsumerWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('تم حذف الاستشارة من القائمة.')),
     );
+  }
+
+  Future<void> _startBooking(
+    BuildContext context,
+    WidgetRef ref,
+    Booking booking,
+  ) async {
+    try {
+      await ref.read(bookingsControllerProvider.notifier).updateBookingStatus(booking.id, 'قيد التنفيذ');
+      if (!context.mounted) return;
+      final updated = booking.copyWith(
+        status: 'قيد التنفيذ',
+        startedAt: DateTime.now(),
+      );
+      context.push('/booking-details', extra: updated);
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_friendlyError(error))),
+      );
+    }
   }
 
   @override
@@ -160,11 +206,26 @@ class BookingsListPage extends ConsumerWidget {
 
                 final bookingIndex = isLawyer ? index - 1 : index;
                 final booking = bookings[bookingIndex];
-                final canArchive = _canArchive(booking.status);
 
                 return Consumer(builder: (context, ref, child) {
                   final clientNameAsync = isLawyer ? ref.watch(bookingClientNameProvider(booking.id)) : null;
                   final lawyerInfoAsync = !isLawyer ? ref.watch(bookingLawyerInfoProvider(booking.id)) : null;
+                  final liveTiming = isLawyer ? ref.watch(bookingTimingProvider(booking.id)).valueOrNull : null;
+
+                  final liveStatus = liveTiming?['status']?.toString() ?? booking.status;
+                  final liveScheduledAt = _dateFrom(liveTiming?['scheduled_at']) ?? booking.scheduledAt;
+                  final liveStartedAt = _dateFrom(liveTiming?['started_at']) ?? booking.startedAt;
+                  final livePaymentConfirmedAt = _dateFrom(liveTiming?['payment_confirmed_at']) ?? booking.paymentConfirmedAt;
+                  final liveDuration = int.tryParse('${liveTiming?['package_duration_minutes'] ?? booking.packageDurationMinutes}') ?? booking.packageDurationMinutes;
+                  final effectiveBooking = booking.copyWith(
+                    status: liveStatus,
+                    scheduledAt: liveScheduledAt,
+                    startedAt: liveStartedAt,
+                    paymentConfirmedAt: livePaymentConfirmedAt,
+                    packageDurationMinutes: liveDuration,
+                  );
+                  final canArchive = _canArchive(liveStatus);
+
                   final rpcName = lawyerInfoAsync?.valueOrNull?['full_name']?.toString().trim();
                   final bookingName = booking.lawyerName?.trim();
                   final displayName = isLawyer
@@ -181,10 +242,10 @@ class BookingsListPage extends ConsumerWidget {
                   if (isLawyer) {
                     return _IncomingBookingCard(
                       name: displayName,
-                      status: booking.status,
+                      booking: effectiveBooking,
                       consultationType: booking.consultationType ?? 'استشارة قانونية',
-                      scheduledAt: booking.scheduledAt,
-                      onTap: () => context.push('/booking-details', extra: booking),
+                      onTap: () => context.push('/booking-details', extra: effectiveBooking),
+                      onStart: () => _startBooking(context, ref, effectiveBooking),
                       onDelete: canArchive
                           ? () => _archiveBooking(context, ref, bookingId: booking.id, isLawyer: true)
                           : null,
@@ -295,29 +356,71 @@ class _IncomingSummary extends StatelessWidget {
   }
 }
 
-class _IncomingBookingCard extends StatelessWidget {
+class _IncomingBookingCard extends StatefulWidget {
   final String name;
-  final String status;
+  final Booking booking;
   final String consultationType;
-  final DateTime scheduledAt;
   final VoidCallback onTap;
+  final VoidCallback onStart;
   final VoidCallback? onDelete;
 
   const _IncomingBookingCard({
     required this.name,
-    required this.status,
+    required this.booking,
     required this.consultationType,
-    required this.scheduledAt,
     required this.onTap,
+    required this.onStart,
     this.onDelete,
   });
 
   @override
+  State<_IncomingBookingCard> createState() => _IncomingBookingCardState();
+}
+
+class _IncomingBookingCardState extends State<_IncomingBookingCard> {
+  Timer? _timer;
+  DateTime _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _syncTicker();
+  }
+
+  @override
+  void didUpdateWidget(covariant _IncomingBookingCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.booking.status != widget.booking.status ||
+        oldWidget.booking.scheduledAt != widget.booking.scheduledAt ||
+        oldWidget.booking.paymentConfirmedAt != widget.booking.paymentConfirmedAt) {
+      _now = DateTime.now();
+      _syncTicker();
+    }
+  }
+
+  void _syncTicker() {
+    _timer?.cancel();
+    _timer = null;
+    if (widget.booking.status != 'مؤكد') return;
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final status = widget.booking.status;
     final needsReview = BookingsListPage._needsLawyerReview(status);
     final awaitsAdminReview = BookingsListPage._awaitsAdminReview(status);
-    final highlighted = needsReview || awaitsAdminReview;
+    final canStart = widget.booking.canStartAt(_now);
+    final highlighted = needsReview || awaitsAdminReview || canStart;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
@@ -325,11 +428,18 @@ class _IncomingBookingCard extends StatelessWidget {
       color: scheme.surfaceContainerLowest,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
-        side: BorderSide(color: highlighted ? scheme.primary.withValues(alpha: .38) : scheme.outlineVariant),
+        side: BorderSide(
+          color: canStart
+              ? AppColors.success.withValues(alpha: .62)
+              : highlighted
+                  ? scheme.primary.withValues(alpha: .38)
+                  : scheme.outlineVariant,
+          width: canStart ? 1.5 : 1,
+        ),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
-        onTap: onTap,
+        onTap: widget.onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -338,15 +448,26 @@ class _IncomingBookingCard extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: highlighted ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+                  color: canStart
+                      ? AppColors.acceptedBg
+                      : highlighted
+                          ? scheme.primaryContainer
+                          : scheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(Icons.person_outline_rounded, color: highlighted ? scheme.onPrimaryContainer : scheme.onSurfaceVariant),
+                child: Icon(
+                  canStart ? Icons.play_circle_outline_rounded : Icons.person_outline_rounded,
+                  color: canStart
+                      ? AppColors.success
+                      : highlighted
+                          ? scheme.onPrimaryContainer
+                          : scheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(name, textAlign: TextAlign.right, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: scheme.onSurface)),
+                  Text(widget.name, textAlign: TextAlign.right, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: scheme.onSurface)),
                   const SizedBox(height: 3),
                   Text('طالب الاستشارة', textAlign: TextAlign.right, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                 ]),
@@ -359,12 +480,28 @@ class _IncomingBookingCard extends StatelessWidget {
               padding: const EdgeInsets.all(13),
               decoration: BoxDecoration(color: scheme.surfaceContainerLow, borderRadius: BorderRadius.circular(16)),
               child: Column(children: [
-                _InfoLine(icon: Icons.gavel_rounded, label: 'نوع الاستشارة', value: consultationType),
+                _InfoLine(icon: Icons.gavel_rounded, label: 'نوع الاستشارة', value: widget.consultationType),
                 const SizedBox(height: 10),
-                _InfoLine(icon: Icons.schedule_rounded, label: 'الموعد', value: BookingsListPage._formatDate(scheduledAt)),
+                _InfoLine(icon: Icons.schedule_rounded, label: 'الموعد', value: BookingsListPage._formatDate(widget.booking.scheduledAt)),
               ]),
             ),
-            if (highlighted) ...[
+            if (canStart) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(color: AppColors.acceptedBg, borderRadius: BorderRadius.circular(14)),
+                child: const Row(children: [
+                  Icon(Icons.notifications_active_rounded, size: 19, color: AppColors.success),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'حان موعد الاستشارة — يمكنك البدء الآن',
+                      style: TextStyle(color: AppColors.acceptedText, fontWeight: FontWeight.w900, fontSize: 12.5),
+                    ),
+                  ),
+                ]),
+              ),
+            ] else if (highlighted) ...[
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -383,10 +520,10 @@ class _IncomingBookingCard extends StatelessWidget {
             ],
             const SizedBox(height: 12),
             Row(children: [
-              if (onDelete != null) ...[
+              if (widget.onDelete != null) ...[
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: onDelete,
+                    onPressed: widget.onDelete,
                     icon: Icon(Icons.delete_outline_rounded, color: scheme.error),
                     label: Text('حذف', style: TextStyle(color: scheme.error, fontWeight: FontWeight.w800)),
                     style: OutlinedButton.styleFrom(side: BorderSide(color: scheme.error.withValues(alpha: .55)), padding: const EdgeInsets.symmetric(vertical: 13)),
@@ -397,9 +534,9 @@ class _IncomingBookingCard extends StatelessWidget {
               Expanded(
                 flex: 2,
                 child: FilledButton.icon(
-                  onPressed: onTap,
-                  icon: const Icon(Icons.visibility_outlined, size: 19),
-                  label: const Text('عرض التفاصيل'),
+                  onPressed: canStart ? widget.onStart : widget.onTap,
+                  icon: Icon(canStart ? Icons.play_arrow_rounded : Icons.visibility_outlined, size: 20),
+                  label: Text(canStart ? 'بدء الاستشارة' : 'عرض التفاصيل'),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 13),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
