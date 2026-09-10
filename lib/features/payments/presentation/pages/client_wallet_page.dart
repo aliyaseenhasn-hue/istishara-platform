@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,6 +31,9 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
   XFile? _receipt;
   bool _submitting = false;
 
+  bool get _useSafeAmountKeypad =>
+      kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
   @override
   void initState() {
     super.initState();
@@ -55,6 +59,21 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
     }
     if (raw is Map) return Map<String, dynamic>.from(raw);
     return <String, dynamic>{'enabled': false};
+  }
+
+  Future<void> _editAmountWithSafeKeypad() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final value = await showModalBottomSheet<String>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: false,
+      showDragHandle: true,
+      builder: (context) => _AmountKeypadSheet(
+        initialValue: _amountController.text,
+      ),
+    );
+    if (value == null || !mounted) return;
+    setState(() => _amountController.text = value);
   }
 
   Future<void> _pickReceipt() async {
@@ -205,12 +224,14 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
                   transactionController: _transactionController,
                   amountFocusNode: _amountFocusNode,
                   transactionFocusNode: _transactionFocusNode,
+                  useSafeAmountKeypad: _useSafeAmountKeypad,
                   receipt: _receipt,
                   submitting: _submitting,
                   onCopy: (value) async {
                     await Clipboard.setData(ClipboardData(text: value));
                     _message('تم نسخ رقم الحساب/المحفظة.');
                   },
+                  onEditAmount: _editAmountWithSafeKeypad,
                   onPickReceipt: _pickReceipt,
                   onSubmit: settings['enabled'] == true ? _submit : null,
                 );
@@ -309,9 +330,11 @@ class _TopupCard extends StatelessWidget {
   final TextEditingController transactionController;
   final FocusNode amountFocusNode;
   final FocusNode transactionFocusNode;
+  final bool useSafeAmountKeypad;
   final XFile? receipt;
   final bool submitting;
   final ValueChanged<String> onCopy;
+  final VoidCallback onEditAmount;
   final VoidCallback onPickReceipt;
   final VoidCallback? onSubmit;
 
@@ -321,12 +344,49 @@ class _TopupCard extends StatelessWidget {
     required this.transactionController,
     required this.amountFocusNode,
     required this.transactionFocusNode,
+    required this.useSafeAmountKeypad,
     required this.receipt,
     required this.submitting,
     required this.onCopy,
+    required this.onEditAmount,
     required this.onPickReceipt,
     required this.onSubmit,
   });
+
+  Widget _safeAmountField({required bool enabled}) {
+    final value = amountController.text.trim();
+    return Semantics(
+      button: true,
+      label: 'مبلغ الشحن بالدينار',
+      child: InkWell(
+        onTap: enabled && !submitting ? onEditAmount : null,
+        borderRadius: BorderRadius.circular(12),
+        child: IgnorePointer(
+          child: InputDecorator(
+            isEmpty: value.isEmpty,
+            decoration: InputDecoration(
+              enabled: enabled && !submitting,
+              labelText: 'مبلغ الشحن بالدينار',
+              prefixIcon: const Icon(Icons.payments_outlined),
+              suffixIcon: const Icon(Icons.dialpad_rounded),
+            ),
+            child: Text(
+              value.isEmpty ? 'اضغط لإدخال المبلغ' : value,
+              textAlign: TextAlign.right,
+              textDirection: TextDirection.ltr,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: enabled
+                    ? null
+                    : Colors.grey,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -378,20 +438,24 @@ class _TopupCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: amountController,
-              focusNode: amountFocusNode,
-              enabled: enabled && !submitting,
-              keyboardType: TextInputType.number,
-              textInputAction: TextInputAction.next,
-              scrollPadding: const EdgeInsets.symmetric(vertical: 16),
-              onSubmitted: (_) => transactionFocusNode.requestFocus(),
-              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-              decoration: const InputDecoration(
-                labelText: 'مبلغ الشحن بالدينار',
-                prefixIcon: Icon(Icons.payments_outlined),
+            if (useSafeAmountKeypad)
+              _safeAmountField(enabled: enabled)
+            else
+              TextField(
+                controller: amountController,
+                focusNode: amountFocusNode,
+                enabled: enabled && !submitting,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+                scrollPadding: const EdgeInsets.symmetric(vertical: 16),
+                onSubmitted: (_) => transactionFocusNode.requestFocus(),
+                onTapOutside: (_) =>
+                    FocusManager.instance.primaryFocus?.unfocus(),
+                decoration: const InputDecoration(
+                  labelText: 'مبلغ الشحن بالدينار',
+                  prefixIcon: Icon(Icons.payments_outlined),
+                ),
               ),
-            ),
             const SizedBox(height: 10),
             TextField(
               controller: transactionController,
@@ -451,6 +515,149 @@ class _TopupCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AmountKeypadSheet extends StatefulWidget {
+  final String initialValue;
+
+  const _AmountKeypadSheet({required this.initialValue});
+
+  @override
+  State<_AmountKeypadSheet> createState() => _AmountKeypadSheetState();
+}
+
+class _AmountKeypadSheetState extends State<_AmountKeypadSheet> {
+  late String _digits;
+
+  @override
+  void initState() {
+    super.initState();
+    _digits = widget.initialValue.replaceAll(RegExp(r'[^0-9]'), '');
+  }
+
+  int get _amount => int.tryParse(_digits) ?? 0;
+
+  String get _formattedAmount =>
+      NumberFormat('#,##0', 'ar').format(_amount);
+
+  void _append(String digit) {
+    if (_digits.length >= 10) return;
+    setState(() {
+      if (_digits == '0') _digits = '';
+      _digits += digit;
+    });
+  }
+
+  void _backspace() {
+    if (_digits.isEmpty) return;
+    setState(() => _digits = _digits.substring(0, _digits.length - 1));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final keys = <String>['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'أدخل مبلغ الشحن',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              '$_formattedAmount د.ع',
+              textAlign: TextAlign.center,
+              textDirection: TextDirection.rtl,
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+            ),
+          ),
+          const SizedBox(height: 14),
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 2.0,
+            children: keys
+                .map(
+                  (digit) => OutlinedButton(
+                    onPressed: () => _append(digit),
+                    child: Text(
+                      digit,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _digits.isEmpty
+                      ? null
+                      : () => setState(() => _digits = ''),
+                  child: const Text('مسح'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _append('0'),
+                  child: const Text(
+                    '0',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _digits.isEmpty ? null : _backspace,
+                  icon: const Icon(Icons.backspace_outlined),
+                  label: const Text('حذف'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _amount >= 1000
+                  ? () => Navigator.of(context).pop(_amount.toString())
+                  : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.teal,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: const Text(
+                'اعتماد المبلغ',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
