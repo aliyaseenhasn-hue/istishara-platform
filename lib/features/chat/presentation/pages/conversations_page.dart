@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../core/config/supabase_config.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../shared/widgets/loading_widget.dart';
 import '../providers/chat_provider.dart';
 
 final conversationsListProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
@@ -53,12 +56,12 @@ class ConversationsPage extends ConsumerWidget {
         ),
       ),
       body: conversations.when(
-        loading: () => Center(child: CircularProgressIndicator(color: scheme.primary)),
+        loading: () => const LoadingWidget(size: 30),
         error: (error, _) => _StateView(
           icon: Icons.cloud_off_rounded,
           title: 'تعذر تحميل المحادثات',
           message: error.toString().replaceFirst('Exception: ', ''),
-          action: TextButton.icon(
+          action: FilledButton.tonalIcon(
             onPressed: () => ref.invalidate(conversationsListProvider),
             icon: const Icon(Icons.refresh_rounded),
             label: const Text('إعادة المحاولة'),
@@ -74,7 +77,7 @@ class ConversationsPage extends ConsumerWidget {
           }
 
           return RefreshIndicator(
-            color: scheme.primary,
+            color: AppColors.teal,
             onRefresh: () async => ref.invalidate(conversationsListProvider),
             child: ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(),
