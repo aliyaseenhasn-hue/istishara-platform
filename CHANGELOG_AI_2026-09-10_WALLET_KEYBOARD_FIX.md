@@ -48,7 +48,16 @@
 - أثناء ظهور لوحة المفاتيح يتم تجاهل resize الخاص بالـvisual viewport، ويبقى ارتفاع صفحة Flutter مستقراً.
 - بعد إغلاق الحقل/لوحة المفاتيح يعاد مزامنة الارتفاع بأمان مع `window.innerHeight`.
 - دوران الشاشة ما زال يعيد حساب الارتفاع بعد مهلة قصيرة، لذلك لم يتم التضحية بدعم تغيير الاتجاه.
-- `web/404.html` لا يحتوي أصلاً كود `visualViewport` المسبب للمشكلة، لذلك لم يحتج إلى نفس التعديل.
+- `web/404.html` لا يحتوي أصلاً كود `visualViewport` المسبب للمشكلة، لذلك لم يحتج إلى منطق معالجة مماثل.
+
+## الإصلاح 4 — إجبار PWA على استلام غلاف الويب الجديد
+- تم رفع Cache الخاص بالـService Worker من `astshara-pwa-v10` إلى `astshara-pwa-v11` في `web/pwa_service_worker_v5.js`.
+- commit: `275401a4eb033a71cb8f77b2f40a37d6b2675d7f`.
+- تم تحديث تسجيل الـService Worker في `web/index.html` إلى `?v=11`.
+- commit: `6aeea0b0e13fb0a569cc60d32d1eeb6f4d0f46b2`.
+- تم تحديث تسجيل النسخة نفسها في `web/404.html` حتى تكون صفحة fallback متوافقة مع الغلاف الجديد.
+- commit: `1938cb0a49b5720212388df3031c559f6619ca5a`.
+- الهدف من رفع النسخة هو حذف Cache `v10` عند تفعيل العامل الجديد ومنع بقاء PWA على غلاف قديم أثناء اختبار الإصلاح.
 
 ## النطاق
 - لم يتغير منطق الشحن أو رفع الإيصال أو اعتماد الإدارة أو رصيد المحفظة.
@@ -57,7 +66,7 @@
 
 ## التحقق
 - الإصلاح السابق حتى `9f71643e4ffca7df28bccdab766bec034156c1fe` وصل فعلياً إلى GitHub Pages بنجاح، واستمرار المشكلة بعده أثبت الحاجة إلى إصلاح طبقة `visualViewport`.
-- يجب اعتماد GitHub Actions على HEAD الجديد بعد commit `e8ea9164721145edb2e18969a01b9cb81e3c44cc`:
+- يجب اعتماد GitHub Actions على آخر HEAD بعد إصلاح `visualViewport` ورفع Service Worker إلى `v11`:
   - Flutter Analyze.
   - Flutter Tests.
   - Flutter Web Build.
