@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' show DateFormat, NumberFormat;
 
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -65,12 +65,26 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
     FocusManager.instance.primaryFocus?.unfocus();
     final value = await showModalBottomSheet<String>(
       context: context,
+      useRootNavigator: true,
       useSafeArea: true,
-      isScrollControlled: false,
-      showDragHandle: true,
-      builder: (context) => _AmountKeypadSheet(
-        initialValue: _amountController.text,
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: .45),
+      builder: (sheetContext) {
+        final scheme = Theme.of(sheetContext).colorScheme;
+        final availableHeight = MediaQuery.sizeOf(sheetContext).height;
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: availableHeight * .72),
+          child: Material(
+            color: scheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            clipBehavior: Clip.antiAlias,
+            child: _AmountKeypadSheet(
+              initialValue: _amountController.text,
+            ),
+          ),
+        );
+      },
     );
     if (value == null || !mounted) return;
     setState(() => _amountController.text = value);
@@ -353,31 +367,86 @@ class _TopupCard extends StatelessWidget {
     required this.onSubmit,
   });
 
-  Widget _safeAmountField({required bool enabled}) {
-    final value = amountController.text.trim();
+  Widget _safeAmountField(BuildContext context, {required bool enabled}) {
+    final scheme = Theme.of(context).colorScheme;
+    final rawValue = amountController.text.trim();
+    final parsed = int.tryParse(rawValue.replaceAll(',', ''));
+    final formattedValue = parsed == null
+        ? rawValue
+        : NumberFormat('#,##0', 'ar').format(parsed);
+    final active = enabled && !submitting;
+
     return Semantics(
       button: true,
+      enabled: active,
       label: 'مبلغ الشحن بالدينار',
-      child: InkWell(
-        onTap: enabled && !submitting ? onEditAmount : null,
-        borderRadius: BorderRadius.circular(12),
-        child: IgnorePointer(
-          child: InputDecorator(
-            isEmpty: value.isEmpty,
-            decoration: InputDecoration(
-              enabled: enabled && !submitting,
-              labelText: 'مبلغ الشحن بالدينار',
-              prefixIcon: const Icon(Icons.payments_outlined),
-              suffixIcon: const Icon(Icons.dialpad_rounded),
-            ),
-            child: Text(
-              value.isEmpty ? 'اضغط لإدخال المبلغ' : value,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: enabled ? null : Colors.grey,
+      value: rawValue,
+      child: Material(
+        color: active
+            ? scheme.surfaceContainerLowest
+            : scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: active ? onEditAmount : null,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 74),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: active ? scheme.outline : scheme.outlineVariant,
+                width: 1.1,
               ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.payments_outlined,
+                  color: active ? AppColors.primary : scheme.outline,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'مبلغ الشحن بالدينار',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        rawValue.isEmpty
+                            ? 'اضغط لإدخال المبلغ'
+                            : '$formattedValue د.ع',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: rawValue.isEmpty ? 15 : 19,
+                          fontWeight: rawValue.isEmpty
+                              ? FontWeight.w600
+                              : FontWeight.w900,
+                          color: rawValue.isEmpty
+                              ? scheme.onSurfaceVariant
+                              : scheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Icon(
+                  Icons.dialpad_rounded,
+                  color: active ? AppColors.teal : scheme.outline,
+                ),
+              ],
             ),
           ),
         ),
@@ -436,7 +505,7 @@ class _TopupCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (useSafeAmountKeypad)
-              _safeAmountField(enabled: enabled)
+              _safeAmountField(context, enabled: enabled)
             else
               TextField(
                 controller: amountController,
@@ -537,8 +606,7 @@ class _AmountKeypadSheetState extends State<_AmountKeypadSheet> {
 
   int get _amount => int.tryParse(_digits) ?? 0;
 
-  String get _formattedAmount =>
-      NumberFormat('#,##0', 'ar').format(_amount);
+  String get _formattedAmount => NumberFormat('#,##0', 'ar').format(_amount);
 
   void _append(String digit) {
     if (_digits.length >= 10) return;
@@ -553,107 +621,153 @@ class _AmountKeypadSheetState extends State<_AmountKeypadSheet> {
     setState(() => _digits = _digits.substring(0, _digits.length - 1));
   }
 
+  Widget _digitButton(String digit) => SizedBox(
+        height: 52,
+        child: OutlinedButton(
+          onPressed: () => _append(digit),
+          style: OutlinedButton.styleFrom(
+            padding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          child: Text(
+            digit,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+          ),
+        ),
+      );
+
+  Widget _digitRow(List<String> digits) => Row(
+        children: [
+          for (var index = 0; index < digits.length; index++) ...[
+            Expanded(child: _digitButton(digits[index])),
+            if (index != digits.length - 1) const SizedBox(width: 8),
+          ],
+        ],
+      );
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final keys = <String>['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'أدخل مبلغ الشحن',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(16),
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 42,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: scheme.outlineVariant,
+                borderRadius: BorderRadius.circular(99),
+              ),
             ),
-            child: Text(
-              '$_formattedAmount د.ع',
+            const Text(
+              'أدخل مبلغ الشحن',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              'أدخل المبلغ الذي قمت بتحويله فعلياً',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+              style: TextStyle(
+                fontSize: 13,
+                color: scheme.onSurfaceVariant,
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
-          GridView.count(
-            crossAxisCount: 3,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 2.0,
-            children: keys
-                .map(
-                  (digit) => OutlinedButton(
-                    onPressed: () => _append(digit),
-                    child: Text(
-                      digit,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer.withValues(alpha: .55),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                '$_formattedAmount د.ع',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 25,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _digitRow(const ['1', '2', '3']),
+            const SizedBox(height: 8),
+            _digitRow(const ['4', '5', '6']),
+            const SizedBox(height: 8),
+            _digitRow(const ['7', '8', '9']),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      onPressed: _digits.isEmpty ? null : _backspace,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
+                      icon: const Icon(Icons.backspace_outlined, size: 19),
+                      label: const Text('حذف'),
                     ),
                   ),
-                )
-                .toList(),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _digits.isEmpty
-                      ? null
-                      : () => setState(() => _digits = ''),
-                  child: const Text('مسح'),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => _append('0'),
-                  child: const Text(
-                    '0',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                const SizedBox(width: 8),
+                Expanded(child: _digitButton('0')),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: SizedBox(
+                    height: 52,
+                    child: OutlinedButton(
+                      onPressed: _digits.isEmpty
+                          ? null
+                          : () => setState(() => _digits = ''),
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text('مسح'),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _digits.isEmpty ? null : _backspace,
-                  icon: const Icon(Icons.backspace_outlined),
-                  label: const Text('حذف'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: FilledButton(
+                onPressed: _amount >= 1000
+                    ? () => Navigator.of(context).pop(_amount.toString())
+                    : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.teal,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text(
+                  'اعتماد المبلغ',
+                  style: TextStyle(fontWeight: FontWeight.w900),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _amount >= 1000
-                  ? () => Navigator.of(context).pop(_amount.toString())
-                  : null,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.teal,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              child: const Text(
-                'اعتماد المبلغ',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
