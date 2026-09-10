@@ -299,13 +299,11 @@ class BookingDetailsPage extends ConsumerWidget {
                 icon: const Icon(Icons.check_circle_outline),
                 label: const Text('إنهاء الاستشارة'),
               ),
-            if (_canReportNoShow(isLawyer, currentBooking))
-              OutlinedButton.icon(
-                onPressed: () => _reportNoShow(context, ref, isLawyer),
-                icon: const Icon(Icons.report_problem_outlined),
-                label: Text(
-                  isLawyer ? 'الإبلاغ عن عدم حضور طالب الاستشارة' : 'الإبلاغ عن عدم حضور المحامي',
-                ),
+            if (_canPotentiallyReportNoShow(isLawyer, currentBooking))
+              _NoShowReportAction(
+                isLawyer: isLawyer,
+                booking: currentBooking,
+                onReport: () => _reportNoShow(context, ref, isLawyer),
               ),
             if (isOwner && currentStatus == 'مكتمل')
               ElevatedButton.icon(
@@ -390,20 +388,12 @@ class BookingDetailsPage extends ConsumerWidget {
     );
   }
 
-  bool _canReportNoShow(bool isLawyer, Booking current) {
-    final now = DateTime.now();
+  bool _canPotentiallyReportNoShow(bool isLawyer, Booking current) {
     if (isLawyer) {
-      if (current.status == 'مؤكد') {
-        return !now.isBefore(current.scheduledAt.add(const Duration(minutes: 10)));
-      }
-      if (current.status == 'قيد التنفيذ' && current.startedAt != null) {
-        return !now.isBefore(current.startedAt!.add(const Duration(minutes: 10)));
-      }
-      return false;
+      return current.status == 'مؤكد' ||
+          (current.status == 'قيد التنفيذ' && current.startedAt != null);
     }
-    return current.status == 'مؤكد' &&
-        current.startedAt == null &&
-        !now.isBefore(current.scheduledAt.add(const Duration(minutes: 10)));
+    return current.status == 'مؤكد' && current.startedAt == null;
   }
 
   Future<void> _review(BuildContext context, WidgetRef ref, bool approved) async {
@@ -588,6 +578,110 @@ class BookingDetailsPage extends ConsumerWidget {
               style: TextStyle(color: s.onPrimaryContainer, height: 1.45),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoShowReportAction extends StatefulWidget {
+  final bool isLawyer;
+  final Booking booking;
+  final VoidCallback onReport;
+
+  const _NoShowReportAction({
+    required this.isLawyer,
+    required this.booking,
+    required this.onReport,
+  });
+
+  @override
+  State<_NoShowReportAction> createState() => _NoShowReportActionState();
+}
+
+class _NoShowReportActionState extends State<_NoShowReportAction> {
+  Timer? _timer;
+  DateTime _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _NoShowReportAction oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.booking.status != widget.booking.status ||
+        oldWidget.booking.startedAt != widget.booking.startedAt ||
+        oldWidget.booking.scheduledAt != widget.booking.scheduledAt ||
+        oldWidget.booking.paymentConfirmedAt != widget.booking.paymentConfirmedAt ||
+        oldWidget.booking.packageDurationMinutes != widget.booking.packageDurationMinutes) {
+      _now = DateTime.now();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  int get _duration => widget.booking.packageDurationMinutes > 0
+      ? widget.booking.packageDurationMinutes
+      : 30;
+
+  DateTime get _eligibleAt {
+    final booking = widget.booking;
+    if (booking.status == 'قيد التنفيذ' && booking.startedAt != null) {
+      return booking.startedAt!.add(Duration(minutes: _duration));
+    }
+
+    var eligibleAt = booking.scheduledAt.add(Duration(minutes: _duration));
+    final confirmedAt = booking.paymentConfirmedAt;
+    if (booking.paymentRequired &&
+        confirmedAt != null &&
+        confirmedAt.isAfter(booking.scheduledAt)) {
+      final delayedStartDeadline = confirmedAt.add(const Duration(hours: 1));
+      if (delayedStartDeadline.isAfter(eligibleAt)) {
+        eligibleAt = delayedStartDeadline;
+      }
+    }
+    return eligibleAt;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = !_now.isBefore(_eligibleAt);
+    final scheme = Theme.of(context).colorScheme;
+    final label = widget.isLawyer
+        ? 'الإبلاغ عن عدم حضور طالب الاستشارة'
+        : 'الإبلاغ عن عدم حضور المحامي';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          OutlinedButton.icon(
+            onPressed: enabled ? widget.onReport : null,
+            icon: const Icon(Icons.report_problem_outlined),
+            label: Text(label),
+          ),
+          if (!enabled) ...[
+            const SizedBox(height: 6),
+            Text(
+              'يتاح الإبلاغ عن عدم الحضور بعد انتهاء وقت الاستشارة عند ${AppTimeFormat.time12(_eligibleAt)}.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: scheme.onSurfaceVariant,
+                fontSize: 11.5,
+                height: 1.4,
+              ),
+            ),
+          ],
         ],
       ),
     );
