@@ -17,7 +17,7 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/istishara-platform/pwa_service_worker_v5.js?v=11', {
+        navigator.serviceWorker.register('/istishara-platform/pwa_service_worker_v5.js?v=12', {
           scope: '/istishara-platform/',
           updateViaCache: 'none'
         }).catch(function (error) { console.warn('PWA service worker registration failed:', error); });
