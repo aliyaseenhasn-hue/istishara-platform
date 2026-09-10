@@ -24,12 +24,31 @@ external JSString _getPushDeviceKey();
 
 class PwaNotificationService {
   static const String _vapidPublicKey = String.fromEnvironment('VAPID_PUBLIC_KEY');
+  static const String _explicitOptOutKey = 'astshara_pwa_push_explicit_opt_out_v1';
   static StreamSubscription<AuthState>? _authSubscription;
   static Timer? _repairTimer;
   static bool _initialized = false;
   static bool _syncInProgress = false;
 
   static bool get supported => _vapidPublicKey.isNotEmpty;
+
+  static bool get _explicitlyOptedOut {
+    try {
+      return web.window.localStorage.getItem(_explicitOptOutKey) == '1';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static void _setExplicitOptOut(bool value) {
+    try {
+      if (value) {
+        web.window.localStorage.setItem(_explicitOptOutKey, '1');
+      } else {
+        web.window.localStorage.removeItem(_explicitOptOutKey);
+      }
+    } catch (_) {}
+  }
 
   static Future<void> initialize() async {
     if (!supported || _initialized) return;
@@ -59,7 +78,7 @@ class PwaNotificationService {
   }
 
   static Future<bool> isEnabled() async {
-    if (!supported) return false;
+    if (!supported || _explicitlyOptedOut) return false;
     try {
       final state = jsonDecode((await _getPushState().toDart).toDart) as Map<String, dynamic>;
       return state['permission'] == 'granted' && state['subscribed'] == true;
@@ -105,6 +124,7 @@ class PwaNotificationService {
   }
 
   static Future<String?> _existingOrRecreatedSubscription() async {
+    if (_explicitlyOptedOut) return null;
     final state = jsonDecode((await _getPushState().toDart).toDart) as Map<String, dynamic>;
     if (state['permission'] != 'granted') return null;
 
@@ -123,7 +143,9 @@ class PwaNotificationService {
     try {
       final result = await _enablePush(_vapidPublicKey.toJS).toDart;
       if (result == null) return false;
-      return _registerSubscription(result.toDart);
+      final registered = await _registerSubscription(result.toDart);
+      if (registered) _setExplicitOptOut(false);
+      return registered;
     } catch (_) {
       return false;
     }
@@ -133,7 +155,12 @@ class PwaNotificationService {
   /// authenticated account. If the browser permission survived but the
   /// subscription/database row did not, it repairs both automatically.
   static Future<bool> syncForCurrentUser() async {
-    if (!supported || SupabaseConfig.client.auth.currentUser == null || _syncInProgress) return false;
+    if (!supported ||
+        _explicitlyOptedOut ||
+        SupabaseConfig.client.auth.currentUser == null ||
+        _syncInProgress) {
+      return false;
+    }
     _syncInProgress = true;
     try {
       for (var attempt = 0; attempt < 3; attempt++) {
@@ -180,6 +207,9 @@ class PwaNotificationService {
   static Future<bool> disable() async {
     if (!supported) return true;
 
+    // Remember the user's explicit choice so automatic repair never turns a
+    // deliberately disabled notification subscription back on.
+    _setExplicitOptOut(true);
     await releaseForCurrentUser();
     try {
       return (await _disablePush().toDart).toDart;
