@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../shared/widgets/loading_widget.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../../../lawyers/domain/entities/lawyer_profile.dart';
 import '../../../payments/presentation/providers/client_wallet_provider.dart';
@@ -275,12 +276,17 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
       appBar: AppBar(centerTitle: true, elevation: 0, title: const Text('طلب استشارة', style: TextStyle(fontWeight: FontWeight.w900))),
       body: SafeArea(
         child: slots.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const LoadingWidget(size: 30),
           error: (_, __) => _StateView(
             icon: Icons.cloud_off_outlined,
             title: 'تعذر تحميل المواعيد',
             message: 'تعذر التحقق من مواعيد المحامي حالياً. حاول مرة أخرى.',
-            action: FilledButton.icon(onPressed: () => ref.invalidate(availableSlotsProvider(widget.lawyer.profileId)), icon: const Icon(Icons.refresh_rounded), label: const Text('إعادة المحاولة')),
+            action: FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.teal, foregroundColor: Colors.white),
+              onPressed: () => ref.invalidate(availableSlotsProvider(widget.lawyer.profileId)),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('إعادة المحاولة'),
+            ),
           ),
           data: (items) {
             final selected = _selectedSlot;
@@ -335,7 +341,14 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                     height: 52,
                     child: FilledButton.icon(
                       onPressed: state.isLoading ? null : _continue,
-                      icon: state.isLoading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : Icon(_step == 3 ? Icons.check_rounded : Icons.arrow_forward_rounded),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _step == 3 ? AppColors.teal : AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      icon: state.isLoading
+                          ? const SizedBox(width: 22, height: 22, child: LoadingWidget(size: 18, color: Colors.white))
+                          : Icon(_step == 3 ? Icons.check_rounded : Icons.arrow_forward_rounded),
                       label: Text(_step == 3 ? 'إرسال طلب الاستشارة' : 'متابعة', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                     ),
                   ),
@@ -560,7 +573,18 @@ class _NoSlotsView extends StatelessWidget {
           const SizedBox(height: 10),
           Text('لم ينشر هذا المحامي مواعيد حالياً. يمكنك تحديد الأوقات التي تناسبك وإرسالها له، أو متابعته ليصلك إشعار عند إضافة مواعيد.', textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant, height: 1.6)),
           const SizedBox(height: 24),
-          SizedBox(width: double.infinity, height: 50, child: FilledButton.icon(onPressed: loading ? null : onFollow, icon: loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.notifications_active_outlined), label: const Text('تابع المحامي', style: TextStyle(fontWeight: FontWeight.w800)))),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.teal, foregroundColor: Colors.white),
+              onPressed: loading ? null : onFollow,
+              icon: loading
+                  ? const SizedBox(width: 22, height: 22, child: LoadingWidget(size: 18, color: Colors.white))
+                  : const Icon(Icons.notifications_active_outlined),
+              label: const Text('تابع المحامي', style: TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ),
           const SizedBox(height: 10),
           SizedBox(width: double.infinity, height: 48, child: OutlinedButton(onPressed: loading ? null : onCancel, child: const Text('إلغاء'))),
         ]),
