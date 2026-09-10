@@ -49,49 +49,10 @@
     :root { color-scheme: light dark; }
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; min-height: 100%; background: #F7F8F6; direction: rtl; overflow: hidden; overscroll-behavior: none; }
     body { font-family: 'Cairo', sans-serif; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-    /* iOS Safari can auto-zoom focused DOM inputs below 16px. Flutter Web
-       uses DOM inputs internally for text editing, so keep those editing
-       surfaces at a 16px floor without changing the painted Flutter field. */
-    input, textarea, [contenteditable="true"] { font-size: 16px !important; }
   </style>
 </head>
 <body>
   <script>
-    (function () {
-      function isEditingText() {
-        var element = document.activeElement;
-        if (!element) return false;
-        var tagName = (element.tagName || '').toUpperCase();
-        return tagName === 'INPUT' || tagName === 'TEXTAREA' || element.isContentEditable === true;
-      }
-
-      function keyboardLooksOpen() {
-        if (!window.visualViewport) return false;
-        return (window.innerHeight - window.visualViewport.height) > 120;
-      }
-
-      function syncViewportHeight(force) {
-        // iOS Safari/PWA shrinks visualViewport while its keyboard is open.
-        // Never copy that reduced height to html/body or Flutter itself gets
-        // squeezed to the small area above the keyboard.
-        if (!force && (isEditingText() || keyboardLooksOpen())) return;
-        var height = window.innerHeight;
-        document.documentElement.style.height = height + 'px';
-        document.body.style.height = height + 'px';
-      }
-
-      syncViewportHeight(true);
-      window.addEventListener('resize', function () {
-        syncViewportHeight(false);
-      }, { passive: true });
-      window.addEventListener('orientationchange', function () {
-        setTimeout(function () { syncViewportHeight(true); }, 180);
-      }, { passive: true });
-      document.addEventListener('focusout', function () {
-        setTimeout(function () { syncViewportHeight(false); }, 250);
-      }, { passive: true });
-    })();
-
     window.astsharaGetPushDeviceKey = function() {
       try {
         const storageKey = 'astshara_push_device_key_v1';
@@ -175,7 +136,7 @@
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('pwa_service_worker_v5.js?v=11', { scope: './', updateViaCache: 'none' }).catch((error) => console.warn('PWA service worker registration failed:', error));
+        navigator.serviceWorker.register('pwa_service_worker_v5.js?v=12', { scope: './', updateViaCache: 'none' }).catch((error) => console.warn('PWA service worker registration failed:', error));
       });
     }
   </script>
