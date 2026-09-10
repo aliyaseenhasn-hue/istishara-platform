@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/supabase_config.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../shared/widgets/loading_widget.dart';
 import '../../data/models/booking_model.dart';
 import '../../domain/entities/booking.dart';
 import 'booking_cancellation_overlay.dart';
@@ -57,9 +59,7 @@ class _BookingNotificationTargetPageState
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const Scaffold(body: LoadingWidget(size: 30));
         }
 
         if (snapshot.hasError || snapshot.data == null) {
@@ -81,6 +81,10 @@ class _BookingNotificationTargetPageState
                     const SizedBox(height: 14),
                     FilledButton.icon(
                       onPressed: _retry,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.teal,
+                        foregroundColor: Colors.white,
+                      ),
                       icon: const Icon(Icons.refresh_rounded),
                       label: const Text('إعادة المحاولة'),
                     ),
