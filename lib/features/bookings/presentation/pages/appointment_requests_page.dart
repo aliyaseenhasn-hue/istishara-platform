@@ -7,7 +7,10 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/config/supabase_config.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/user_facing_error.dart';
+import '../../../../shared/styles/priority_visuals.dart';
+import '../../../../shared/widgets/loading_widget.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../../../payments/presentation/providers/client_wallet_provider.dart';
 import '../providers/bookings_provider.dart';
@@ -67,13 +70,9 @@ class _AppointmentRequestsPageState
   }
 
   Future<List<Map<String, dynamic>>> _load() async {
-    // Expire due requests immediately when either participant opens this page.
-    // The scheduled DB job remains the fallback when nobody has the app open.
     try {
       await SupabaseConfig.client.rpc('expire_stale_custom_appointment_requests');
-    } catch (_) {
-      // Do not block reading the request history if the housekeeping call fails.
-    }
+    } catch (_) {}
 
     final rows = await SupabaseConfig.client
         .from('custom_appointment_requests')
@@ -227,6 +226,10 @@ class _AppointmentRequestsPageState
               child: const Text('إلغاء'),
             ),
             FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.teal,
+                foregroundColor: Colors.white,
+              ),
               onPressed: options.isEmpty
                   ? null
                   : () => Navigator.pop(dialogContext, true),
@@ -355,6 +358,10 @@ class _AppointmentRequestsPageState
             child: const Text('رجوع'),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () {
               final value = controller.text.trim();
               if (value.isNotEmpty) Navigator.pop(dialogContext, value);
@@ -445,6 +452,10 @@ class _AppointmentRequestsPageState
               child: const Text('إلغاء'),
             ),
             FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.goldDark,
+                foregroundColor: Colors.white,
+              ),
               onPressed: windows.isEmpty
                   ? null
                   : () => Navigator.pop(dialogContext, true),
@@ -600,7 +611,7 @@ class _AppointmentRequestsPageState
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const LoadingWidget(size: 30);
           }
           if (snapshot.hasError) {
             return Center(
@@ -628,6 +639,7 @@ class _AppointmentRequestsPageState
           _focusAfterBuild(items);
           final focusId = widget.focusRequestId?.trim();
           return RefreshIndicator(
+            color: AppColors.teal,
             onRefresh: _refresh,
             child: ListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 40),
@@ -728,23 +740,30 @@ class _RequestCard extends StatelessWidget {
     final price = double.tryParse('${request['price'] ?? 0}') ?? 0;
     final expiry = _date(request['expires_at']);
     final expiredAt = _date(request['expired_at']);
+    final visual = PriorityVisuals.consultation(status);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: focused
-            ? scheme.primaryContainer.withValues(alpha: .35)
-            : scheme.surfaceContainerLowest,
+            ? Color.alphaBlend(
+                visual.accent.withValues(alpha: .15),
+                scheme.surface,
+              )
+            : Color.alphaBlend(
+                visual.accent.withValues(alpha: visual.level >= 3 ? .065 : .025),
+                scheme.surface,
+              ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: focused ? scheme.primary : scheme.outlineVariant,
-          width: focused ? 2.2 : 1,
+          color: visual.accent.withValues(alpha: focused ? .85 : .42),
+          width: focused ? 2.2 : visual.level >= 3 ? 1.4 : 1,
         ),
         boxShadow: focused
             ? [
                 BoxShadow(
-                  color: scheme.primary.withValues(alpha: .16),
+                  color: visual.accent.withValues(alpha: .16),
                   blurRadius: 14,
                   offset: const Offset(0, 4),
                 ),
@@ -758,7 +777,7 @@ class _RequestCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.event_note_outlined, color: scheme.primary),
+                Icon(visual.icon, color: visual.accent),
                 const SizedBox(width: 9),
                 Expanded(
                   child: Text(
@@ -778,7 +797,7 @@ class _RequestCard extends StatelessWidget {
                 'تم فتح هذا الطلب من الإشعار',
                 textAlign: TextAlign.right,
                 style: TextStyle(
-                  color: scheme.primary,
+                  color: visual.accent,
                   fontWeight: FontWeight.w800,
                   fontSize: 12,
                 ),
@@ -795,9 +814,9 @@ class _RequestCard extends StatelessWidget {
                 '${pendingLawyer ? (isLawyer ? 'مهلة ردك' : 'مهلة رد المحامي') : (isLawyer ? 'مهلة رد العميل' : 'مهلة ردك')} تنتهي: ${AppointmentRequestsPageStateDate.format(expiry)}',
                 textAlign: TextAlign.right,
                 style: TextStyle(
-                  color: scheme.onSurfaceVariant,
+                  color: AppColors.pendingText,
                   fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -806,9 +825,9 @@ class _RequestCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(13),
                 decoration: BoxDecoration(
-                  color: scheme.errorContainer.withValues(alpha: .45),
+                  color: AppColors.errorContainer,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: scheme.error.withValues(alpha: .35)),
+                  border: Border.all(color: AppColors.error.withValues(alpha: .35)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -816,8 +835,8 @@ class _RequestCard extends StatelessWidget {
                     Text(
                       _expiredMessage(expiredWaitingOn),
                       textAlign: TextAlign.right,
-                      style: TextStyle(
-                        color: scheme.onErrorContainer,
+                      style: const TextStyle(
+                        color: AppColors.cancelledText,
                         fontWeight: FontWeight.w800,
                         height: 1.45,
                       ),
@@ -827,8 +846,8 @@ class _RequestCard extends StatelessWidget {
                       Text(
                         'وقت الإلغاء: ${AppointmentRequestsPageStateDate.format(expiredAt)}',
                         textAlign: TextAlign.right,
-                        style: TextStyle(
-                          color: scheme.onErrorContainer.withValues(alpha: .78),
+                        style: const TextStyle(
+                          color: AppColors.cancelledText,
                           fontSize: 11,
                         ),
                       ),
@@ -839,6 +858,10 @@ class _RequestCard extends StatelessWidget {
               if (!isLawyer) ...[
                 const SizedBox(height: 10),
                 FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.teal,
+                    foregroundColor: Colors.white,
+                  ),
                   onPressed: onRebook,
                   icon: const Icon(Icons.refresh_rounded),
                   label: const Text('احجز مرة أخرى'),
@@ -903,6 +926,10 @@ class _RequestCard extends StatelessWidget {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      foregroundColor: Colors.white,
+                    ),
                     onPressed: busy || start == null
                         ? null
                         : () => onConfirm(entry.key),
@@ -921,16 +948,23 @@ class _RequestCard extends StatelessWidget {
               Text(
                 '${rejectedBy == 'client' ? 'سبب رفض العميل' : rejectedBy == 'lawyer' ? 'سبب رفض المحامي' : 'سبب الرفض'}: ${request['rejection_reason']}',
                 textAlign: TextAlign.right,
-                style: TextStyle(color: scheme.error),
+                style: const TextStyle(color: AppColors.error),
               ),
             ],
             if (busy) ...[
               const SizedBox(height: 12),
-              const LinearProgressIndicator(),
+              LinearProgressIndicator(
+                color: visual.accent,
+                backgroundColor: visual.background,
+              ),
             ],
             if (isLawyer && pendingLawyer) ...[
               const SizedBox(height: 14),
               FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.teal,
+                  foregroundColor: Colors.white,
+                ),
                 onPressed: busy ? null : onLawyerAccept,
                 icon: const Icon(Icons.schedule_rounded),
                 label: const Text('اختيار وقت من اقتراح العميل'),
@@ -940,6 +974,10 @@ class _RequestCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                        side: BorderSide(color: AppColors.error.withValues(alpha: .55)),
+                      ),
                       onPressed: busy ? null : onLawyerReject,
                       icon: const Icon(Icons.close_rounded),
                       label: const Text('رفض نهائي'),
@@ -949,6 +987,10 @@ class _RequestCard extends StatelessWidget {
                   Expanded(
                     flex: 2,
                     child: FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.pendingBg,
+                        foregroundColor: AppColors.pendingText,
+                      ),
                       onPressed: busy ? null : onLawyerRespond,
                       icon: const Icon(Icons.edit_calendar_outlined),
                       label: const Text('موعد بديل'),
@@ -963,6 +1005,10 @@ class _RequestCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                        side: BorderSide(color: AppColors.error.withValues(alpha: .55)),
+                      ),
                       onPressed: busy ? null : onClientReject,
                       icon: const Icon(Icons.close_rounded),
                       label: const Text('رفض نهائي'),
@@ -972,6 +1018,10 @@ class _RequestCard extends StatelessWidget {
                   Expanded(
                     flex: 2,
                     child: FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.pendingBg,
+                        foregroundColor: AppColors.pendingText,
+                      ),
                       onPressed: busy || round >= 3 ? null : onClientChange,
                       icon: const Icon(Icons.edit_calendar_outlined),
                       label: Text(
@@ -996,6 +1046,7 @@ class _RequestCard extends StatelessWidget {
             if (!isLawyer && pendingLawyer) ...[
               const SizedBox(height: 10),
               TextButton.icon(
+                style: TextButton.styleFrom(foregroundColor: AppColors.error),
                 onPressed: busy ? null : onCancel,
                 icon: const Icon(Icons.cancel_outlined),
                 label: const Text('إلغاء الطلب وإعادة المبلغ'),
@@ -1029,20 +1080,20 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = status == 'منتهي' ? 'أُلغي لعدم الرد' : status;
-    final scheme = Theme.of(context).colorScheme;
-    final expired = status == 'منتهي';
+    final visual = PriorityVisuals.consultation(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: expired ? scheme.errorContainer : scheme.primaryContainer,
+        color: visual.background,
         borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: visual.accent.withValues(alpha: .28)),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
-          color: expired ? scheme.onErrorContainer : null,
+          color: visual.foreground,
         ),
       ),
     );
