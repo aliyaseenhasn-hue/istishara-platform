@@ -102,19 +102,20 @@ class AppShell extends ConsumerWidget {
 
     final hidesShellNav = user == null ||
         location == '/create-booking' ||
+        location == '/client-wallet' ||
         location.startsWith('/lawyer-details/') ||
         location == '/booking-details' ||
         location == '/lawyer-availability' ||
         (isLawyer && location == '/notifications');
 
+    // ClientWalletPage owns its Scaffold and keyboard handling. Returning it
+    // directly avoids nesting that Scaffold inside AppShell's Scaffold and
+    // ClipRect, which can clip/over-shift focused fields on iOS PWA.
     if (hidesShellNav) return child;
 
     return Scaffold(
       backgroundColor: scheme.surface,
-      // ClientWalletPage has its own Scaffold. Let that inner Scaffold be the
-      // single owner of keyboard resizing so iOS does not squeeze the wallet
-      // form twice when the numeric keyboard opens.
-      resizeToAvoidBottomInset: location != '/client-wallet',
+      resizeToAvoidBottomInset: true,
       body: _body(context, isLawyer: isLawyer),
       bottomNavigationBar: MainBottomNav(
         currentIndex: selectedIndex,
