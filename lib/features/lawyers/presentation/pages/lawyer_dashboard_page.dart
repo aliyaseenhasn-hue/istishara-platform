@@ -109,18 +109,17 @@ class LawyerDashboardPage extends ConsumerWidget {
                 ]),
                 const SizedBox(height: 9),
                 _WalletCard(onTap: () => context.push('/lawyer-wallet')),
-                const SizedBox(height: 9),
-                const LawyerAppointmentRequestsCard(),
                 const SizedBox(height: 16),
-                Row(children: [
-                  const Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                const Row(children: [
+                  Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                     Icon(Icons.inbox_outlined, color: AppColors.primary, size: 21),
                     SizedBox(width: 7),
-                    Text('طلبات الاستشارة الواردة', textAlign: TextAlign.right, style: TextStyle(color: AppColors.textPrimary, fontSize: 19, fontWeight: FontWeight.w900)),
+                    Text('طلبات المواعيد والاستشارات الواردة', textAlign: TextAlign.right, style: TextStyle(color: AppColors.textPrimary, fontSize: 19, fontWeight: FontWeight.w900)),
                   ])),
-                  Text('${items.length} طلب', style: const TextStyle(color: AppColors.tertiary, fontWeight: FontWeight.w800)),
                 ]),
                 const SizedBox(height: 8),
+                const LawyerAppointmentRequestsCard(),
+                if (items.isNotEmpty) const SizedBox(height: 2),
                 if (items.isEmpty) const _EmptyState() else ...items.take(5).map((b) => _BookingCard(booking: b)),
               ],
             ),
@@ -401,7 +400,7 @@ class _EmptyState extends StatelessWidget {
           child: const Column(children: [
             Icon(Icons.event_available_rounded, color: AppColors.tertiary, size: 34),
             SizedBox(height: 8),
-            Text('لا توجد طلبات استشارة حالياً', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
+            Text('لا توجد طلبات استشارة أو مواعيد حالياً', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
           ]),
         ),
       );
