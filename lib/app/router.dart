@@ -172,9 +172,7 @@ GoRouter router(RouterRef ref) {
       }
       if (user.role == 'lawyer') {
         if (!user.isVerified) {
-          return location == '/lawyer-setup' || pending
-              ? null
-              : '/lawyer-pending';
+          return location == '/lawyer-setup' || pending ? null : '/lawyer-pending';
         }
         if (location == '/lawyers' ||
             location.startsWith('/lawyer-details/') ||
@@ -185,14 +183,10 @@ GoRouter router(RouterRef ref) {
 
       if (login || signup || otp || (complete && user.isOnboardingComplete)) {
         final returnTo = state.uri.queryParameters['returnTo'];
-        if (returnTo != null &&
-            returnTo.isNotEmpty &&
-            returnTo.startsWith('/')) {
+        if (returnTo != null && returnTo.isNotEmpty && returnTo.startsWith('/')) {
           return returnTo;
         }
-        return user.role == 'lawyer' && user.isVerified
-            ? '/lawyer-home'
-            : '/home';
+        return user.role == 'lawyer' && user.isVerified ? '/lawyer-home' : '/home';
       }
       if (location == '/' && user.role == 'lawyer' && user.isVerified) {
         return '/lawyer-home';
@@ -247,13 +241,16 @@ GoRouter router(RouterRef ref) {
           ),
           GoRoute(path: '/bookings', pageBuilder: (c, s) => _primaryTabPage(s, const BookingsListPage())),
           GoRoute(path: '/archived-bookings', builder: (c, s) => const ArchivedBookingsPage()),
-          GoRoute(path: '/appointment-requests', builder: (c, s) => const AppointmentRequestsPage()),
+          GoRoute(
+            path: '/appointment-requests',
+            builder: (c, s) => AppointmentRequestsPage(
+              focusRequestId: s.uri.queryParameters['request_id']?.trim(),
+            ),
+          ),
           GoRoute(
             path: '/client-wallet',
             builder: (c, s) => ClientWalletPage(
-              requiredAmount: double.tryParse(
-                s.uri.queryParameters['required_amount'] ?? '',
-              ),
+              requiredAmount: double.tryParse(s.uri.queryParameters['required_amount'] ?? ''),
             ),
           ),
           GoRoute(path: '/chats', builder: (c, s) => const ConversationsPage()),
