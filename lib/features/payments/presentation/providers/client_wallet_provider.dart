@@ -22,21 +22,40 @@ class ClientWalletSummary {
   }
 }
 
-final clientWalletProvider = FutureProvider<ClientWalletSummary>((ref) async {
-  final response = await SupabaseConfig.client.rpc('get_my_client_wallet');
-  if (response is List && response.isNotEmpty) {
-    return ClientWalletSummary.fromJson(
-      Map<String, dynamic>.from(response.first as Map),
-    );
+const _emptyClientWallet = ClientWalletSummary(
+  availableBalance: 0,
+  heldBalance: 0,
+  currency: 'IQD',
+);
+
+final clientWalletProvider = StreamProvider<ClientWalletSummary>((ref) async* {
+  final authUser = SupabaseConfig.client.auth.currentUser;
+  if (authUser == null) {
+    yield _emptyClientWallet;
+    return;
   }
-  if (response is Map) {
-    return ClientWalletSummary.fromJson(Map<String, dynamic>.from(response));
+
+  final profile = await SupabaseConfig.client
+      .from('profiles')
+      .select('id')
+      .eq('auth_id', authUser.id)
+      .maybeSingle();
+  final profileId = profile?['id']?.toString();
+  if (profileId == null || profileId.isEmpty) {
+    yield _emptyClientWallet;
+    return;
   }
-  return const ClientWalletSummary(
-    availableBalance: 0,
-    heldBalance: 0,
-    currency: 'IQD',
-  );
+
+  yield* SupabaseConfig.client
+      .from('client_wallets')
+      .stream(primaryKey: ['user_id'])
+      .eq('user_id', profileId)
+      .map((rows) {
+        if (rows.isEmpty) return _emptyClientWallet;
+        return ClientWalletSummary.fromJson(
+          Map<String, dynamic>.from(rows.first),
+        );
+      });
 });
 
 final clientWalletTopupsProvider =
