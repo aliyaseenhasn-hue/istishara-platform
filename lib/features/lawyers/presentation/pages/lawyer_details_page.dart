@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/config/supabase_config.dart';
+
 import '../../../../shared/widgets/loading_widget.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../../../bookings/presentation/providers/bookings_provider.dart';
 import '../providers/lawyers_provider.dart';
-import '../widgets/lawyer_achievements_gallery.dart';
 import '../widgets/follow_lawyer_button.dart';
+import '../widgets/lawyer_achievements_gallery.dart';
 
 class LawyerDetailsPage extends ConsumerWidget {
   final String profileId;
@@ -16,80 +16,18 @@ class LawyerDetailsPage extends ConsumerWidget {
 
   static const Color _whatsAppColor = Color(0xFF25D366);
 
-  Future<void> _followAndReturnHome(BuildContext context, String lawyerId) async {
-    final authUser = SupabaseConfig.client.auth.currentUser;
-    if (authUser == null) return;
-    final profile = await SupabaseConfig.client.from('profiles').select('id').eq('auth_id', authUser.id).maybeSingle();
-    final followerId = profile?['id']?.toString();
-    if (followerId == null || followerId.isEmpty) return;
-    final existing = await SupabaseConfig.client
-        .from('lawyer_followers')
-        .select('lawyer_id')
-        .eq('follower_id', followerId)
-        .eq('lawyer_id', lawyerId)
-        .maybeSingle();
-    if (existing == null) {
-      await SupabaseConfig.client.from('lawyer_followers').insert({'follower_id': followerId, 'lawyer_id': lawyerId});
-    }
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت متابعة المحامي. في حال توفر موعد سيتم إشعارك.')));
-    await Future<void>.delayed(const Duration(milliseconds: 700));
-    if (context.mounted) context.go('/home');
-  }
-
-  Future<void> _openBookingOrNoSlots(BuildContext context, WidgetRef ref, dynamic lawyer, {bool isCustom = false}) async {
-    try {
-      final slots = await ref.read(availableSlotsProvider(lawyer.profileId).future);
-      if (!context.mounted) return;
-      if (slots.isNotEmpty) {
-        context.push('/create-booking', extra: {'lawyer': lawyer, if (isCustom) 'isCustom': true});
-        return;
-      }
-
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) {
-          final scheme = Theme.of(dialogContext).colorScheme;
-          return AlertDialog(
-            icon: Icon(Icons.event_busy_outlined, size: 42, color: scheme.primary),
-            title: const Text('لا توجد مواعيد متاحة', textAlign: TextAlign.center),
-            content: const Text(
-              'لا توجد مواعيد متاحة لدى هذا المحامي حالياً. يمكنك متابعة المحامي وسيتم إشعارك عند إضافة موعد جديد.',
-              textAlign: TextAlign.center,
-            ),
-            actionsAlignment: MainAxisAlignment.center,
-            actions: [
-              OutlinedButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  context.go('/home');
-                },
-                child: const Text('إلغاء'),
-              ),
-              FilledButton.icon(
-                onPressed: () async {
-                  Navigator.pop(dialogContext);
-                  try {
-                    await _followAndReturnHome(context, lawyer.profileId);
-                  } catch (_) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر متابعة المحامي حالياً. حاول مرة أخرى.')));
-                    }
-                  }
-                },
-                icon: const Icon(Icons.notifications_active_outlined),
-                label: const Text('تابع المحامي'),
-              ),
-            ],
-          );
-        },
-      );
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر التحقق من المواعيد حالياً. حاول مرة أخرى.')));
-      }
-    }
+  void _openBooking(
+    BuildContext context,
+    dynamic lawyer, {
+    bool isCustom = false,
+  }) {
+    context.push(
+      '/create-booking',
+      extra: {
+        'lawyer': lawyer,
+        if (isCustom) 'isCustom': true,
+      },
+    );
   }
 
   Future<void> _openWhatsApp(BuildContext context, String value) async {
@@ -99,7 +37,9 @@ class LawyerDetailsPage extends ConsumerWidget {
     final uri = Uri.parse('https://wa.me/${phone.replaceAll('+', '')}');
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر فتح واتساب')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر فتح واتساب')),
+      );
     }
   }
 
@@ -111,11 +51,19 @@ class LawyerDetailsPage extends ConsumerWidget {
         foregroundColor: _whatsAppColor,
       ),
       icon: loading
-          ? const SizedBox(width: 17, height: 17, child: CircularProgressIndicator(strokeWidth: 2))
+          ? const SizedBox(
+              width: 17,
+              height: 17,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
           : const Icon(Icons.chat_rounded, color: _whatsAppColor, size: 19),
       label: const Text(
         'واتساب • مقفل',
-        style: TextStyle(color: _whatsAppColor, fontSize: 10.5, fontWeight: FontWeight.w800),
+        style: TextStyle(
+          color: _whatsAppColor,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
@@ -125,21 +73,39 @@ class LawyerDetailsPage extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final currentUserId = ref.watch(authStateChangesProvider).value?.id;
     final isOwnProfile = currentUserId == profileId;
-    final ownProfileAsync = isOwnProfile ? ref.watch(ownLawyerProfileProvider(profileId)) : null;
+    final ownProfileAsync =
+        isOwnProfile ? ref.watch(ownLawyerProfileProvider(profileId)) : null;
     final whatsapp = ref.watch(lawyerAcceptedWhatsAppProvider(profileId));
 
     return ColoredBox(
       color: scheme.surface,
       child: ref.watch(lawyerProfileProvider(profileId)).when(
         loading: () => const Center(child: LoadingWidget()),
-        error: (_, __) => Center(child: Text('تعذر تحميل الملف الشخصي', style: TextStyle(color: scheme.onSurfaceVariant))),
+        error: (_, __) => Center(
+          child: Text(
+            'تعذر تحميل الملف الشخصي',
+            style: TextStyle(color: scheme.onSurfaceVariant),
+          ),
+        ),
         data: (publicLawyer) {
-          if (publicLawyer == null) return Center(child: Text('المحامي غير موجود', style: TextStyle(color: scheme.onSurface)));
+          if (publicLawyer == null) {
+            return Center(
+              child: Text(
+                'المحامي غير موجود',
+                style: TextStyle(color: scheme.onSurface),
+              ),
+            );
+          }
+
           final lawyer = ownProfileAsync?.value ?? publicLawyer;
-          final name = lawyer.fullName?.trim().isNotEmpty == true ? lawyer.fullName!.trim() : 'محامي';
+          final name = lawyer.fullName?.trim().isNotEmpty == true
+              ? lawyer.fullName!.trim()
+              : 'محامي';
           final avatar = lawyer.avatarUrl;
           final bio = lawyer.bio?.trim() ?? '';
-          final specializationText = lawyer.specializations.isEmpty ? 'محامي ومستشار قانوني' : lawyer.specializations.join('، ');
+          final specializationText = lawyer.specializations.isEmpty
+              ? 'محامي ومستشار قانوني'
+              : lawyer.specializations.join('، ');
           final licenseClass = lawyer.practiceLicenseClass;
 
           return Stack(
@@ -151,14 +117,28 @@ class LawyerDetailsPage extends ConsumerWidget {
                     backgroundColor: scheme.surface,
                     foregroundColor: scheme.onSurface,
                     surfaceTintColor: Colors.transparent,
-                    title: const Text('الملف الشخصي', style: TextStyle(fontWeight: FontWeight.w800)),
-                    leading: IconButton(tooltip: 'رجوع', onPressed: () => context.pop(), icon: const Icon(Icons.arrow_forward_rounded)),
+                    title: const Text(
+                      'الملف الشخصي',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    leading: IconButton(
+                      tooltip: 'رجوع',
+                      onPressed: () => context.pop(),
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                    ),
                   ),
                   SliverToBoxAdapter(
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        Container(height: 150, decoration: BoxDecoration(gradient: LinearGradient(colors: [scheme.primary, scheme.primaryContainer]))),
+                        Container(
+                          height: 150,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [scheme.primary, scheme.primaryContainer],
+                            ),
+                          ),
+                        ),
                         Positioned(
                           top: 90,
                           left: 0,
@@ -170,8 +150,19 @@ class LawyerDetailsPage extends ConsumerWidget {
                               child: CircleAvatar(
                                 radius: 54,
                                 backgroundColor: scheme.surfaceContainerHighest,
-                                backgroundImage: avatar != null && avatar.isNotEmpty ? NetworkImage(avatar) : null,
-                                child: avatar == null || avatar.isEmpty ? Text(name.substring(0, 1), style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: scheme.primary)) : null,
+                                backgroundImage: avatar != null && avatar.isNotEmpty
+                                    ? NetworkImage(avatar)
+                                    : null,
+                                child: avatar == null || avatar.isEmpty
+                                    ? Text(
+                                        name.substring(0, 1),
+                                        style: TextStyle(
+                                          fontSize: 36,
+                                          fontWeight: FontWeight.w900,
+                                          color: scheme.primary,
+                                        ),
+                                      )
+                                    : null,
                               ),
                             ),
                           ),
@@ -181,24 +172,71 @@ class LawyerDetailsPage extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                Flexible(child: Text(name, textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurface, fontSize: 22, fontWeight: FontWeight.w900))),
-                                if (lawyer.verified) Padding(padding: const EdgeInsets.only(right: 6), child: Icon(Icons.verified_rounded, color: scheme.primary, size: 20)),
-                              ]),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      name,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: scheme.onSurface,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  if (lawyer.verified)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 6),
+                                      child: Icon(
+                                        Icons.verified_rounded,
+                                        color: scheme.primary,
+                                        size: 20,
+                                      ),
+                                    ),
+                                ],
+                              ),
                               const SizedBox(height: 8),
-                              Text(specializationText, textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14, height: 1.4)),
+                              Text(
+                                specializationText,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: scheme.onSurfaceVariant,
+                                  fontSize: 14,
+                                  height: 1.4,
+                                ),
+                              ),
                               if (!isOwnProfile) ...[
                                 const SizedBox(height: 14),
                                 FollowLawyerButton(lawyerId: lawyer.profileId),
                               ],
-                              if (isOwnProfile && licenseClass != null && licenseClass.trim().isNotEmpty) ...[
+                              if (isOwnProfile &&
+                                  licenseClass != null &&
+                                  licenseClass.trim().isNotEmpty) ...[
                                 const SizedBox(height: 12),
                                 Align(
                                   alignment: Alignment.center,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                    decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(14), border: Border.all(color: scheme.outlineVariant)),
-                                    child: Text('الصلاحية: ${licenseClass == 'مطلقة' ? 'مطلقة' : 'الفئة $licenseClass'}', style: TextStyle(color: scheme.onPrimaryContainer, fontSize: 13, fontWeight: FontWeight.w800)),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: scheme.primaryContainer,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: scheme.outlineVariant,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'الصلاحية: ${licenseClass == 'مطلقة' ? 'مطلقة' : 'الفئة $licenseClass'}',
+                                      style: TextStyle(
+                                        color: scheme.onPrimaryContainer,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -207,9 +245,18 @@ class LawyerDetailsPage extends ConsumerWidget {
                               const SizedBox(height: 26),
                               _BioSection(bio: bio),
                               const SizedBox(height: 26),
-                              LawyerAchievementsGallery(lawyerId: lawyer.id, editable: false),
+                              LawyerAchievementsGallery(
+                                lawyerId: lawyer.id,
+                                editable: false,
+                              ),
                               const SizedBox(height: 24),
-                              _ActionPanel(onCustomRequest: () => _openBookingOrNoSlots(context, ref, lawyer, isCustom: true)),
+                              _ActionPanel(
+                                onCustomRequest: () => _openBooking(
+                                  context,
+                                  lawyer,
+                                  isCustom: true,
+                                ),
+                              ),
                               const SizedBox(height: 90),
                             ],
                           ),
@@ -234,9 +281,12 @@ class LawyerDetailsPage extends ConsumerWidget {
                             child: SizedBox(
                               height: 52,
                               child: ElevatedButton.icon(
-                                onPressed: () => _openBookingOrNoSlots(context, ref, lawyer),
+                                onPressed: () => _openBooking(context, lawyer),
                                 icon: const Icon(Icons.calendar_month_rounded),
-                                label: const Text('حجز موعد استشارة', style: TextStyle(fontWeight: FontWeight.w900)),
+                                label: const Text(
+                                  'حجز أو اقتراح موعد',
+                                  style: TextStyle(fontWeight: FontWeight.w900),
+                                ),
                               ),
                             ),
                           ),
@@ -246,20 +296,35 @@ class LawyerDetailsPage extends ConsumerWidget {
                             height: 52,
                             child: whatsapp.when(
                               loading: () => _lockedWhatsAppButton(loading: true),
-                              error: (_, __) => _lockedWhatsAppButton(loading: false),
+                              error: (_, __) =>
+                                  _lockedWhatsAppButton(loading: false),
                               data: (number) => number == null
                                   ? Tooltip(
                                       message: 'يفتح واتساب بعد قبول الاستشارة',
                                       child: _lockedWhatsAppButton(loading: false),
                                     )
                                   : OutlinedButton.icon(
-                                      onPressed: () => _openWhatsApp(context, number),
+                                      onPressed: () =>
+                                          _openWhatsApp(context, number),
                                       style: OutlinedButton.styleFrom(
-                                        side: const BorderSide(color: _whatsAppColor),
+                                        side: const BorderSide(
+                                          color: _whatsAppColor,
+                                        ),
                                         foregroundColor: _whatsAppColor,
                                       ),
-                                      icon: const Icon(Icons.chat_rounded, color: _whatsAppColor, size: 19),
-                                      label: const Text('واتساب', style: TextStyle(color: _whatsAppColor, fontSize: 11, fontWeight: FontWeight.w800)),
+                                      icon: const Icon(
+                                        Icons.chat_rounded,
+                                        color: _whatsAppColor,
+                                        size: 19,
+                                      ),
+                                      label: const Text(
+                                        'واتساب',
+                                        style: TextStyle(
+                                          color: _whatsAppColor,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
                                     ),
                             ),
                           ),
@@ -279,20 +344,50 @@ class LawyerDetailsPage extends ConsumerWidget {
 class _BioSection extends StatelessWidget {
   final String bio;
   const _BioSection({required this.bio});
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
       elevation: 0,
       color: scheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: scheme.outlineVariant)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: scheme.outlineVariant),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(18),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Row(textDirection: TextDirection.rtl, children: [Icon(Icons.badge_outlined, color: scheme.primary), const SizedBox(width: 8), Text('نبذة عن المحامي', textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurface, fontSize: 17, fontWeight: FontWeight.w900))]),
-          const SizedBox(height: 10),
-          Text(bio.isEmpty ? 'لم يضف المحامي نبذة مهنية بعد.' : bio, textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurfaceVariant, height: 1.7, fontSize: 13)),
-        ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              textDirection: TextDirection.rtl,
+              children: [
+                Icon(Icons.badge_outlined, color: scheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'نبذة عن المحامي',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: scheme.onSurface,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              bio.isEmpty ? 'لم يضف المحامي نبذة مهنية بعد.' : bio,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: scheme.onSurfaceVariant,
+                height: 1.7,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -301,6 +396,7 @@ class _BioSection extends StatelessWidget {
 class _ActionPanel extends StatelessWidget {
   final VoidCallback onCustomRequest;
   const _ActionPanel({required this.onCustomRequest});
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -309,13 +405,39 @@ class _ActionPanel extends StatelessWidget {
       color: scheme.primaryContainer.withValues(alpha: .45),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text('ابدأ طلبك', textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurface, fontSize: 17, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 5),
-          Text('اختر الحجز أو طلب استشارة بنوع مختلف وفق الخدمات المتاحة للمحامي.', textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurfaceVariant, height: 1.5, fontSize: 12)),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(onPressed: onCustomRequest, icon: const Icon(Icons.edit_note_rounded), label: const Text('طلب استشارة بنوع مختلف', style: TextStyle(fontWeight: FontWeight.w700))),
-        ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'ابدأ طلبك',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'يمكنك بدء طلب الاستشارة سواء نشر المحامي أوقاتاً متاحة أم لم ينشرها؛ عند عدم وجود موعد مناسب ستحدد الأوقات التي تناسبك.',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: scheme.onSurfaceVariant,
+                height: 1.5,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: onCustomRequest,
+              icon: const Icon(Icons.edit_note_rounded),
+              label: const Text(
+                'طلب استشارة بنوع مختلف',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -324,16 +446,56 @@ class _ActionPanel extends StatelessWidget {
 class _Stats extends StatelessWidget {
   final dynamic lawyer;
   const _Stats({required this.lawyer});
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final specializationCount = (lawyer.specializations as List).length;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 18),
-      decoration: BoxDecoration(color: scheme.surfaceContainerLowest, borderRadius: BorderRadius.circular(16), border: Border.all(color: scheme.outlineVariant)),
-      child: Row(children: [_item(context, lawyer.rating.toStringAsFixed(1), 'التقييم'), _divider(context), _item(context, '${lawyer.yearsExperience ?? 0}+', 'سنوات الخبرة'), _divider(context), _item(context, '$specializationCount', 'التخصصات')]),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          _item(context, lawyer.rating.toStringAsFixed(1), 'التقييم'),
+          _divider(context),
+          _item(context, '${lawyer.yearsExperience ?? 0}+', 'سنوات الخبرة'),
+          _divider(context),
+          _item(context, '$specializationCount', 'التخصصات'),
+        ],
+      ),
     );
   }
-  Widget _divider(BuildContext context) => Container(width: 1, height: 42, color: Theme.of(context).colorScheme.outlineVariant);
-  Widget _item(BuildContext context, String value, String label) => Expanded(child: Column(children: [Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.primary)), const SizedBox(height: 4), Text(label, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant))]));
+
+  Widget _divider(BuildContext context) => Container(
+        width: 1,
+        height: 42,
+        color: Theme.of(context).colorScheme.outlineVariant,
+      );
+
+  Widget _item(BuildContext context, String value, String label) => Expanded(
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      );
 }
