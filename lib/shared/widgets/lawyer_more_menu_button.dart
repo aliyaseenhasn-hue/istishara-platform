@@ -3,14 +3,13 @@ import 'package:go_router/go_router.dart';
 
 /// Compact access to the lawyer's secondary tools.
 ///
-/// This belongs in the lawyer home app bar rather than the persistent bottom
-/// navigation so the primary destinations remain visually calm and stable.
+/// Appointment and consultation requests are intentionally handled together
+/// on the lawyer dashboard. This menu contains only secondary tools.
 class LawyerMoreMenuButton extends StatelessWidget {
   const LawyerMoreMenuButton({super.key});
 
   static const _actions = <_LawyerMenuAction>[
     _LawyerMenuAction(Icons.schedule_rounded, 'أوقات التوفر', '/lawyer-availability'),
-    _LawyerMenuAction(Icons.event_note_outlined, 'طلبات المواعيد', '/appointment-requests'),
     _LawyerMenuAction(Icons.account_balance_wallet_outlined, 'المحفظة', '/lawyer-wallet'),
   ];
 
