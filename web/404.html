@@ -10,14 +10,56 @@
   <link rel="icon" type="image/png" href="assets/assets/icons/app_icon_v2.png">
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; min-height: 100%; background: #0B172A; direction: rtl; overflow: hidden; }
-    body { font-family: sans-serif; }
+    body { font-family: sans-serif; -webkit-text-size-adjust: 100%; }
+    input,
+    textarea,
+    [contenteditable="true"],
+    flt-semantics-host,
+    flt-semantics-host input,
+    flt-semantics-host textarea,
+    flt-semantics-host [contenteditable="true"],
+    flt-semantics input,
+    flt-semantics textarea,
+    flt-semantics [contenteditable="true"],
+    flt-text-editing-host input,
+    flt-text-editing-host textarea,
+    flt-text-editing-host [contenteditable="true"] {
+      font-size: 16px !important;
+      -webkit-text-size-adjust: 100% !important;
+    }
   </style>
 </head>
 <body>
   <script>
+    (function installIosTextInputZoomGuard() {
+      function protectEditor(node) {
+        if (!node || node.nodeType !== 1) return;
+        const element = node;
+        const matchesEditor = element.matches && element.matches('input, textarea, [contenteditable="true"]');
+        if (matchesEditor) {
+          element.style.setProperty('font-size', '16px', 'important');
+          element.style.setProperty('-webkit-text-size-adjust', '100%', 'important');
+        }
+        if (element.querySelectorAll) {
+          element.querySelectorAll('input, textarea, [contenteditable="true"]').forEach((editor) => {
+            editor.style.setProperty('font-size', '16px', 'important');
+            editor.style.setProperty('-webkit-text-size-adjust', '100%', 'important');
+          });
+        }
+      }
+
+      protectEditor(document.documentElement);
+      const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          mutation.addedNodes.forEach(protectEditor);
+        }
+      });
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+    })();
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/istishara-platform/pwa_service_worker_v5.js?v=12', {
+        navigator.serviceWorker.register('/istishara-platform/pwa_service_worker_v5.js?v=13', {
           scope: '/istishara-platform/',
           updateViaCache: 'none'
         }).catch(function (error) { console.warn('PWA service worker registration failed:', error); });
