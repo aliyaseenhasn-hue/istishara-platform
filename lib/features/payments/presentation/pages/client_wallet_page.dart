@@ -31,7 +31,7 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
   XFile? _receipt;
   bool _submitting = false;
 
-  bool get _useSafeAmountKeypad =>
+  bool get _useSafeWalletKeypads =>
       kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   @override
@@ -61,9 +61,17 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
     return <String, dynamic>{'enabled': false};
   }
 
-  Future<void> _editAmountWithSafeKeypad() async {
+  Future<String?> _openSafeNumericKeypad({
+    required String initialValue,
+    required String title,
+    required String helperText,
+    required String confirmText,
+    required bool formatAsAmount,
+    required int minimumValue,
+    int maxDigits = 30,
+  }) async {
     FocusManager.instance.primaryFocus?.unfocus();
-    final value = await showModalBottomSheet<String>(
+    return showModalBottomSheet<String>(
       context: context,
       useRootNavigator: true,
       useSafeArea: true,
@@ -79,15 +87,47 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
             color: scheme.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             clipBehavior: Clip.antiAlias,
-            child: _AmountKeypadSheet(
-              initialValue: _amountController.text,
+            child: _NumericKeypadSheet(
+              initialValue: initialValue,
+              title: title,
+              helperText: helperText,
+              confirmText: confirmText,
+              formatAsAmount: formatAsAmount,
+              minimumValue: minimumValue,
+              maxDigits: maxDigits,
             ),
           ),
         );
       },
     );
+  }
+
+  Future<void> _editAmountWithSafeKeypad() async {
+    final value = await _openSafeNumericKeypad(
+      initialValue: _amountController.text,
+      title: 'أدخل مبلغ الشحن',
+      helperText: 'أدخل المبلغ الذي قمت بتحويله فعلياً',
+      confirmText: 'اعتماد المبلغ',
+      formatAsAmount: true,
+      minimumValue: 1000,
+      maxDigits: 10,
+    );
     if (value == null || !mounted) return;
     setState(() => _amountController.text = value);
+  }
+
+  Future<void> _editTransactionWithSafeKeypad() async {
+    final value = await _openSafeNumericKeypad(
+      initialValue: _transactionController.text,
+      title: 'رقم عملية التحويل',
+      helperText: 'أدخل الرقم الظاهر في إيصال التحويل',
+      confirmText: 'اعتماد رقم العملية',
+      formatAsAmount: false,
+      minimumValue: 0,
+      maxDigits: 30,
+    );
+    if (value == null || !mounted) return;
+    setState(() => _transactionController.text = value);
   }
 
   Future<void> _pickReceipt() async {
@@ -238,7 +278,7 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
                   transactionController: _transactionController,
                   amountFocusNode: _amountFocusNode,
                   transactionFocusNode: _transactionFocusNode,
-                  useSafeAmountKeypad: _useSafeAmountKeypad,
+                  useSafeWalletKeypads: _useSafeWalletKeypads,
                   receipt: _receipt,
                   submitting: _submitting,
                   onCopy: (value) async {
@@ -246,6 +286,7 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
                     _message('تم نسخ رقم الحساب/المحفظة.');
                   },
                   onEditAmount: _editAmountWithSafeKeypad,
+                  onEditTransaction: _editTransactionWithSafeKeypad,
                   onPickReceipt: _pickReceipt,
                   onSubmit: settings['enabled'] == true ? _submit : null,
                 );
@@ -344,11 +385,12 @@ class _TopupCard extends StatelessWidget {
   final TextEditingController transactionController;
   final FocusNode amountFocusNode;
   final FocusNode transactionFocusNode;
-  final bool useSafeAmountKeypad;
+  final bool useSafeWalletKeypads;
   final XFile? receipt;
   final bool submitting;
   final ValueChanged<String> onCopy;
   final VoidCallback onEditAmount;
+  final VoidCallback onEditTransaction;
   final VoidCallback onPickReceipt;
   final VoidCallback? onSubmit;
 
@@ -358,28 +400,34 @@ class _TopupCard extends StatelessWidget {
     required this.transactionController,
     required this.amountFocusNode,
     required this.transactionFocusNode,
-    required this.useSafeAmountKeypad,
+    required this.useSafeWalletKeypads,
     required this.receipt,
     required this.submitting,
     required this.onCopy,
     required this.onEditAmount,
+    required this.onEditTransaction,
     required this.onPickReceipt,
     required this.onSubmit,
   });
 
-  Widget _safeAmountField(BuildContext context, {required bool enabled}) {
+  Widget _safeInputField(
+    BuildContext context, {
+    required bool enabled,
+    required String label,
+    required String value,
+    required String emptyText,
+    required IconData leadingIcon,
+    required VoidCallback onTap,
+    String? formattedValue,
+  }) {
     final scheme = Theme.of(context).colorScheme;
-    final rawValue = amountController.text.trim();
-    final parsed = int.tryParse(rawValue.replaceAll(',', ''));
-    final formattedValue = parsed == null
-        ? rawValue
-        : NumberFormat('#,##0', 'ar').format(parsed);
+    final rawValue = value.trim();
     final active = enabled && !submitting;
 
     return Semantics(
       button: true,
       enabled: active,
-      label: 'مبلغ الشحن بالدينار',
+      label: label,
       value: rawValue,
       child: Material(
         color: active
@@ -387,7 +435,7 @@ class _TopupCard extends StatelessWidget {
             : scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          onTap: active ? onEditAmount : null,
+          onTap: active ? onTap : null,
           borderRadius: BorderRadius.circular(14),
           child: Container(
             constraints: const BoxConstraints(minHeight: 74),
@@ -402,7 +450,7 @@ class _TopupCard extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  Icons.payments_outlined,
+                  leadingIcon,
                   color: active ? AppColors.primary : scheme.outline,
                 ),
                 const SizedBox(width: 12),
@@ -412,7 +460,7 @@ class _TopupCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'مبلغ الشحن بالدينار',
+                        label,
                         textAlign: TextAlign.right,
                         style: TextStyle(
                           fontSize: 12,
@@ -423,8 +471,8 @@ class _TopupCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         rawValue.isEmpty
-                            ? 'اضغط لإدخال المبلغ'
-                            : '$formattedValue د.ع',
+                            ? emptyText
+                            : (formattedValue ?? rawValue),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.right,
@@ -462,6 +510,12 @@ class _TopupCard extends StatelessWidget {
     final accountName = settings['account_name']?.toString().trim() ?? '';
     final provider =
         settings['provider_name']?.toString().trim() ?? 'تحويل يدوي';
+    final amountRaw = amountController.text.trim();
+    final amountParsed = int.tryParse(amountRaw.replaceAll(',', ''));
+    final formattedAmount = amountParsed == null
+        ? amountRaw
+        : '${NumberFormat('#,##0', 'ar').format(amountParsed)} د.ع';
+
     return Card(
       elevation: 0,
       color: scheme.surfaceContainerLowest,
@@ -504,8 +558,17 @@ class _TopupCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            if (useSafeAmountKeypad)
-              _safeAmountField(context, enabled: enabled)
+            if (useSafeWalletKeypads)
+              _safeInputField(
+                context,
+                enabled: enabled,
+                label: 'مبلغ الشحن بالدينار',
+                value: amountRaw,
+                emptyText: 'اضغط لإدخال المبلغ',
+                leadingIcon: Icons.payments_outlined,
+                onTap: onEditAmount,
+                formattedValue: amountRaw.isEmpty ? null : formattedAmount,
+              )
             else
               TextField(
                 controller: amountController,
@@ -523,19 +586,33 @@ class _TopupCard extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 10),
-            TextField(
-              controller: transactionController,
-              focusNode: transactionFocusNode,
-              enabled: enabled && !submitting,
-              textInputAction: TextInputAction.done,
-              scrollPadding: const EdgeInsets.symmetric(vertical: 16),
-              onSubmitted: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-              decoration: const InputDecoration(
-                labelText: 'رقم عملية التحويل',
-                prefixIcon: Icon(Icons.numbers_rounded),
+            if (useSafeWalletKeypads)
+              _safeInputField(
+                context,
+                enabled: enabled,
+                label: 'رقم عملية التحويل',
+                value: transactionController.text,
+                emptyText: 'اضغط لإدخال رقم العملية',
+                leadingIcon: Icons.numbers_rounded,
+                onTap: onEditTransaction,
+              )
+            else
+              TextField(
+                controller: transactionController,
+                focusNode: transactionFocusNode,
+                enabled: enabled && !submitting,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.done,
+                scrollPadding: const EdgeInsets.symmetric(vertical: 16),
+                onSubmitted: (_) =>
+                    FocusManager.instance.primaryFocus?.unfocus(),
+                onTapOutside: (_) =>
+                    FocusManager.instance.primaryFocus?.unfocus(),
+                decoration: const InputDecoration(
+                  labelText: 'رقم عملية التحويل',
+                  prefixIcon: Icon(Icons.numbers_rounded),
+                ),
               ),
-            ),
             const SizedBox(height: 10),
             OutlinedButton.icon(
               onPressed: enabled && !submitting ? onPickReceipt : null,
@@ -586,16 +663,30 @@ class _TopupCard extends StatelessWidget {
   }
 }
 
-class _AmountKeypadSheet extends StatefulWidget {
+class _NumericKeypadSheet extends StatefulWidget {
   final String initialValue;
+  final String title;
+  final String helperText;
+  final String confirmText;
+  final bool formatAsAmount;
+  final int minimumValue;
+  final int maxDigits;
 
-  const _AmountKeypadSheet({required this.initialValue});
+  const _NumericKeypadSheet({
+    required this.initialValue,
+    required this.title,
+    required this.helperText,
+    required this.confirmText,
+    required this.formatAsAmount,
+    required this.minimumValue,
+    required this.maxDigits,
+  });
 
   @override
-  State<_AmountKeypadSheet> createState() => _AmountKeypadSheetState();
+  State<_NumericKeypadSheet> createState() => _NumericKeypadSheetState();
 }
 
-class _AmountKeypadSheetState extends State<_AmountKeypadSheet> {
+class _NumericKeypadSheetState extends State<_NumericKeypadSheet> {
   late String _digits;
 
   @override
@@ -604,12 +695,22 @@ class _AmountKeypadSheetState extends State<_AmountKeypadSheet> {
     _digits = widget.initialValue.replaceAll(RegExp(r'[^0-9]'), '');
   }
 
-  int get _amount => int.tryParse(_digits) ?? 0;
+  int get _numericValue => int.tryParse(_digits) ?? 0;
 
-  String get _formattedAmount => NumberFormat('#,##0', 'ar').format(_amount);
+  bool get _canConfirm {
+    if (_digits.isEmpty) return false;
+    if (widget.formatAsAmount) return _numericValue >= widget.minimumValue;
+    return true;
+  }
+
+  String get _displayValue {
+    if (_digits.isEmpty) return widget.formatAsAmount ? '0 د.ع' : '—';
+    if (!widget.formatAsAmount) return _digits;
+    return '${NumberFormat('#,##0', 'ar').format(_numericValue)} د.ع';
+  }
 
   void _append(String digit) {
-    if (_digits.length >= 10) return;
+    if (_digits.length >= widget.maxDigits) return;
     setState(() {
       if (_digits == '0') _digits = '';
       _digits += digit;
@@ -668,13 +769,14 @@ class _AmountKeypadSheetState extends State<_AmountKeypadSheet> {
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
-            const Text(
-              'أدخل مبلغ الشحن',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            Text(
+              widget.title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 3),
             Text(
-              'أدخل المبلغ الذي قمت بتحويله فعلياً',
+              widget.helperText,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -690,10 +792,12 @@ class _AmountKeypadSheetState extends State<_AmountKeypadSheet> {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
-                '$_formattedAmount د.ع',
+                _displayValue,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 25,
+                style: TextStyle(
+                  fontSize: widget.formatAsAmount ? 25 : 22,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -750,8 +854,8 @@ class _AmountKeypadSheetState extends State<_AmountKeypadSheet> {
               width: double.infinity,
               height: 50,
               child: FilledButton(
-                onPressed: _amount >= 1000
-                    ? () => Navigator.of(context).pop(_amount.toString())
+                onPressed: _canConfirm
+                    ? () => Navigator.of(context).pop(_digits)
                     : null,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.teal,
@@ -760,9 +864,9 @@ class _AmountKeypadSheetState extends State<_AmountKeypadSheet> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text(
-                  'اعتماد المبلغ',
-                  style: TextStyle(fontWeight: FontWeight.w900),
+                child: Text(
+                  widget.confirmText,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
               ),
             ),
