@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../shared/styles/priority_visuals.dart';
+import '../../../../shared/widgets/loading_widget.dart';
 import '../../domain/entities/booking.dart';
 import '../providers/bookings_provider.dart';
 
@@ -60,14 +62,14 @@ class LawyerConsultationsPage extends ConsumerWidget {
         surfaceTintColor: Colors.transparent,
       ),
       body: bookingsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const LoadingWidget(size: 30),
         error: (_, __) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text('تعذر تحميل الاستشارات'),
-              const SizedBox(height: 8),
-              TextButton.icon(
+              const SizedBox(height: 10),
+              FilledButton.tonalIcon(
                 onPressed: () => ref.invalidate(lawyerBookingsProvider),
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('إعادة المحاولة'),
@@ -78,6 +80,7 @@ class LawyerConsultationsPage extends ConsumerWidget {
         data: (bookings) {
           final items = _sorted(bookings);
           return RefreshIndicator(
+            color: AppColors.teal,
             onRefresh: () async {
               ref.invalidate(lawyerBookingsProvider);
               await ref.read(lawyerBookingsProvider.future);
@@ -89,13 +92,26 @@ class LawyerConsultationsPage extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                   decoration: BoxDecoration(
-                    color: scheme.primaryContainer.withValues(alpha: .45),
+                    color: filter == LawyerConsultationsFilter.active
+                        ? const Color(0xFFE8F7F8)
+                        : AppColors.acceptedBg,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: scheme.primary.withValues(alpha: .14)),
+                    border: Border.all(
+                      color: (filter == LawyerConsultationsFilter.active
+                              ? AppColors.teal
+                              : AppColors.success)
+                          .withValues(alpha: .25),
+                    ),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.sort_rounded, size: 19, color: scheme.primary),
+                      Icon(
+                        Icons.sort_rounded,
+                        size: 19,
+                        color: filter == LawyerConsultationsFilter.active
+                            ? AppColors.teal
+                            : AppColors.success,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -112,7 +128,9 @@ class LawyerConsultationsPage extends ConsumerWidget {
                       Text(
                         '${items.length}',
                         style: TextStyle(
-                          color: scheme.primary,
+                          color: filter == LawyerConsultationsFilter.active
+                              ? AppColors.teal
+                              : AppColors.success,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -183,14 +201,21 @@ class _ConsultationCard extends ConsumerWidget {
     final name = clientName != null && clientName.isNotEmpty
         ? clientName
         : 'طالب استشارة';
+    final visual = PriorityVisuals.consultation(booking.status);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
-      color: scheme.surfaceContainerLowest,
+      color: Color.alphaBlend(
+        visual.accent.withValues(alpha: booking.status == 'قيد التنفيذ' ? .09 : .045),
+        scheme.surface,
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: BorderSide(color: scheme.outlineVariant),
+        side: BorderSide(
+          color: visual.accent.withValues(alpha: .42),
+          width: booking.status == 'قيد التنفيذ' ? 1.5 : 1,
+        ),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -203,19 +228,10 @@ class _ConsultationCard extends ConsumerWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: booking.status == 'مكتمل'
-                      ? AppColors.acceptedBg
-                      : scheme.primaryContainer,
+                  color: visual.background,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(
-                  booking.status == 'مكتمل'
-                      ? Icons.task_alt_rounded
-                      : Icons.forum_rounded,
-                  color: booking.status == 'مكتمل'
-                      ? AppColors.acceptedText
-                      : scheme.primary,
-                ),
+                child: Icon(visual.icon, color: visual.accent),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -241,17 +257,16 @@ class _ConsultationCard extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                           decoration: BoxDecoration(
-                            color: booking.status == 'مكتمل'
-                                ? AppColors.acceptedBg
-                                : scheme.secondaryContainer,
+                            color: visual.background,
                             borderRadius: BorderRadius.circular(99),
+                            border: Border.all(
+                              color: visual.accent.withValues(alpha: .25),
+                            ),
                           ),
                           child: Text(
                             booking.status,
                             style: TextStyle(
-                              color: booking.status == 'مكتمل'
-                                  ? AppColors.acceptedText
-                                  : scheme.onSecondaryContainer,
+                              color: visual.foreground,
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
                             ),
@@ -263,17 +278,23 @@ class _ConsultationCard extends ConsumerWidget {
                     Text(
                       booking.consultationType ?? 'استشارة قانونية',
                       textAlign: TextAlign.right,
-                      style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12.5),
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 12.5,
+                      ),
                     ),
                     const SizedBox(height: 5),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Icon(Icons.schedule_rounded, size: 15, color: scheme.onSurfaceVariant),
+                        Icon(Icons.schedule_rounded, size: 15, color: visual.accent),
                         const SizedBox(width: 5),
                         Text(
                           _formatDate(booking.scheduledAt),
-                          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                          style: TextStyle(
+                            color: scheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -281,7 +302,7 @@ class _ConsultationCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(Icons.chevron_left_rounded, color: scheme.onSurfaceVariant),
+              Icon(Icons.chevron_left_rounded, color: visual.accent),
             ],
           ),
         ),
