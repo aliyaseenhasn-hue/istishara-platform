@@ -75,10 +75,11 @@
 - لم تتغير RPCs أو قاعدة البيانات.
 - الإصلاح خاص بتخطيط PWA والتعامل مع لوحة مفاتيح iPhone مع الإبقاء على تحسينات Flutter السابقة.
 
-## التحقق
+## التحقق النهائي
 - الإصلاح السابق حتى `9f71643e4ffca7df28bccdab766bec034156c1fe` وصل فعلياً إلى GitHub Pages بنجاح، واستمرار المشكلة بعده أثبت الحاجة إلى إصلاح طبقة `visualViewport`.
-- يجب اعتماد GitHub Actions على آخر HEAD بعد إصلاح `visualViewport` ورفع Service Worker إلى `v11` وإضافة حماية Auto-Zoom:
-  - Flutter Analyze.
-  - Flutter Tests.
-  - Flutter Web Build.
-  - GitHub Pages Deploy.
+- النسخة التي تحتوي إصلاح `visualViewport` وService Worker `v11` وحماية Auto-Zoom اجتازت على GitHub Actions:
+  - Flutter Analyze: نجاح.
+  - Flutter Tests: نجاح.
+  - Flutter Web Build: نجاح.
+  - GitHub Pages Deploy: نجاح.
+- تم نشرها عبر run `34532075829` بنجاح.
