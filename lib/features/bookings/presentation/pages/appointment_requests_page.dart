@@ -173,24 +173,36 @@ class _AppointmentRequestsPageState
     final reason = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('رفض طلب الموعد'),
-        content: TextField(
-          controller: controller,
-          minLines: 2,
-          maxLines: 4,
-          decoration: const InputDecoration(labelText: 'سبب الرفض'),
+        title: const Text('رفض الاستشارة نهائياً'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'استخدم هذا الخيار فقط إذا كنت لا تريد قبول الاستشارة. إذا كانت المشكلة في الوقت فقط فاقترح موعداً آخر بدلاً من الرفض.',
+              textAlign: TextAlign.right,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              minLines: 2,
+              maxLines: 4,
+              textAlign: TextAlign.right,
+              decoration: const InputDecoration(labelText: 'سبب الرفض'),
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
+            child: const Text('رجوع'),
           ),
           FilledButton(
             onPressed: () {
               final value = controller.text.trim();
               if (value.isNotEmpty) Navigator.pop(dialogContext, value);
             },
-            child: const Text('تأكيد الرفض'),
+            child: const Text('رفض نهائي'),
           ),
         ],
       ),
@@ -206,7 +218,7 @@ class _AppointmentRequestsPageState
           'p_reject_reason': reason,
         },
       );
-      _message('تم رفض الطلب وإعادة المبلغ المحجوز للعميل.');
+      _message('تم رفض الاستشارة نهائياً وإعادة المبلغ المحجوز للعميل.');
       await _refresh();
     } catch (error) {
       _message(UserFacingError.text(error));
@@ -268,7 +280,7 @@ class _AppointmentRequestsPageState
     final isLawyer = role == 'lawyer';
     return Scaffold(
       appBar: AppBar(
-        title: Text(isLawyer ? 'طلبات المواعيد الخاصة' : 'مواعيدي المقترحة'),
+        title: Text(isLawyer ? 'طلبات المواعيد' : 'متابعة المواعيد'),
         centerTitle: true,
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
@@ -294,7 +306,7 @@ class _AppointmentRequestsPageState
               child: Padding(
                 padding: EdgeInsets.all(28),
                 child: Text(
-                  'لا توجد طلبات مواعيد خاصة حالياً.',
+                  'لا توجد طلبات مواعيد حالياً.',
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -379,7 +391,7 @@ class _RequestCard extends StatelessWidget {
           ],
           if (clientWindows.isNotEmpty) ...[
             const SizedBox(height: 14),
-            const Text('الفترات المناسبة للعميل', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w800)),
+            const Text('الأوقات التي اقترحها العميل', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.w800)),
             ...clientWindows.map((window) {
               final start = _date(window['start']);
               final end = _date(window['end']);
@@ -412,7 +424,7 @@ class _RequestCard extends StatelessWidget {
           if (isLawyer && pendingLawyer) ...[
             const SizedBox(height: 14),
             Row(children: [
-              Expanded(child: OutlinedButton.icon(onPressed: onReject, icon: const Icon(Icons.close_rounded), label: const Text('رفض'))),
+              Expanded(child: OutlinedButton.icon(onPressed: onReject, icon: const Icon(Icons.close_rounded), label: const Text('رفض نهائي'))),
               const SizedBox(width: 10),
               Expanded(flex: 2, child: FilledButton.icon(onPressed: onRespond, icon: const Icon(Icons.edit_calendar_outlined), label: const Text('اقتراح مواعيد'))),
             ]),
