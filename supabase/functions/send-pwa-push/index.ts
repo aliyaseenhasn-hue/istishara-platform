@@ -39,6 +39,7 @@ async function routeForNotification(record: NotificationRecord, supabaseAdmin: a
   if (refType === "conversation" && refId) return `./chat/${encodeURIComponent(refId)}`;
   if ((refType === "lawyer" || refType === "lawyer_profile") && refId) return `./lawyer-details/${encodeURIComponent(refId)}`;
   if (refType === "booking" && refId) return `./booking-details?booking_id=${encodeURIComponent(refId)}`;
+  if (refType === "appointment_request" && refId) return `./appointment-requests?request_id=${encodeURIComponent(refId)}`;
 
   if (refType === "cancellation_request" && refId) {
     const requestResult = await supabaseAdmin
