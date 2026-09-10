@@ -13,10 +13,19 @@ class NotificationsPage extends ConsumerWidget {
 
   Future<void> _open(BuildContext context, AppNotification item) async {
     final referenceId = item.referenceId?.trim();
+    final isAppointmentTarget = item.referenceType == 'appointment_request';
     final isBookingTarget = item.referenceType == 'booking' ||
         item.referenceType == 'payment' ||
         item.type == 'booking' ||
         item.type == 'payment';
+
+    if (isAppointmentTarget) {
+      final suffix = referenceId != null && referenceId.isNotEmpty
+          ? '?request_id=${Uri.encodeQueryComponent(referenceId)}'
+          : '';
+      if (context.mounted) context.push('/appointment-requests$suffix');
+      return;
+    }
 
     if (isBookingTarget && referenceId != null && referenceId.isNotEmpty) {
       try {
@@ -508,6 +517,15 @@ class _NotificationCard extends StatelessWidget {
         return const _NotificationVisual(
           Icons.event_available_rounded,
           AppColors.primaryLight,
+        );
+      case 'appointment_options_ready':
+      case 'appointment_client_counter_offer':
+      case 'appointment_request_new':
+      case 'appointment_request_rejected':
+      case 'appointment_request_rejected_by_client':
+        return const _NotificationVisual(
+          Icons.edit_calendar_rounded,
+          AppColors.teal,
         );
       case 'profile':
         return const _NotificationVisual(
