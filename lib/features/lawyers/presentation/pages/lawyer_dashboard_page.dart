@@ -118,9 +118,9 @@ class LawyerDashboardPage extends ConsumerWidget {
                   ])),
                 ]),
                 const SizedBox(height: 8),
-                const LawyerAppointmentRequestsCard(),
+                LawyerAppointmentRequestsCard(showEmptyWhenNoRequests: items.isEmpty),
                 if (items.isNotEmpty) const SizedBox(height: 2),
-                if (items.isEmpty) const _EmptyState() else ...items.take(5).map((b) => _BookingCard(booking: b)),
+                if (items.isNotEmpty) ...items.take(5).map((b) => _BookingCard(booking: b)),
               ],
             ),
           );
@@ -386,22 +386,6 @@ class _WalletCard extends StatelessWidget {
               ),
             ),
           ),
-        ),
-      );
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-  @override
-  Widget build(BuildContext context) => HoverLift(
-        child: Container(
-          padding: const EdgeInsets.all(23),
-          decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.outlineVariant)),
-          child: const Column(children: [
-            Icon(Icons.event_available_rounded, color: AppColors.tertiary, size: 34),
-            SizedBox(height: 8),
-            Text('لا توجد طلبات استشارة أو مواعيد حالياً', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
-          ]),
         ),
       );
 }
