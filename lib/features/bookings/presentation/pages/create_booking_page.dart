@@ -245,7 +245,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
         return;
       }
       ref.invalidate(clientWalletProvider);
-      _showMessage('تم إرسال طلب الموعد إلى المحامي، ولديه 12 ساعة للرد.');
+      _showMessage('تم إرسال الأوقات المقترحة إلى المحامي، ولديه 12 ساعة للرد.');
       context.go('/appointment-requests');
       return;
     }
@@ -387,16 +387,16 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
       case 2:
         final customSchedule = _usingCustomAppointment || slots.isEmpty;
         return _StepCard(
-          title: customSchedule ? 'اقترح فترات مناسبة' : 'اختر الموعد والمدة',
+          title: customSchedule ? 'حدد الأوقات التي تناسبك' : 'اختر الموعد والمدة',
           subtitle: customSchedule
-              ? 'حدد حتى ثلاث فترات، وسيقترح المحامي مواعيد نهائية لتختار أحدها.'
+              ? 'حدد من فترة واحدة إلى ثلاث فترات مناسبة لك، وسيختار المحامي وقتاً منها أو يقترح موعداً بديلاً.'
               : 'المواعيد المعروضة موافق عليها مسبقاً وتُحجز فوراً.',
           icon: Icons.calendar_month_outlined,
           child: customSchedule
               ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                   if (slots.isEmpty)
                     const _InlineNotice(
-                      text: 'لا توجد مواعيد معروضة حالياً، لكن يمكنك طلب موعد خاص بدلاً من مغادرة الصفحة.',
+                      text: 'لم ينشر المحامي مواعيد متاحة حالياً. يمكنك تحديد الأوقات التي تناسبك وإرسالها له ضمن نفس طلب الاستشارة.',
                     ),
                   ..._customWindows.asMap().entries.map(
                     (entry) => ListTile(
@@ -446,7 +446,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                       _selectedSlot = null;
                     }),
                     icon: const Icon(Icons.edit_calendar_outlined),
-                    label: const Text('لا يناسبني أي موعد — طلب موعد خاص'),
+                    label: const Text('لا يناسبني أي موعد — اقترح موعداً'),
                   ),
                 ]),
         );
@@ -466,7 +466,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
               _ReviewRow(label: 'المدة', value: '${_selectedSlot!.durationMinutes} دقيقة'),
               _ReviewRow(label: 'السعر', value: _selectedSlot!.price == null ? 'حسب الباقة' : '${_selectedSlot!.price!.toStringAsFixed(0)} د.ع'),
             ] else ...[
-              _ReviewRow(label: 'طريقة الموعد', value: 'طلب موعد خاص'),
+              _ReviewRow(label: 'طريقة الموعد', value: 'أوقات مقترحة من العميل'),
               _ReviewRow(label: 'الفترات المقترحة', value: '${_customWindows.length}'),
             ],
             const SizedBox(height: 14),
@@ -569,9 +569,9 @@ class _NoSlotsView extends StatelessWidget {
           const SizedBox(height: 22),
           Icon(Icons.event_busy_outlined, size: 52, color: scheme.primary),
           const SizedBox(height: 14),
-          Text('لا توجد مواعيد متاحة', textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurface, fontSize: 22, fontWeight: FontWeight.w900)),
+          Text('لا توجد مواعيد منشورة', textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurface, fontSize: 22, fontWeight: FontWeight.w900)),
           const SizedBox(height: 10),
-          Text('لا توجد مواعيد متاحة لدى هذا المحامي حالياً. يمكنك متابعة المحامي وسيتم إشعارك فور إضافة موعد جديد.', textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant, height: 1.6)),
+          Text('لم ينشر هذا المحامي مواعيد حالياً. يمكنك تحديد الأوقات التي تناسبك وإرسالها له، أو متابعته ليصلك إشعار عند إضافة مواعيد.', textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant, height: 1.6)),
           const SizedBox(height: 24),
           SizedBox(width: double.infinity, height: 50, child: FilledButton.icon(onPressed: loading ? null : onFollow, icon: loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.notifications_active_outlined), label: const Text('تابع المحامي', style: TextStyle(fontWeight: FontWeight.w800)))),
           const SizedBox(height: 10),
