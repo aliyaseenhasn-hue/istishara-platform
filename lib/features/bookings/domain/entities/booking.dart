@@ -21,6 +21,8 @@ class Booking {
   final bool manualPaymentRequired;
   final double? manualReceivedAmount;
   final DateTime? manualReceivedAt;
+  final int packageDurationMinutes;
+  final DateTime? paymentConfirmedAt;
 
   const Booking({
     required this.id,
@@ -45,6 +47,8 @@ class Booking {
     this.manualPaymentRequired = false,
     this.manualReceivedAmount,
     this.manualReceivedAt,
+    this.packageDurationMinutes = 30,
+    this.paymentConfirmedAt,
   });
 
   bool get isInOffice => consultationMode == 'في المكتب';
@@ -54,16 +58,54 @@ class Booking {
       manualPaymentRequired &&
       (manualReceivedAmount == null || manualReceivedAmount! <= 0);
 
+  DateTime get startWindowOpensAt => scheduledAt.subtract(const Duration(minutes: 5));
+
+  DateTime get startWindowExpiresAt {
+    var deadline = scheduledAt.add(Duration(minutes: packageDurationMinutes > 0 ? packageDurationMinutes : 30));
+    final confirmedAt = paymentConfirmedAt;
+    if (paymentRequired && confirmedAt != null && confirmedAt.isAfter(scheduledAt)) {
+      final delayedPaymentDeadline = confirmedAt.add(const Duration(hours: 1));
+      if (delayedPaymentDeadline.isAfter(deadline)) deadline = delayedPaymentDeadline;
+    }
+    return deadline;
+  }
+
+  DateTime? get consultationEndsAt {
+    final started = startedAt;
+    if (started == null) return null;
+    return started.add(Duration(minutes: packageDurationMinutes > 0 ? packageDurationMinutes : 30));
+  }
+
+  bool canStartAt(DateTime now) =>
+      status == 'مؤكد' &&
+      !now.isBefore(startWindowOpensAt) &&
+      !now.isAfter(startWindowExpiresAt);
+
   Booking copyWith({
-    String? id, String? userId, String? lawyerId, String? status,
-    DateTime? scheduledAt, double? price, DateTime? createdAt,
-    DateTime? startedAt, String? lawyerName, String? userName,
-    String? consultationType, String? consultationMode, String? description,
-    String? documentUrl, String? whatsappNumber, bool? lawyerApproved,
-    bool? paymentRequired, DateTime? paymentWaivedAt,
+    String? id,
+    String? userId,
+    String? lawyerId,
+    String? status,
+    DateTime? scheduledAt,
+    double? price,
+    DateTime? createdAt,
+    DateTime? startedAt,
+    String? lawyerName,
+    String? userName,
+    String? consultationType,
+    String? consultationMode,
+    String? description,
+    String? documentUrl,
+    String? whatsappNumber,
+    bool? lawyerApproved,
+    bool? paymentRequired,
+    DateTime? paymentWaivedAt,
     String? paymentWaiverReason,
-    bool? manualPaymentRequired, double? manualReceivedAmount,
+    bool? manualPaymentRequired,
+    double? manualReceivedAmount,
     DateTime? manualReceivedAt,
+    int? packageDurationMinutes,
+    DateTime? paymentConfirmedAt,
   }) {
     return Booking(
       id: id ?? this.id,
@@ -88,6 +130,8 @@ class Booking {
       manualPaymentRequired: manualPaymentRequired ?? this.manualPaymentRequired,
       manualReceivedAmount: manualReceivedAmount ?? this.manualReceivedAmount,
       manualReceivedAt: manualReceivedAt ?? this.manualReceivedAt,
+      packageDurationMinutes: packageDurationMinutes ?? this.packageDurationMinutes,
+      paymentConfirmedAt: paymentConfirmedAt ?? this.paymentConfirmedAt,
     );
   }
 }
