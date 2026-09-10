@@ -6,11 +6,18 @@ import 'package:intl/intl.dart';
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/user_facing_error.dart';
-import '../../../../shared/widgets/hover_lift.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 
+/// Renders appointment requests inline with the lawyer's normal incoming
+/// consultation requests. A flexible appointment is a request state, not a
+/// separate inbox or product flow.
 class LawyerAppointmentRequestsCard extends ConsumerWidget {
-  const LawyerAppointmentRequestsCard({super.key});
+  final bool showEmptyWhenNoRequests;
+
+  const LawyerAppointmentRequestsCard({
+    super.key,
+    this.showEmptyWhenNoRequests = false,
+  });
 
   Future<void> _sendOptions(
     BuildContext context,
@@ -77,7 +84,7 @@ class LawyerAppointmentRequestsCard extends ConsumerWidget {
     final chosenWindow = await showDialog<_DateWindow>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('اختر فترة مناسبة للعميل'),
+        title: const Text('اختيار موعد الاستشارة'),
         content: SizedBox(
           width: 440,
           child: Column(
@@ -113,13 +120,16 @@ class LawyerAppointmentRequestsCard extends ConsumerWidget {
 
     if (chosenWindow == null || !context.mounted) return;
 
-    final initial = chosenWindow.start.isAfter(DateTime.now().add(const Duration(minutes: 30)))
+    final now = DateTime.now();
+    final initial = chosenWindow.start.isAfter(
+      now.add(const Duration(minutes: 30)),
+    )
         ? chosenWindow.start
-        : DateTime.now().add(const Duration(minutes: 30));
+        : now.add(const Duration(minutes: 30));
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initial),
-      helpText: 'حدد وقت بدء الاستشارة داخل فترة العميل',
+      helpText: 'حدد وقت بدء الاستشارة',
     );
     if (time == null || !context.mounted) return;
 
@@ -139,7 +149,7 @@ class LawyerAppointmentRequestsCard extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'اختر وقتاً داخل الفترة المحددة، مع مساحة تكفي لمدة الاستشارة ($duration دقيقة).',
+            'اختر وقتاً داخل الفترة المحددة يسمح بمدة الاستشارة كاملة ($duration دقيقة).',
             textAlign: TextAlign.right,
           ),
         ),
@@ -151,7 +161,7 @@ class LawyerAppointmentRequestsCard extends ConsumerWidget {
       context,
       request,
       [exactStart],
-      'تم قبول موعد من فترة العميل وإرساله له للتأكيد النهائي.',
+      'تم قبول الموعد وإرساله للعميل للتأكيد النهائي.',
     );
   }
 
@@ -194,7 +204,7 @@ class LawyerAppointmentRequestsCard extends ConsumerWidget {
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('المواعيد لا تناسبني — اقتراح بديل'),
+          title: const Text('اقتراح موعد بديل'),
           content: SizedBox(
             width: 460,
             child: Column(
@@ -202,7 +212,7 @@ class LawyerAppointmentRequestsCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  'يمكنك اقتراح من موعد واحد إلى ثلاثة مواعيد بديلة. لن يُلغى الطلب ولن يُعاد المبلغ؛ سينتظر اختيار العميل النهائي.',
+                  'إذا لم تناسبك مواعيد العميل، اقترح من موعد واحد إلى ثلاثة. يبقى الطلب نفسه بانتظار اختيار العميل.',
                   textAlign: TextAlign.right,
                 ),
                 const SizedBox(height: 12),
@@ -228,15 +238,6 @@ class LawyerAppointmentRequestsCard extends ConsumerWidget {
                           final value = await _pickAlternativeDateTime(context);
                           if (value != null && !options.contains(value)) {
                             setDialogState(() => options.add(value));
-                          } else if (value == null && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'اختر موعداً مستقبلياً يبعد أكثر من 30 دقيقة.',
-                                  textAlign: TextAlign.right,
-                                ),
-                              ),
-                            );
                           }
                         },
                   icon: const Icon(Icons.add_rounded),
@@ -270,7 +271,7 @@ class LawyerAppointmentRequestsCard extends ConsumerWidget {
       context,
       request,
       options,
-      'تم رفض الفترات الحالية وإرسال المواعيد البديلة إلى العميل.',
+      'تم إرسال المواعيد البديلة إلى العميل.',
     );
   }
 
@@ -282,13 +283,13 @@ class LawyerAppointmentRequestsCard extends ConsumerWidget {
     final reason = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('رفض الطلب نهائياً'),
+        title: const Text('رفض الاستشارة نهائياً'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'استخدم الرفض النهائي فقط إذا كنت لا تريد قبول الاستشارة. سيُنهي الطلب ويعيد المبلغ المحجوز إلى العميل.',
+              'هذا الإجراء ينهي الطلب ويعيد المبلغ المحجوز للعميل. إذا كانت المشكلة في الوقت فقط استخدم «موعد بديل».',
               textAlign: TextAlign.right,
             ),
             const SizedBox(height: 12),
@@ -336,7 +337,7 @@ class LawyerAppointmentRequestsCard extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'تم رفض الطلب نهائياً وإعادة المبلغ المحجوز إلى العميل.',
+            'تم رفض الاستشارة وإعادة المبلغ المحجوز إلى العميل.',
             textAlign: TextAlign.right,
           ),
         ),
@@ -378,112 +379,64 @@ class LawyerAppointmentRequestsCard extends ConsumerWidget {
             return _createdAt(b).compareTo(_createdAt(a));
           });
 
-        final active = rows
-            .where((row) {
-              final status = row['status']?.toString() ?? '';
-              return status == 'بانتظار رد المحامي' ||
-                  status == 'بانتظار اختيار العميل';
-            })
-            .toList(growable: false);
+        final active = rows.where((row) {
+          final status = row['status']?.toString() ?? '';
+          return status == 'بانتظار رد المحامي' ||
+              status == 'بانتظار اختيار العميل';
+        }).toList(growable: false);
 
-        final waitingForLawyer = active
-            .where((row) => row['status']?.toString() == 'بانتظار رد المحامي')
-            .length;
-
-        return HoverLift(
-          borderRadius: 20,
-          child: Container(
-            padding: const EdgeInsets.all(15),
+        if (active.isEmpty) {
+          if (!showEmptyWhenNoRequests) return const SizedBox.shrink();
+          return Container(
+            padding: const EdgeInsets.all(23),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: waitingForLawyer > 0
-                    ? AppColors.tertiary.withValues(alpha: .42)
-                    : AppColors.outlineVariant,
-              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.outlineVariant),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: const Column(
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: AppColors.tertiary.withValues(alpha: .10),
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      child: const Icon(
-                        Icons.edit_calendar_rounded,
-                        color: AppColors.tertiary,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Text(
-                            'طلبات المواعيد الخاصة',
-                            textAlign: TextAlign.right,
-                            style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            waitingForLawyer > 0
-                                ? '$waitingForLawyer طلب بانتظار قبول موعد أو اقتراح بديل'
-                                : active.isNotEmpty
-                                    ? '${active.length} طلب بانتظار تأكيد العميل'
-                                    : 'لا توجد طلبات مواعيد بانتظار الرد',
-                            textAlign: TextAlign.right,
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (active.isNotEmpty)
-                      TextButton(
-                        onPressed: () => context.push('/appointment-requests'),
-                        child: const Text('عرض الكل'),
-                      ),
-                  ],
+                Icon(
+                  Icons.event_available_rounded,
+                  color: AppColors.tertiary,
+                  size: 34,
                 ),
-                if (active.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  ...active.take(3).map(
-                        (request) => _AppointmentPreview(
-                          request: request,
-                          onApprove: () => _approveClientWindow(context, request),
-                          onCounterOffer: () => _counterOffer(context, request),
-                          onRejectFinal: () => _rejectFinal(context, request),
-                          onOpen: () => context.push('/appointment-requests'),
-                        ),
-                      ),
-                  if (active.length > 3) ...[
-                    const SizedBox(height: 5),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: () => context.push('/appointment-requests'),
-                        icon: const Icon(Icons.arrow_forward_rounded, size: 17),
-                        label: Text('عرض ${active.length - 3} طلب آخر'),
-                      ),
-                    ),
-                  ],
-                ],
+                SizedBox(height: 8),
+                Text(
+                  'لا توجد طلبات مواعيد أو استشارات حالياً',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
-          ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ...active.take(3).map(
+                  (request) => _AppointmentRequestItem(
+                    request: request,
+                    onApprove: () => _approveClientWindow(context, request),
+                    onCounterOffer: () => _counterOffer(context, request),
+                    onRejectFinal: () => _rejectFinal(context, request),
+                    onOpen: () => context.push('/appointment-requests'),
+                  ),
+                ),
+            if (active.length > 3)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => context.push('/appointment-requests'),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 17),
+                  label: Text('عرض ${active.length - 3} طلب آخر'),
+                ),
+              ),
+          ],
         );
       },
     );
@@ -520,14 +473,14 @@ class LawyerAppointmentRequestsCard extends ConsumerWidget {
   }
 }
 
-class _AppointmentPreview extends StatelessWidget {
+class _AppointmentRequestItem extends StatelessWidget {
   final Map<String, dynamic> request;
   final VoidCallback onApprove;
   final VoidCallback onCounterOffer;
   final VoidCallback onRejectFinal;
   final VoidCallback onOpen;
 
-  const _AppointmentPreview({
+  const _AppointmentRequestItem({
     required this.request,
     required this.onApprove,
     required this.onCounterOffer,
@@ -550,13 +503,13 @@ class _AppointmentPreview extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 9),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: waitingForLawyer
-              ? AppColors.tertiary.withValues(alpha: .20)
+              ? AppColors.tertiary.withValues(alpha: .30)
               : AppColors.outlineVariant,
         ),
       ),
@@ -565,6 +518,22 @@ class _AppointmentPreview extends StatelessWidget {
         children: [
           Row(
             children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: .08),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: const Text(
+                  'موعد مرن',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   packageName == null || packageName.isEmpty
@@ -575,28 +544,6 @@ class _AppointmentPreview extends StatelessWidget {
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w900,
                     fontSize: 13,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 7),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: waitingForLawyer
-                      ? AppColors.tertiary.withValues(alpha: .10)
-                      : AppColors.primary.withValues(alpha: .08),
-                  borderRadius: BorderRadius.circular(99),
-                ),
-                child: Text(
-                  waitingForLawyer
-                      ? 'بانتظار ردك'
-                      : 'بانتظار تأكيد العميل',
-                  style: TextStyle(
-                    color: waitingForLawyer
-                        ? AppColors.tertiary
-                        : AppColors.primary,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
@@ -612,10 +559,20 @@ class _AppointmentPreview extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
+          const SizedBox(height: 5),
+          Text(
+            waitingForLawyer ? 'بانتظار تحديد الموعد من قبلك' : 'بانتظار تأكيد العميل للموعد',
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: waitingForLawyer ? AppColors.tertiary : AppColors.primary,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
           if (windows.isNotEmpty) ...[
             const SizedBox(height: 8),
             const Text(
-              'الفترات التي حددها العميل:',
+              'الأوقات المناسبة للعميل:',
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: AppColors.textSecondary,
@@ -642,7 +599,7 @@ class _AppointmentPreview extends StatelessWidget {
           if (!waitingForLawyer && lawyerOptions.isNotEmpty) ...[
             const SizedBox(height: 8),
             const Text(
-              'المواعيد التي أرسلتها للعميل:',
+              'الموعد المرسل للعميل:',
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: AppColors.textSecondary,
@@ -650,18 +607,14 @@ class _AppointmentPreview extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 3),
             ...lawyerOptions.take(3).map(
-              (option) => Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  _formatOption(option),
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
-                  ),
+              (option) => Text(
+                _formatOption(option),
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -687,17 +640,16 @@ class _AppointmentPreview extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 4),
             TextButton.icon(
               onPressed: onRejectFinal,
               icon: const Icon(Icons.close_rounded, size: 17),
-              label: const Text('رفض الطلب نهائياً'),
+              label: const Text('رفض الاستشارة نهائياً'),
             ),
           ] else
             OutlinedButton.icon(
               onPressed: onOpen,
               icon: const Icon(Icons.schedule_send_rounded, size: 18),
-              label: const Text('عرض حالة الطلب'),
+              label: const Text('عرض حالة الموعد'),
             ),
         ],
       ),
