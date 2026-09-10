@@ -82,9 +82,7 @@ class NotificationService {
         final context = AppNavigation.navigatorKey.currentContext;
         final sessionReady = SupabaseConfig.client.auth.currentUser != null;
         if (context == null || !sessionReady) {
-          if (attempts >= 60) {
-            timer.cancel();
-          }
+          if (attempts >= 60) timer.cancel();
           return;
         }
 
@@ -112,7 +110,9 @@ class NotificationService {
   }
 
   static Future<bool> _navigateFromNotification(
-      BuildContext context, String payload) async {
+    BuildContext context,
+    String payload,
+  ) async {
     final notificationId = _decodeNotificationId(payload);
     if (notificationId == null) return false;
 
@@ -140,19 +140,25 @@ class NotificationService {
         role = profile?['role']?.toString();
       }
       if (context.mounted) {
-        GoRouter.of(context).push(role == 'admin' ? '/admin/payments' : '/client-wallet');
+        GoRouter.of(context).push(
+          role == 'admin' ? '/admin/payments' : '/client-wallet',
+        );
         return true;
       }
     }
 
     if (referenceType == 'appointment_request') {
       if (context.mounted) {
-        GoRouter.of(context).push('/appointment-requests');
+        final suffix = referenceId != null && referenceId.isNotEmpty
+            ? '?request_id=${Uri.encodeQueryComponent(referenceId)}'
+            : '';
+        GoRouter.of(context).push('/appointment-requests$suffix');
         return true;
       }
     }
 
-    if (referenceId != null && referenceId.isNotEmpty &&
+    if (referenceId != null &&
+        referenceId.isNotEmpty &&
         (referenceType == 'booking' || type == 'booking' || type == 'payment')) {
       if (context.mounted) {
         GoRouter.of(context).push(
@@ -162,18 +168,24 @@ class NotificationService {
       }
     }
 
-    if (referenceId != null && referenceId.isNotEmpty &&
-        (referenceType == 'conversation' || referenceType == 'chat' || type == 'chat')) {
+    if (referenceId != null &&
+        referenceId.isNotEmpty &&
+        (referenceType == 'conversation' ||
+            referenceType == 'chat' ||
+            type == 'chat')) {
       if (context.mounted) {
         GoRouter.of(context).push('/chat/${Uri.encodeComponent(referenceId)}');
         return true;
       }
     }
 
-    if (referenceId != null && referenceId.isNotEmpty &&
+    if (referenceId != null &&
+        referenceId.isNotEmpty &&
         (referenceType == 'lawyer' || referenceType == 'lawyer_profile')) {
       if (context.mounted) {
-        GoRouter.of(context).push('/lawyer-details/${Uri.encodeComponent(referenceId)}');
+        GoRouter.of(context).push(
+          '/lawyer-details/${Uri.encodeComponent(referenceId)}',
+        );
         return true;
       }
     }
@@ -231,7 +243,10 @@ class NotificationService {
         DateTime.now().microsecondsSinceEpoch.remainder(2147483647),
         title,
         body,
-        const NotificationDetails(android: androidDetails, iOS: iosDetails),
+        const NotificationDetails(
+          android: androidDetails,
+          iOS: iosDetails,
+        ),
         payload: payload,
       );
     } catch (e, stack) {
