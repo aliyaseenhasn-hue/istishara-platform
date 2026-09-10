@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/authentication/presentation/providers/auth_provider.dart';
+import '../../features/bookings/presentation/widgets/client_appointment_requests_home_card.dart';
 import 'main_bottom_nav.dart';
 
 class AppShell extends ConsumerWidget {
@@ -61,6 +62,37 @@ class AppShell extends ConsumerWidget {
     return 0;
   }
 
+  Widget _body(
+    BuildContext context, {
+    required bool isLawyer,
+  }) {
+    if (!isLawyer && location == '/home') {
+      return SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const ClientAppointmentRequestsHomeCard(),
+            Expanded(
+              child: MediaQuery.removePadding(
+                context: context,
+                removeTop: true,
+                child: child,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final scheme = Theme.of(context).colorScheme;
+    return ColoredBox(
+      color: scheme.surface,
+      child: ClipRect(
+        child: RepaintBoundary(child: child),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
@@ -79,12 +111,7 @@ class AppShell extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: scheme.surface,
-      body: ColoredBox(
-        color: scheme.surface,
-        child: ClipRect(
-          child: RepaintBoundary(child: child),
-        ),
-      ),
+      body: _body(context, isLawyer: isLawyer),
       bottomNavigationBar: MainBottomNav(
         currentIndex: selectedIndex,
         isLawyer: isLawyer,
