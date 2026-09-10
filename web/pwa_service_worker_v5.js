@@ -1,4 +1,4 @@
-const CACHE_NAME = 'astshara-pwa-v13';
+const CACHE_NAME = 'astshara-pwa-v14';
 const APP_SHELL = [
   './',
   './index.html',
@@ -64,8 +64,6 @@ self.addEventListener('push', (event) => {
     lang: 'ar',
     tag: data.tag || 'astshara-notification',
     renotify: true,
-    // Explicitly request an audible notification. On iOS/iPadOS the final
-    // sound behavior is still controlled by the user's notification/Focus settings.
     silent: data.silent === true ? true : false,
     requireInteraction: Boolean(data.requireInteraction),
     timestamp: Date.now(),
