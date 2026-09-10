@@ -91,12 +91,41 @@
 - الضغط خارج الحقل يغلق لوحة المفاتيح أيضاً.
 - تم التخلص من أي scroll يدوي كبير؛ الصفحة تبقى `ListView` طبيعية وقابلة للتمرير.
 
+## الإصلاح 10 — معالجة Flutter Web semantics Auto-Zoom على iOS
+- صورة الاختبار اللاحقة أظهرت أن المشكلة تحدث أيضاً عند حقل `رقم عملية التحويل` وأن Safari يعرض الصفحة مكبرة أثناء التركيز، ما أثبت أن المشكلة لم تعد مرتبطة بحقل بعينه أو بقيمة `scrollPadding` وحدها.
+- تم التحقق من مشكلة Flutter Web الحالية الخاصة بـ iOS/WebKit: عنصر الإدخال الدلالي الذي ينشئه Flutter قد لا يحدد `font-size`، فيرث حجماً أقل من 16px، وWebKit يقوم عندها بتكبير الصفحة تلقائياً عند التركيز.
+- أثناء مراجعة `web/index.html` الحالي وُجد أن حماية 16px السابقة لم تعد موجودة بعد تعديلات إزالة `visualViewport`، لذلك عادت المشكلة.
+
+### الإصلاح 10.1 — حماية CSS مباشرة لعناصر Flutter الدلالية
+- الملف: `web/index.html`.
+- commit: `8dbe2202dd0c5886f0179d9a58c98eae920352ab`.
+- أضيف `font-size: 16px !important` و`-webkit-text-size-adjust: 100%` إلى:
+  - `input` و`textarea` و`contenteditable` العامة.
+  - `flt-semantics-host` وعناصر الإدخال التابعة له.
+  - `flt-semantics` وعناصر الإدخال التابعة له.
+  - `flt-text-editing-host` وعناصر الإدخال التابعة له.
+- لا يتم استخدام `user-scalable=no` أو `maximum-scale=1`، لذلك لا يتم تعطيل تكبير الصفحة الاختياري للمستخدم.
+
+### الإصلاح 10.2 — حماية ديناميكية لعناصر الإدخال التي ينشئها Flutter لاحقاً
+- لأن Flutter Web ينشئ عناصر الإدخال الدلالية/الأصلية بشكل lazy عند التركيز، أضيف `MutationObserver` في `web/index.html`.
+- المراقب يطبق حد 16px مباشرة على أي `input` أو `textarea` أو `contenteditable` ينشأ لاحقاً.
+- هذه طبقة دفاع إضافية فوق CSS لمنع فقدان الحماية بسبب طريقة إنشاء Flutter لعناصر الإدخال.
+
+### الإصلاح 10.3 — تطبيق الحماية نفسها على fallback وتحديث PWA
+- الملف: `web/404.html`.
+- commit: `38eeafb2f7827f0d8c8fc71d7bcae2c178abfe6f`.
+- أضيفت حماية CSS وMutationObserver نفسها حتى تعمل الروابط المباشرة/fallback بنفس السلوك.
+- الملف: `web/pwa_service_worker_v5.js`.
+- commit: `e79a6d086a51fb801938720c177cd29035ca9364`.
+- رُفع Cache إلى `astshara-pwa-v13`، وتم تحديث تسجيل العامل في `index.html` و`404.html` إلى `?v=13` لإزالة أي shell قديم لا يحتوي حماية الـAuto-Zoom.
+
 ## النطاق
 - لم يتغير منطق الشحن أو رفع الإيصال أو اعتماد الإدارة أو رصيد المحفظة.
 - لم تتغير RPCs أو قاعدة البيانات.
-- جميع التعديلات تخص تجربة لوحة المفاتيح والتخطيط على iPhone/PWA.
+- جميع التعديلات تخص تجربة لوحة المفاتيح والتخطيط على iPhone/PWA وSafari/WebKit.
 
 ## التحقق
 - نسخة v11 اجتازت سابقاً Flutter Analyze وTests وWeb Build وGitHub Pages Deploy، لكن الاختبار الفعلي على iPhone كشف استمرار over-scroll.
 - نسخة v12 التي أخرجت المحفظة من AppShell وأزالت إدارة viewport اليدوية اجتازت Flutter Analyze وTests وWeb Build وGitHub Pages Deploy.
-- بعد الإصلاح 9 يجب اعتماد GitHub Actions على commit `64235fadd8c61a69614d934441e3f67e93390f49` ثم نشره قبل الاختبار النهائي على iPhone.
+- الإصلاح 9 اجتاز Flutter Analyze وTests وWeb Build وGitHub Pages Deploy، لكن الصورة الفعلية على iPhone كشفت استمرار Auto-Zoom من طبقة Flutter semantics/WebKit.
+- يجب اعتماد GitHub Actions ونشر نسخة v13 التي تحتوي الإصلاح 10 قبل الاختبار النهائي التالي على iPhone.
