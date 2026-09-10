@@ -24,6 +24,8 @@ class ClientWalletPage extends ConsumerStatefulWidget {
 class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
   final _amountController = TextEditingController();
   final _transactionController = TextEditingController();
+  final _amountFocusNode = FocusNode();
+  final _transactionFocusNode = FocusNode();
   late Future<Map<String, dynamic>> _settingsFuture;
   XFile? _receipt;
   bool _submitting = false;
@@ -41,6 +43,8 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
   void dispose() {
     _amountController.dispose();
     _transactionController.dispose();
+    _amountFocusNode.dispose();
+    _transactionFocusNode.dispose();
     super.dispose();
   }
 
@@ -199,6 +203,8 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
                   settings: settings,
                   amountController: _amountController,
                   transactionController: _transactionController,
+                  amountFocusNode: _amountFocusNode,
+                  transactionFocusNode: _transactionFocusNode,
                   receipt: _receipt,
                   submitting: _submitting,
                   onCopy: (value) async {
@@ -301,6 +307,8 @@ class _TopupCard extends StatelessWidget {
   final Map<String, dynamic> settings;
   final TextEditingController amountController;
   final TextEditingController transactionController;
+  final FocusNode amountFocusNode;
+  final FocusNode transactionFocusNode;
   final XFile? receipt;
   final bool submitting;
   final ValueChanged<String> onCopy;
@@ -311,6 +319,8 @@ class _TopupCard extends StatelessWidget {
     required this.settings,
     required this.amountController,
     required this.transactionController,
+    required this.amountFocusNode,
+    required this.transactionFocusNode,
     required this.receipt,
     required this.submitting,
     required this.onCopy,
@@ -370,10 +380,13 @@ class _TopupCard extends StatelessWidget {
             const SizedBox(height: 12),
             TextField(
               controller: amountController,
+              focusNode: amountFocusNode,
               enabled: enabled && !submitting,
               keyboardType: TextInputType.number,
               textInputAction: TextInputAction.next,
-              scrollPadding: const EdgeInsets.only(bottom: 120),
+              scrollPadding: const EdgeInsets.symmetric(vertical: 16),
+              onSubmitted: (_) => transactionFocusNode.requestFocus(),
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               decoration: const InputDecoration(
                 labelText: 'مبلغ الشحن بالدينار',
                 prefixIcon: Icon(Icons.payments_outlined),
@@ -382,9 +395,12 @@ class _TopupCard extends StatelessWidget {
             const SizedBox(height: 10),
             TextField(
               controller: transactionController,
+              focusNode: transactionFocusNode,
               enabled: enabled && !submitting,
               textInputAction: TextInputAction.done,
-              scrollPadding: const EdgeInsets.only(bottom: 150),
+              scrollPadding: const EdgeInsets.symmetric(vertical: 16),
+              onSubmitted: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
               decoration: const InputDecoration(
                 labelText: 'رقم عملية التحويل',
                 prefixIcon: Icon(Icons.numbers_rounded),
