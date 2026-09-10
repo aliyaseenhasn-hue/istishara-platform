@@ -18,6 +18,8 @@ class BookingModel {
   final bool manualPaymentRequired;
   final double? manualReceivedAmount;
   final DateTime? manualReceivedAt;
+  final int packageDurationMinutes;
+  final DateTime? paymentConfirmedAt;
 
   const BookingModel({
     required this.id,
@@ -37,6 +39,8 @@ class BookingModel {
     this.manualPaymentRequired = false,
     this.manualReceivedAmount,
     this.manualReceivedAt,
+    this.packageDurationMinutes = 30,
+    this.paymentConfirmedAt,
   });
 
   factory BookingModel.fromJson(Map<String, dynamic> json) => BookingModel(
@@ -59,6 +63,8 @@ class BookingModel {
         manualPaymentRequired: json['manual_payment_required'] as bool? ?? false,
         manualReceivedAmount: (json['manual_received_amount'] as num?)?.toDouble(),
         manualReceivedAt: json['manual_received_at'] != null ? DateTime.parse(json['manual_received_at'] as String) : null,
+        packageDurationMinutes: int.tryParse('${json['package_duration_minutes'] ?? 30}') ?? 30,
+        paymentConfirmedAt: json['payment_confirmed_at'] != null ? DateTime.parse(json['payment_confirmed_at'] as String) : null,
       );
 
   Booking toEntity() => Booking(
@@ -79,5 +85,7 @@ class BookingModel {
         manualPaymentRequired: manualPaymentRequired,
         manualReceivedAmount: manualReceivedAmount,
         manualReceivedAt: manualReceivedAt,
+        packageDurationMinutes: packageDurationMinutes,
+        paymentConfirmedAt: paymentConfirmedAt,
       );
 }
