@@ -52,8 +52,12 @@ class AuthController extends _$AuthController {
   Future<void> logout() async {
     ref.read(globalLoadingProvider.notifier).setLoading(true);
     try {
-      await PwaNotificationService.releaseForCurrentUser();
-      await PushNotificationService.releaseForCurrentUser();
+      // Both cleanup operations are independent. Run them together so logout
+      // only waits for the slower active channel instead of adding latencies.
+      await Future.wait<void>([
+        PwaNotificationService.releaseForCurrentUser(),
+        PushNotificationService.releaseForCurrentUser(),
+      ]);
       await ref.read(authRepositoryProvider).signOut();
       state = const AsyncData(null);
     } catch (e, st) {
