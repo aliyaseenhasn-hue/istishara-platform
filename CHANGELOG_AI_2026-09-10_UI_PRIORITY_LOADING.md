@@ -108,9 +108,14 @@
 - زر «احجز مرة أخرى» بعد انتهاء المهلة أصبح تركوازياً.
 - لم يتغير منطق انتهاء المهلة أو الحجز المؤقت أو Deep Link أو Realtime أو إعادة الرصيد.
 
-## 10. التحقق
-- الدفعة البرمجية حتى `f8c0dd3f7c6cd81ce350a87c422fa1362fb8fc1a` نجحت في Flutter Analyze وFlutter Tests وFlutter Web Build ونشر GitHub Pages.
-- الدفعة الأخيرة `0fdc6981d1b23c52be23245bba167d9d2f6ba035` الخاصة بطلبات المواعيد نجحت في Flutter Analyze وFlutter Tests؛ كان Flutter Web Build ما يزال قيد التنفيذ عند آخر تحقق ولم يظهر فشل.
+## 10. التحقق النهائي
+- الدفعة البرمجية الموسعة حتى `f8c0dd3f7c6cd81ce350a87c422fa1362fb8fc1a` نجحت في Flutter Analyze وFlutter Tests وFlutter Web Build ونشر GitHub Pages.
+- الدفعة الأخيرة `0fdc6981d1b23c52be23245bba167d9d2f6ba035` الخاصة بطلبات المواعيد نجحت أيضاً بالكامل:
+  - Flutter Analyze: نجاح.
+  - Flutter Tests: نجاح.
+  - Flutter Web Build: نجاح.
+  - GitHub Pages Deploy: نجاح.
+- لم يظهر خطأ تجميع أو اختبار في التغييرات البصرية المنفذة.
 
 ## 11. نطاق التصميم
 - شاشة فتح التطبيق نفسها تعتمد `LoadingWidget`، لذلك تستخدم مؤشر iOS تلقائياً.
