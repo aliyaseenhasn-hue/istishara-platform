@@ -10,6 +10,7 @@ class LawyerMoreMenuButton extends StatelessWidget {
 
   static const _actions = <_LawyerMenuAction>[
     _LawyerMenuAction(Icons.schedule_rounded, 'أوقات التوفر', '/lawyer-availability'),
+    _LawyerMenuAction(Icons.event_note_outlined, 'طلبات المواعيد الخاصة', '/appointment-requests'),
     _LawyerMenuAction(Icons.account_balance_wallet_outlined, 'المحفظة', '/lawyer-wallet'),
   ];
 
