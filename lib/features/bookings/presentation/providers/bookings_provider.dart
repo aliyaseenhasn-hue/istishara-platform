@@ -13,7 +13,16 @@ class AvailableBookingSlot {
   final DateTime startsAt;
   final int durationMinutes;
   final double? price;
-  const AvailableBookingSlot({required this.id, required this.startsAt, required this.durationMinutes, this.price});
+  final bool isBookable;
+  final String? unavailableReason;
+  const AvailableBookingSlot({
+    required this.id,
+    required this.startsAt,
+    required this.durationMinutes,
+    this.price,
+    this.isBookable = true,
+    this.unavailableReason,
+  });
 }
 
 @riverpod
@@ -93,20 +102,71 @@ final bookingLawyerInfoProvider = FutureProvider.family<Map<String, dynamic>?, S
 });
 
 final availableSlotsProvider = FutureProvider.family<List<AvailableBookingSlot>, String>((ref, lawyerId) async {
-  final rows = await SupabaseConfig.client
-      .from('lawyer_availability_slots')
-      .select('id, starts_at, duration_minutes, price')
-      .eq('lawyer_id', lawyerId)
-      .eq('is_available', true)
-      .gt('starts_at', DateTime.now().toUtc().toIso8601String())
-      .order('starts_at');
-  return (rows as List).map((row) {
+  final stamp = DateTime.now().microsecondsSinceEpoch;
+  final channels = <RealtimeChannel>[
+    SupabaseConfig.client
+        .channel('available-slots-bookings-$lawyerId-$stamp')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'bookings',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'lawyer_id',
+            value: lawyerId,
+          ),
+          callback: (_) => ref.invalidateSelf(),
+        )
+        .subscribe(),
+    SupabaseConfig.client
+        .channel('available-slots-requests-$lawyerId-$stamp')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'custom_appointment_requests',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'lawyer_id',
+            value: lawyerId,
+          ),
+          callback: (_) => ref.invalidateSelf(),
+        )
+        .subscribe(),
+    SupabaseConfig.client
+        .channel('available-slots-published-$lawyerId-$stamp')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'lawyer_availability_slots',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'lawyer_id',
+            value: lawyerId,
+          ),
+          callback: (_) => ref.invalidateSelf(),
+        )
+        .subscribe(),
+  ];
+  ref.onDispose(() {
+    for (final channel in channels) {
+      unawaited(SupabaseConfig.client.removeChannel(channel));
+    }
+  });
+
+  final response = await SupabaseConfig.client.rpc(
+    'get_lawyer_booking_slots',
+    params: {'p_lawyer_id': lawyerId},
+  );
+  final rows = response is List ? response : const <dynamic>[];
+  return rows.map((row) {
     final m = Map<String, dynamic>.from(row as Map);
     return AvailableBookingSlot(
       id: m['id'] as String,
       startsAt: DateTime.parse(m['starts_at'] as String).toLocal(),
       durationMinutes: int.tryParse('${m['duration_minutes'] ?? 30}') ?? 30,
       price: m['price'] == null ? null : double.tryParse('${m['price']}'),
+      isBookable: m['is_bookable'] == true,
+      unavailableReason: m['unavailable_reason']?.toString(),
     );
   }).toList();
 });
