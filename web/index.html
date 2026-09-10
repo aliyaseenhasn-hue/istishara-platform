@@ -54,15 +54,38 @@
 <body>
   <script>
     (function () {
-      function syncViewportHeight() {
-        var height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      function isEditingText() {
+        var element = document.activeElement;
+        if (!element) return false;
+        var tagName = (element.tagName || '').toUpperCase();
+        return tagName === 'INPUT' || tagName === 'TEXTAREA' || element.isContentEditable === true;
+      }
+
+      function keyboardLooksOpen() {
+        if (!window.visualViewport) return false;
+        return (window.innerHeight - window.visualViewport.height) > 120;
+      }
+
+      function syncViewportHeight(force) {
+        // iOS Safari/PWA shrinks visualViewport while its keyboard is open.
+        // Never copy that reduced height to html/body or Flutter itself gets
+        // squeezed to the small area above the keyboard.
+        if (!force && (isEditingText() || keyboardLooksOpen())) return;
+        var height = window.innerHeight;
         document.documentElement.style.height = height + 'px';
         document.body.style.height = height + 'px';
       }
-      syncViewportHeight();
-      window.addEventListener('resize', syncViewportHeight, { passive: true });
-      window.addEventListener('orientationchange', function () { setTimeout(syncViewportHeight, 100); }, { passive: true });
-      if (window.visualViewport) window.visualViewport.addEventListener('resize', syncViewportHeight, { passive: true });
+
+      syncViewportHeight(true);
+      window.addEventListener('resize', function () {
+        syncViewportHeight(false);
+      }, { passive: true });
+      window.addEventListener('orientationchange', function () {
+        setTimeout(function () { syncViewportHeight(true); }, 180);
+      }, { passive: true });
+      document.addEventListener('focusout', function () {
+        setTimeout(function () { syncViewportHeight(false); }, 250);
+      }, { passive: true });
     })();
 
     window.astsharaGetPushDeviceKey = function() {
