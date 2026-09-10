@@ -51,25 +51,13 @@
     body { font-family: 'Cairo', sans-serif; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; -webkit-tap-highlight-color: transparent; touch-action: manipulation; -webkit-text-size-adjust: 100%; }
 
     /*
-      iOS/WebKit automatically zooms a page when a focused HTML editor has an
-      effective font-size below 16px. Flutter Web creates semantic/editing DOM
-      nodes lazily, so protect both the generic editors and Flutter hosts.
-      This affects only the hidden/native editing surface; Flutter still paints
-      the visible TextField with its own theme and size.
+      iOS Safari can auto-zoom Flutter's semantic input when its effective
+      font size is below 16px. Restrict the guard to the semantics layer only.
+      Do not style flt-text-editing-host: Flutter owns that element's geometry
+      and uses it to position the native editing surface above the canvas.
     */
-    input,
-    textarea,
-    [contenteditable="true"],
-    flt-semantics-host,
     flt-semantics-host input,
-    flt-semantics-host textarea,
-    flt-semantics-host [contenteditable="true"],
-    flt-semantics input,
-    flt-semantics textarea,
-    flt-semantics [contenteditable="true"],
-    flt-text-editing-host input,
-    flt-text-editing-host textarea,
-    flt-text-editing-host [contenteditable="true"] {
+    flt-semantics-host textarea {
       font-size: 16px !important;
       -webkit-text-size-adjust: 100% !important;
     }
@@ -77,35 +65,6 @@
 </head>
 <body>
   <script>
-    // Flutter Web may create its semantic/native text input only when a field
-    // receives focus. Keep every dynamically-created editor at the iOS-safe
-    // 16px floor as a defense in depth in addition to the stylesheet above.
-    (function installIosTextInputZoomGuard() {
-      function protectEditor(node) {
-        if (!node || node.nodeType !== 1) return;
-        const element = node;
-        const matchesEditor = element.matches && element.matches('input, textarea, [contenteditable="true"]');
-        if (matchesEditor) {
-          element.style.setProperty('font-size', '16px', 'important');
-          element.style.setProperty('-webkit-text-size-adjust', '100%', 'important');
-        }
-        if (element.querySelectorAll) {
-          element.querySelectorAll('input, textarea, [contenteditable="true"]').forEach((editor) => {
-            editor.style.setProperty('font-size', '16px', 'important');
-            editor.style.setProperty('-webkit-text-size-adjust', '100%', 'important');
-          });
-        }
-      }
-
-      protectEditor(document.documentElement);
-      const observer = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-          mutation.addedNodes.forEach(protectEditor);
-        }
-      });
-      observer.observe(document.documentElement, { childList: true, subtree: true });
-    })();
-
     window.astsharaGetPushDeviceKey = function() {
       try {
         const storageKey = 'astshara_push_device_key_v1';
@@ -189,7 +148,7 @@
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('pwa_service_worker_v5.js?v=13', { scope: './', updateViaCache: 'none' }).catch((error) => console.warn('PWA service worker registration failed:', error));
+        navigator.serviceWorker.register('pwa_service_worker_v5.js?v=14', { scope: './', updateViaCache: 'none' }).catch((error) => console.warn('PWA service worker registration failed:', error));
       });
     }
   </script>
