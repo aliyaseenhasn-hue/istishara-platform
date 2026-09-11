@@ -141,12 +141,73 @@ class _ClientAppointmentRequestsHomeCardState
     return _HomeWindow(start, end);
   }
 
+  Future<bool> _confirmSelectedAppointment(DateTime start) async {
+    var checked = false;
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('تأكيد الموعد'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                _format(start),
+                textAlign: TextAlign.right,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 12),
+              CheckboxListTile(
+                value: checked,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text(
+                  'أؤكد أن هذا هو الموعد الذي أريد حجزه',
+                  textAlign: TextAlign.right,
+                ),
+                onChanged: (value) =>
+                    setDialogState(() => checked = value == true),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('رجوع'),
+            ),
+            FilledButton(
+              onPressed: checked
+                  ? () => Navigator.pop(dialogContext, true)
+                  : null,
+              child: const Text('تأكيد الموعد'),
+            ),
+          ],
+        ),
+      ),
+    );
+    return result == true;
+  }
+
   Future<void> _accept(
     Map<String, dynamic> request,
     int optionIndex,
   ) async {
     final id = request['id']?.toString() ?? '';
     if (id.isEmpty || _busy.contains(id)) return;
+    final options = _options(request['lawyer_options']);
+    if (optionIndex < 0 || optionIndex >= options.length) {
+      _message('الموعد المختار غير صالح.');
+      return;
+    }
+    final start = _date(options[optionIndex]['start']);
+    if (start == null) {
+      _message('الموعد المختار غير صالح.');
+      return;
+    }
+    if (!await _confirmSelectedAppointment(start) || !mounted) return;
+
     _setBusy(id, true);
     try {
       await SupabaseConfig.client.rpc(
@@ -425,7 +486,7 @@ class _ClientAppointmentRequestsHomeCardState
                     label: Text(
                       start == null
                           ? 'موعد غير صالح'
-                          : 'قبول • ${_format(start)}',
+                          : 'اختيار • ${_format(start)}',
                     ),
                   ),
                 );
