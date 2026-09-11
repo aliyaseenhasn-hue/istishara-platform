@@ -56,8 +56,6 @@ final clientWalletProvider = StreamProvider<ClientWalletSummary>((ref) async* {
     return;
   }
 
-  // Load a stable snapshot first. A temporary Realtime/WebSocket failure must
-  // not make the wallet balance disappear or expose a channel error to users.
   yield await _loadClientWallet(profileId);
 
   var retrySeconds = 2;
@@ -77,17 +75,42 @@ final clientWalletProvider = StreamProvider<ClientWalletSummary>((ref) async* {
         }
       }
     } catch (_) {
-      // Keep the last known wallet usable, refresh it through PostgREST, then
-      // retry Realtime with a short bounded backoff.
       try {
         yield await _loadClientWallet(profileId);
       } catch (_) {
-        // If the fallback request also fails, preserve the last emitted value.
+        // Preserve the most recently emitted value if both transports fail.
       }
       await Future<void>.delayed(Duration(seconds: retrySeconds));
       retrySeconds = retrySeconds >= 15 ? 15 : retrySeconds * 2;
     }
   }
+});
+
+final financialPolicyProvider =
+    FutureProvider<Map<String, dynamic>>((ref) async {
+  final raw = await SupabaseConfig.client.rpc('get_financial_policy_summary');
+  if (raw is List && raw.isNotEmpty) {
+    return Map<String, dynamic>.from(raw.first as Map);
+  }
+  if (raw is Map) return Map<String, dynamic>.from(raw);
+  return <String, dynamic>{};
+});
+
+final clientWalletWithdrawalsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final rows = await SupabaseConfig.client
+      .from('client_wallet_withdrawal_requests')
+      .select(
+        'id,amount,transfer_fee,net_amount,currency,status,provider_type,'
+        'account_holder_name,account_number,bank_name,financial_policy_version,'
+        'processing_min_business_days,processing_max_business_days,'
+        'processing_deadline_at,provider_reference,rejection_reason,admin_note,requested_at',
+      )
+      .order('requested_at', ascending: false)
+      .limit(30);
+  return (rows as List)
+      .map((row) => Map<String, dynamic>.from(row as Map))
+      .toList(growable: false);
 });
 
 final clientWalletTopupsProvider =
@@ -118,6 +141,8 @@ final clientWalletLedgerProvider =
 
 void invalidateClientWallet(Ref ref) {
   ref.invalidate(clientWalletProvider);
+  ref.invalidate(financialPolicyProvider);
+  ref.invalidate(clientWalletWithdrawalsProvider);
   ref.invalidate(clientWalletTopupsProvider);
   ref.invalidate(clientWalletLedgerProvider);
 }
