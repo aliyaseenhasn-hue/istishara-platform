@@ -29,7 +29,7 @@ String _$userBookingsHash() => r'1f732a5d5875cf60857994ea8a922cd288420310';
 
 /// See also [userBookings].
 @ProviderFor(userBookings)
-final userBookingsProvider = AutoDisposeFutureProvider<List<Booking>>.internal(
+final userBookingsProvider = FutureProvider<List<Booking>>.internal(
   userBookings,
   name: r'userBookingsProvider',
   debugGetCreateSourceHash:
@@ -40,13 +40,13 @@ final userBookingsProvider = AutoDisposeFutureProvider<List<Booking>>.internal(
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef UserBookingsRef = AutoDisposeFutureProviderRef<List<Booking>>;
+typedef UserBookingsRef = FutureProviderRef<List<Booking>>;
 String _$lawyerBookingsHash() => r'6a31a2664c17adc0c4f2103df5b6f8426610c4f6';
 
 /// See also [lawyerBookings].
 @ProviderFor(lawyerBookings)
 final lawyerBookingsProvider =
-    AutoDisposeFutureProvider<List<Booking>>.internal(
+    FutureProvider<List<Booking>>.internal(
   lawyerBookings,
   name: r'lawyerBookingsProvider',
   debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -58,7 +58,7 @@ final lawyerBookingsProvider =
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef LawyerBookingsRef = AutoDisposeFutureProviderRef<List<Booking>>;
+typedef LawyerBookingsRef = FutureProviderRef<List<Booking>>;
 String _$bookingsControllerHash() =>
     r'3f7735accd14f12023e0bfb03d0051dbd49acea8';
 
