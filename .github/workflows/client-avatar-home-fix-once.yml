@@ -1,0 +1,69 @@
+name: Client Home Avatar Refresh Fix Once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/client-avatar-home-fix-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: contains(github.event.head_commit.message, 'run client home avatar refresh fix')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Patch client home avatar source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          provider = Path('lib/features/home/presentation/providers/client_home_stats_provider.dart')
+          text = provider.read_text()
+          anchor = "class ClientHomeBookingStats {\n"
+          addition = """final clientHomeAvatarUrlProvider = FutureProvider.autoDispose<String?>((ref) async {\n  final user = ref.watch(authStateChangesProvider).valueOrNull;\n  if (user == null || (user.role != 'user' && user.role != 'client')) {\n    return null;\n  }\n\n  final row = await SupabaseConfig.client\n      .from('profiles')\n      .select('avatar_url')\n      .eq('auth_id', user.id)\n      .maybeSingle();\n  final liveUrl = row?['avatar_url']?.toString().trim();\n  if (liveUrl != null && liveUrl.isNotEmpty) return liveUrl;\n\n  final cachedUrl = user.avatarUrl?.trim();\n  return cachedUrl == null || cachedUrl.isEmpty ? null : cachedUrl;\n});\n\n"""
+          if 'clientHomeAvatarUrlProvider' not in text:
+              if anchor not in text:
+                  raise SystemExit('provider anchor not found')
+              text = text.replace(anchor, addition + anchor, 1)
+          provider.write_text(text)
+
+          home = Path('lib/features/home/presentation/pages/home_page.dart')
+          text = home.read_text()
+          old = """    final bookingStats = ref.watch(clientHomeBookingStatsProvider);\n    final lawyers = ref.watch(lawyersListProvider);\n"""
+          new = """    final bookingStats = ref.watch(clientHomeBookingStatsProvider);\n    final liveAvatar = ref.watch(clientHomeAvatarUrlProvider);\n    final lawyers = ref.watch(lawyersListProvider);\n"""
+          if old not in text:
+              raise SystemExit('home watch anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = """    final avatarUrl = user?.avatarUrl;\n"""
+          new = """    final liveAvatarUrl = liveAvatar.valueOrNull?.trim();\n    final cachedAvatarUrl = user?.avatarUrl?.trim();\n    final avatarUrl = liveAvatarUrl != null && liveAvatarUrl.isNotEmpty\n        ? liveAvatarUrl\n        : cachedAvatarUrl;\n"""
+          if old not in text:
+              raise SystemExit('avatar assignment anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = """              child: SafeNetworkAvatar(\n                imageUrl: avatarUrl,\n"""
+          new = """              child: SafeNetworkAvatar(\n                key: ValueKey(avatarUrl),\n                imageUrl: avatarUrl,\n"""
+          if old not in text:
+              raise SystemExit('client avatar widget anchor not found')
+          text = text.replace(old, new, 1)
+          home.write_text(text)
+          PY
+
+      - name: Remove one-time workflow and commit
+        run: |
+          rm .github/workflows/client-avatar-home-fix-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/features/home/presentation/providers/client_home_stats_provider.dart \
+                  lib/features/home/presentation/pages/home_page.dart \
+                  .github/workflows/client-avatar-home-fix-once.yml
+          git commit -m "fix: refresh client home avatar from live profile"
+          git push origin HEAD:main
