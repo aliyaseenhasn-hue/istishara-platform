@@ -41,6 +41,17 @@ async function routeForNotification(record: NotificationRecord, supabaseAdmin: a
   if (refType === "booking" && refId) return `./booking-details?booking_id=${encodeURIComponent(refId)}`;
   if (refType === "appointment_request" && refId) return `./appointment-requests?request_id=${encodeURIComponent(refId)}`;
 
+  if (refType === "client_wallet_withdrawal") {
+    if (type === "client_wallet_withdrawal_admin") {
+      return refId
+        ? `./admin/financial?withdrawal_id=${encodeURIComponent(refId)}`
+        : "./admin/financial";
+    }
+    return refId
+      ? `./client-wallet?withdrawal_id=${encodeURIComponent(refId)}`
+      : "./client-wallet";
+  }
+
   if (refType === "cancellation_request" && refId) {
     const requestResult = await supabaseAdmin
       .from("cancellation_requests")
