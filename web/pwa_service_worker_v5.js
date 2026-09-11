@@ -64,12 +64,10 @@ self.addEventListener('fetch', (event) => {
         return response;
       });
 
+    event.waitUntil(networkRefresh.catch(() => undefined));
     event.respondWith(
       caches.match(event.request).then((cached) => {
-        if (cached) {
-          event.waitUntil(networkRefresh.catch(() => undefined));
-          return cached;
-        }
+        if (cached) return cached;
         return networkRefresh.catch(() => caches.match('./'));
       }),
     );
