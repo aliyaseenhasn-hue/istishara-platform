@@ -6,6 +6,24 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/config/supabase_config.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 
+final clientHomeAvatarUrlProvider = FutureProvider.autoDispose<String?>((ref) async {
+  final user = ref.watch(authStateChangesProvider).valueOrNull;
+  if (user == null || (user.role != 'user' && user.role != 'client')) {
+    return null;
+  }
+
+  final row = await SupabaseConfig.client
+      .from('profiles')
+      .select('avatar_url')
+      .eq('auth_id', user.id)
+      .maybeSingle();
+  final liveUrl = row?['avatar_url']?.toString().trim();
+  if (liveUrl != null && liveUrl.isNotEmpty) return liveUrl;
+
+  final cachedUrl = user.avatarUrl?.trim();
+  return cachedUrl == null || cachedUrl.isEmpty ? null : cachedUrl;
+});
+
 class ClientHomeBookingStats {
   final int total;
   final int completed;

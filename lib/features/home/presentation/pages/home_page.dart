@@ -28,6 +28,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget build(BuildContext context) {
     final user = ref.watch(authStateChangesProvider).value;
     final bookingStats = ref.watch(clientHomeBookingStatsProvider);
+    final liveAvatar = ref.watch(clientHomeAvatarUrlProvider);
     final lawyers = ref.watch(lawyersListProvider);
     final unread = ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
     final wallet = ref.watch(clientWalletProvider);
@@ -41,7 +42,11 @@ class _HomePageState extends ConsumerState<HomePage> {
     final name = registeredName != null && registeredName.isNotEmpty
         ? registeredName
         : 'طالب استشارة';
-    final avatarUrl = user?.avatarUrl;
+    final liveAvatarUrl = liveAvatar.valueOrNull?.trim();
+    final cachedAvatarUrl = user?.avatarUrl?.trim();
+    final avatarUrl = liveAvatarUrl != null && liveAvatarUrl.isNotEmpty
+        ? liveAvatarUrl
+        : cachedAvatarUrl;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -437,6 +442,7 @@ class _ClientProfileHeader extends StatelessWidget {
                 border: Border.all(color: AppColors.goldSoft, width: 1.7),
               ),
               child: SafeNetworkAvatar(
+                key: ValueKey(avatarUrl),
                 imageUrl: avatarUrl,
                 radius: 40,
                 backgroundColor: AppColors.surfaceContainerHighest,
