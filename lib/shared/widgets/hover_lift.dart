@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Subtle desktop/web hover and keyboard-focus motion for card surfaces.
@@ -26,6 +27,13 @@ class _HoverLiftState extends State<HoverLift> {
 
   @override
   Widget build(BuildContext context) {
+    // iOS Web/PWA does not benefit from hover transforms. Keeping profile
+    // images inside transformed compositor layers can leave stale/black image
+    // textures after route transitions, so render the card directly there.
+    if (kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      return widget.child;
+    }
+
     final scheme = Theme.of(context).colorScheme;
     final active = _hovered || _focused;
 
