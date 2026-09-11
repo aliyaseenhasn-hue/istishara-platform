@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:astshara/core/config/supabase_config.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../../../shared/widgets/loading_widget.dart';
 
 class LawyerWalletPage extends StatefulWidget {
@@ -17,7 +18,18 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
     'qi_card': 'Qi Card',
   };
 
+  static const Map<int, String> weekdays = {
+    0: 'الأحد',
+    1: 'الاثنين',
+    2: 'الثلاثاء',
+    3: 'الأربعاء',
+    4: 'الخميس',
+    5: 'الجمعة',
+    6: 'السبت',
+  };
+
   Map<String, dynamic>? wallet;
+  Map<String, dynamic>? policy;
   String? walletType;
   String? walletNumber;
   String? walletHolder;
@@ -56,12 +68,23 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
           .eq('lawyer_id', profile['id'])
           .maybeSingle();
 
+      final policyRaw =
+          await SupabaseConfig.client.rpc('get_financial_policy_summary');
+      if (policyRaw is List && policyRaw.isNotEmpty) {
+        policy = Map<String, dynamic>.from(policyRaw.first as Map);
+      } else if (policyRaw is Map) {
+        policy = Map<String, dynamic>.from(policyRaw);
+      } else {
+        policy = <String, dynamic>{};
+      }
+
       requests = List<Map<String, dynamic>>.from(
         await SupabaseConfig.client
             .from('lawyer_payout_requests')
             .select(
               'id,amount,currency,status,wallet_type,wallet_number,'
-              'wallet_holder_name,created_at,rejection_reason,provider_reference',
+              'wallet_holder_name,created_at,rejection_reason,provider_reference,'
+              'financial_policy_version,scheduled_payout_date',
             )
             .eq('lawyer_id', profile['id'])
             .order('created_at', ascending: false)
@@ -193,7 +216,10 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
   Future<void> _requestPayout() async {
     if (walletType == null || walletNumber == null || walletHolder == null) {
       await _editMethod();
-      if (!mounted || walletType == null || walletNumber == null || walletHolder == null) {
+      if (!mounted ||
+          walletType == null ||
+          walletNumber == null ||
+          walletHolder == null) {
         return;
       }
     }
@@ -219,7 +245,8 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
             Text('المتاح: ${money(available)}'),
             TextField(
               controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
                 labelText: 'المبلغ بالدينار العراقي',
               ),
@@ -246,7 +273,9 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
     );
     controller.dispose();
 
-    if (!mounted || amount == null || amount <= 0 || amount > available) return;
+    if (!mounted || amount == null || amount <= 0 || amount > available) {
+      return;
+    }
 
     setState(() => submitting = true);
     try {
@@ -255,8 +284,12 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
         params: {'p_amount': amount},
       );
       if (mounted) {
+        final frequency = '${policy?['lawyer_payout_frequency'] ?? 'manual'}';
+        final message = frequency == 'weekly'
+            ? 'تم إرسال طلب السحب وجدولته وفق يوم التسوية الأسبوعي.'
+            : 'تم إرسال طلب السحب إلى الإدارة.';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم إرسال طلب السحب إلى الإدارة')),
+          SnackBar(content: Text(message)),
         );
       }
       await _load();
@@ -281,7 +314,8 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
         'paid': 'تم التحويل',
         'rejected': 'مرفوض',
         'failed': 'فشل التحويل',
-      }[value] ?? value;
+      }[value] ??
+      value;
 
   String date(dynamic value) {
     final parsed = DateTime.tryParse('${value ?? ''}');
@@ -291,8 +325,22 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
         '${local.month.toString().padLeft(2, '0')}/${local.year}';
   }
 
-  String _errorText(Object error) =>
-      error.toString().replaceFirst('Exception: ', '');
+  String _errorText(Object error) => UserFacingError.text(error);
+
+  String _payoutPolicyText() {
+    final current = policy ?? <String, dynamic>{};
+    final hold =
+        int.tryParse('${current['lawyer_earnings_hold_hours'] ?? 0}') ?? 0;
+    final frequency = '${current['lawyer_payout_frequency'] ?? 'manual'}';
+    final weekday =
+        int.tryParse('${current['lawyer_payout_weekday'] ?? 4}') ?? 4;
+    final frequencyText = switch (frequency) {
+      'weekly' => 'أسبوعياً يوم ${weekdays[weekday] ?? 'الخميس'}',
+      'daily' => 'يومياً',
+      _ => 'يدوياً حسب معالجة الإدارة',
+    };
+    return 'بعد اكتمال الاستشارة يبقى صافي مستحقك معلقاً لمدة $hold ساعة ثم ينتقل إلى الرصيد المتاح. دورية التسوية الحالية: $frequencyText. يمكن للإدارة تنفيذ تحويل استثنائي يدوياً عند الحاجة.';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -332,13 +380,22 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
                           Row(
                             children: [
                               Expanded(
-                                child: _stat('معلق', money(currentWallet['pending_balance'])),
+                                child: _stat(
+                                  'معلق',
+                                  money(currentWallet['pending_balance']),
+                                ),
                               ),
                               Expanded(
-                                child: _stat('إجمالي الأرباح', money(currentWallet['lifetime_earned'])),
+                                child: _stat(
+                                  'إجمالي الأرباح',
+                                  money(currentWallet['lifetime_earned']),
+                                ),
                               ),
                               Expanded(
-                                child: _stat('المسحوبات', money(currentWallet['lifetime_paid_out'])),
+                                child: _stat(
+                                  'المسحوبات',
+                                  money(currentWallet['lifetime_paid_out']),
+                                ),
                               ),
                             ],
                           ),
@@ -349,7 +406,8 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
                               style: FilledButton.styleFrom(
                                 backgroundColor: AppColors.teal,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 13),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 13),
                               ),
                               onPressed: submitting ? null : _requestPayout,
                               icon: submitting
@@ -373,8 +431,44 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
                   ),
                   const SizedBox(height: 14),
                   Card(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.schedule_rounded),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'سياسة المستحقات الحالية',
+                                  style: TextStyle(fontWeight: FontWeight.w900),
+                                ),
+                              ),
+                              if (policy?['policy_version'] != null)
+                                Chip(
+                                  label: Text(
+                                    'الإصدار ${policy?['policy_version']}',
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _payoutPolicyText(),
+                            style: const TextStyle(height: 1.45),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Card(
                     child: ListTile(
-                      leading: const Icon(Icons.account_balance_wallet_outlined),
+                      leading:
+                          const Icon(Icons.account_balance_wallet_outlined),
                       title: Text(
                         walletType == null
                             ? 'وسيلة الاستلام غير مضافة'
@@ -420,6 +514,8 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
                           '${types[request['wallet_type']] ?? request['wallet_type']} • '
                           '${request['wallet_number'] ?? ''}\n'
                           '${status('${request['status']}')} • ${date(request['created_at'])}'
+                          '${request['scheduled_payout_date'] != null ? '\nموعد التسوية المجدول: ${date(request['scheduled_payout_date'])}' : ''}'
+                          '${request['financial_policy_version'] != null ? '\nإصدار السياسة: ${request['financial_policy_version']}' : ''}'
                           '${request['rejection_reason'] != null ? '\nسبب الرفض: ${request['rejection_reason']}' : ''}'
                           '${request['provider_reference'] != null ? '\nمرجع التحويل: ${request['provider_reference']}' : ''}',
                         ),
