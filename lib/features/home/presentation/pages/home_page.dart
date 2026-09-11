@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/legal_specializations.dart';
 import '../../../../shared/widgets/hover_lift.dart';
+import '../../../../shared/widgets/safe_network_avatar.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../../../lawyers/domain/entities/lawyer_profile.dart';
 import '../../../lawyers/presentation/providers/lawyers_provider.dart';
@@ -436,18 +436,12 @@ class _ClientProfileHeader extends StatelessWidget {
                 color: AppColors.goldTransparent,
                 border: Border.all(color: AppColors.goldSoft, width: 1.7),
               ),
-              child: CircleAvatar(
+              child: SafeNetworkAvatar(
+                imageUrl: avatarUrl,
+                radius: 40,
                 backgroundColor: AppColors.surfaceContainerHighest,
-                backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty
-                    ? CachedNetworkImageProvider(avatarUrl!)
-                    : null,
-                child: avatarUrl == null || avatarUrl!.isEmpty
-                    ? const Icon(
-                        Icons.person_outline_rounded,
-                        color: AppColors.primary,
-                        size: 40,
-                      )
-                    : null,
+                iconColor: AppColors.primary,
+                iconSize: 40,
               ),
             ),
             const SizedBox(width: 18),
@@ -961,18 +955,12 @@ class _SuggestedLawyerCard extends StatelessWidget {
             child: Row(
               textDirection: TextDirection.rtl,
               children: [
-                CircleAvatar(
+                SafeNetworkAvatar(
+                  imageUrl: hasAvatar ? lawyer.avatarUrl : null,
                   radius: 22,
                   backgroundColor: AppColors.primary.withValues(alpha: .10),
-                  backgroundImage: hasAvatar
-                      ? CachedNetworkImageProvider(lawyer.avatarUrl!)
-                      : null,
-                  child: hasAvatar
-                      ? null
-                      : const Icon(
-                          Icons.person_outline_rounded,
-                          color: AppColors.primary,
-                        ),
+                  iconColor: AppColors.primary,
+                  iconSize: 22,
                 ),
                 const SizedBox(width: 10),
                 Expanded(

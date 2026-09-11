@@ -6,6 +6,7 @@ import 'package:storage_client/storage_client.dart';
 import '../../../../core/config/supabase_config.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/providers/theme_mode_provider.dart';
+import '../../../../shared/widgets/safe_network_avatar.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 
 class ProfilePage extends ConsumerWidget {
@@ -74,11 +75,13 @@ class ProfilePage extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(color: AppColors.goldTransparentStrong, shape: BoxShape.circle, border: Border.all(color: AppColors.goldSoft, width: 2)),
-          child: CircleAvatar(
+          child: SafeNetworkAvatar(
+            imageUrl: user.avatarUrl,
             radius: 49,
             backgroundColor: AppColors.surfaceVariant,
-            backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty ? NetworkImage(user.avatarUrl!) : null,
-            child: user.avatarUrl == null || user.avatarUrl!.isEmpty ? const Icon(Icons.person_rounded, size: 52, color: AppColors.primary) : null,
+            iconColor: AppColors.primary,
+            icon: Icons.person_rounded,
+            iconSize: 52,
           ),
         ),
         const SizedBox(height: 12),
