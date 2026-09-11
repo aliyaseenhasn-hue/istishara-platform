@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/config/supabase_config.dart';
+import '../../../authentication/presentation/providers/auth_provider.dart';
 
 class AppNotification {
   final String id;
@@ -30,6 +31,7 @@ SupabaseClient? _clientOrNull() {
   }
 }
 
+/// Used by imperative actions that run outside a provider Ref.
 Future<String?> _currentProfileId() async {
   final client = _clientOrNull();
   if (client == null) return null;
@@ -46,8 +48,8 @@ Future<String?> _currentProfileId() async {
 final notificationsProvider = FutureProvider<List<AppNotification>>((ref) async {
   final client = _clientOrNull();
   if (client == null) return const [];
-  final profileId = await _currentProfileId();
-  if (profileId == null) return const [];
+  final profileId = await ref.watch(currentProfileIdProvider.future);
+  if (profileId == null || profileId.isEmpty) return const [];
   try {
     final rows = await client.from('notifications').select('id,title,body,type,is_read,created_at,reference_id,reference_type').eq('user_id', profileId).order('created_at', ascending: false).limit(100);
     return (rows as List).map((row) => AppNotification.fromMap(Map<String, dynamic>.from(row as Map))).toList();
@@ -57,19 +59,23 @@ final notificationsProvider = FutureProvider<List<AppNotification>>((ref) async 
 });
 
 /// Emits only newly-created notifications for the signed-in profile.
+/// The profile id comes from the shared cached provider so logging in/out
+/// rebuilds this subscription without an additional profiles query.
 final realtimeNotificationsProvider = StreamProvider.autoDispose<AppNotification>((ref) {
+  final client = _clientOrNull();
+  final profileId = ref.watch(currentProfileIdProvider).valueOrNull;
+  if (client == null || profileId == null || profileId.isEmpty) {
+    return const Stream<AppNotification>.empty();
+  }
+
   late final StreamController<AppNotification> controller;
   RealtimeChannel? channel;
-  String? profileId;
 
-  Future<void> start() async {
-    final client = _clientOrNull();
-    if (client == null) return;
-    profileId = await _currentProfileId();
-    if (profileId == null || controller.isClosed) return;
+  void start() {
+    if (controller.isClosed) return;
     try {
       channel = client
-          .channel('notifications:${profileId!}')
+          .channel('notifications:$profileId')
           .onPostgresChanges(
             event: PostgresChangeEvent.insert,
             schema: 'public',
@@ -77,7 +83,7 @@ final realtimeNotificationsProvider = StreamProvider.autoDispose<AppNotification
             filter: PostgresChangeFilter(
               type: PostgresChangeFilterType.eq,
               column: 'user_id',
-              value: profileId!,
+              value: profileId,
             ),
             callback: (payload) {
               if (controller.isClosed) return;
@@ -92,9 +98,14 @@ final realtimeNotificationsProvider = StreamProvider.autoDispose<AppNotification
   }
 
   controller = StreamController<AppNotification>(onListen: start);
-  ref.onDispose(() async {
-    await channel?.unsubscribe();
-    if (!controller.isClosed) await controller.close();
+  ref.onDispose(() {
+    final activeChannel = channel;
+    if (activeChannel != null) {
+      unawaited(activeChannel.unsubscribe());
+    }
+    if (!controller.isClosed) {
+      unawaited(controller.close());
+    }
   });
   return controller.stream;
 });
@@ -102,8 +113,8 @@ final realtimeNotificationsProvider = StreamProvider.autoDispose<AppNotification
 final unreadNotificationsCountProvider = FutureProvider<int>((ref) async {
   final client = _clientOrNull();
   if (client == null) return 0;
-  final profileId = await _currentProfileId();
-  if (profileId == null) return 0;
+  final profileId = await ref.watch(currentProfileIdProvider.future);
+  if (profileId == null || profileId.isEmpty) return 0;
   try {
     final rows = await client.from('notifications').select('id').eq('user_id', profileId).eq('is_read', false);
     return (rows as List).length;
