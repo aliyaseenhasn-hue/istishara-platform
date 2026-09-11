@@ -12,6 +12,41 @@ import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../../../payments/presentation/providers/client_wallet_provider.dart';
 import '../providers/bookings_provider.dart';
 
+final _clientHomeAppointmentRequestsProvider =
+    StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) async* {
+  final profileId = await ref.watch(currentProfileIdProvider.future);
+  if (profileId == null || profileId.isEmpty) {
+    yield const <Map<String, dynamic>>[];
+    return;
+  }
+
+  yield* SupabaseConfig.client
+      .from('custom_appointment_requests')
+      .stream(primaryKey: ['id'])
+      .eq('user_id', profileId)
+      .map((rows) {
+        final filtered = rows
+            .where(
+              (row) =>
+                  row['status']?.toString() == 'بانتظار اختيار العميل',
+            )
+            .map((row) => Map<String, dynamic>.from(row))
+            .toList(growable: false);
+        filtered.sort((a, b) {
+          final ad = DateTime.tryParse(
+                '${a['updated_at'] ?? a['created_at']}',
+              ) ??
+              DateTime.fromMillisecondsSinceEpoch(0);
+          final bd = DateTime.tryParse(
+                '${b['updated_at'] ?? b['created_at']}',
+              ) ??
+              DateTime.fromMillisecondsSinceEpoch(0);
+          return bd.compareTo(ad);
+        });
+        return filtered;
+      });
+});
+
 /// Shows lawyer-proposed appointment times directly on the client home screen.
 /// The same request remains the source of truth; actions call the same RPCs used
 /// by AppointmentRequestsPage rather than creating a parallel booking flow.
@@ -298,31 +333,12 @@ class _ClientAppointmentRequestsHomeCardState
 
   @override
   Widget build(BuildContext context) {
-    final profileId = ref.watch(currentProfileIdProvider).valueOrNull;
-    if (profileId == null || profileId.isEmpty) return const SizedBox.shrink();
+    final requests = ref.watch(_clientHomeAppointmentRequestsProvider);
 
-    final stream = SupabaseConfig.client
-        .from('custom_appointment_requests')
-        .stream(primaryKey: ['id'])
-        .eq('user_id', profileId);
-
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: stream,
-      builder: (context, snapshot) {
-        final rows = List<Map<String, dynamic>>.from(
-          snapshot.data ?? const <Map<String, dynamic>>[],
-        )
-          ..removeWhere(
-            (row) => row['status']?.toString() != 'بانتظار اختيار العميل',
-          )
-          ..sort((a, b) {
-            final ad = DateTime.tryParse('${a['updated_at'] ?? a['created_at']}') ??
-                DateTime.fromMillisecondsSinceEpoch(0);
-            final bd = DateTime.tryParse('${b['updated_at'] ?? b['created_at']}') ??
-                DateTime.fromMillisecondsSinceEpoch(0);
-            return bd.compareTo(ad);
-          });
-
+    return requests.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (rows) {
         if (rows.isEmpty) return const SizedBox.shrink();
         final request = rows.first;
         final id = request['id']?.toString() ?? '';
@@ -368,7 +384,10 @@ class _ClientAppointmentRequestsHomeCardState
                   ),
                   if (rows.length > 1)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.teal.withValues(alpha: .12),
                         borderRadius: BorderRadius.circular(99),
@@ -404,7 +423,9 @@ class _ClientAppointmentRequestsHomeCardState
                         : () => unawaited(_accept(request, entry.key)),
                     icon: const Icon(Icons.check_circle_outline_rounded),
                     label: Text(
-                      start == null ? 'موعد غير صالح' : 'قبول • ${_format(start)}',
+                      start == null
+                          ? 'موعد غير صالح'
+                          : 'قبول • ${_format(start)}',
                     ),
                   ),
                 );
