@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:astshara/core/config/supabase_config.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
@@ -18,7 +19,26 @@ Stream<List<Message>> chatMessages(
 ) =>
     ref.watch(chatRepositoryProvider).subscribeToMessages(conversationId);
 
-final chatAccessProvider = FutureProvider.family<bool, String>((ref, conversationId) async {
+/// Cached conversation list used by the inbox. The RPC returns the counterpart
+/// name with the conversation in one round-trip, avoiding N+1 profile lookups.
+/// The provider is intentionally not autoDispose so returning to the inbox can
+/// paint the last value immediately; send/push events explicitly invalidate it.
+final conversationsListProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final profileId = await ref.watch(currentProfileIdProvider.future);
+  if (profileId == null || profileId.isEmpty) return const [];
+
+  final response =
+      await SupabaseConfig.client.rpc('get_my_conversations_summary');
+  if (response is! List) return const [];
+  return response
+      .whereType<Map>()
+      .map((row) => Map<String, dynamic>.from(row))
+      .toList(growable: false);
+});
+
+final chatAccessProvider =
+    FutureProvider.family<bool, String>((ref, conversationId) async {
   final authState = ref.watch(authStateChangesProvider).value;
   if (authState == null) return false;
   final result = await SupabaseConfig.client.rpc(
@@ -39,22 +59,15 @@ final chatOtherPartyNameProvider =
 
 final chatOtherPartyProfileIdProvider =
     FutureProvider.family<String?, String>((ref, conversationId) async {
-  final authState = ref.watch(authStateChangesProvider).value;
-  if (authState == null) return null;
+  final currentId = await ref.watch(currentProfileIdProvider.future);
+  if (currentId == null || currentId.isEmpty) return null;
+
   final conversation = await SupabaseConfig.client
       .from('conversations')
       .select('user_id,lawyer_id')
       .eq('id', conversationId)
       .maybeSingle();
   if (conversation == null) return null;
-
-  final current = await SupabaseConfig.client
-      .from('profiles')
-      .select('id')
-      .eq('auth_id', authState.id)
-      .maybeSingle();
-  final currentId = current?['id']?.toString();
-  if (currentId == null) return null;
 
   final userId = conversation['user_id']?.toString();
   final lawyerId = conversation['lawyer_id']?.toString();
@@ -68,16 +81,11 @@ final chatOtherPartyProfileIdProvider =
 /// used only as a fallback for bookings created before per-booking chat existed.
 final chatAvailabilityForLawyerProvider =
     FutureProvider.family<String?, String>((ref, lawyerProfileId) async {
-  final authUser = SupabaseConfig.client.auth.currentUser;
-  if (authUser == null) return null;
+  final authUser = ref.watch(authStateChangesProvider).value;
+  if (authUser == null || authUser.role == 'lawyer') return null;
 
-  final profile = await SupabaseConfig.client
-      .from('profiles')
-      .select('id,role')
-      .eq('auth_id', authUser.id)
-      .maybeSingle();
-  final currentProfileId = profile?['id']?.toString();
-  if (currentProfileId == null || profile?['role'] == 'lawyer') return null;
+  final currentProfileId = await ref.watch(currentProfileIdProvider.future);
+  if (currentProfileId == null || currentProfileId.isEmpty) return null;
 
   final booking = await SupabaseConfig.client
       .from('bookings')
@@ -118,16 +126,8 @@ class ChatController extends _$ChatController {
   @override
   FutureOr<void> build() {}
 
-  Future<String?> _profileId() async {
-    final user = ref.read(authStateChangesProvider).value;
-    if (user == null) return null;
-    final row = await SupabaseConfig.client
-        .from('profiles')
-        .select('id')
-        .eq('auth_id', user.id)
-        .maybeSingle();
-    return row?['id'] as String?;
-  }
+  Future<String?> _profileId() =>
+      ref.read(currentProfileIdProvider.future);
 
   Future<void> markRead(String conversationId) async {
     final id = await _profileId();
@@ -149,5 +149,6 @@ class ChatController extends _$ChatController {
     await ref
         .read(chatRepositoryProvider)
         .sendMessage(conversationId, id, content);
+    ref.invalidate(conversationsListProvider);
   }
 }
