@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,11 +7,11 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/legal_specializations.dart';
 import '../../../../shared/widgets/hover_lift.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
-import '../../../bookings/presentation/providers/bookings_provider.dart';
 import '../../../lawyers/domain/entities/lawyer_profile.dart';
 import '../../../lawyers/presentation/providers/lawyers_provider.dart';
 import '../../../payments/presentation/providers/client_wallet_provider.dart';
 import '../../../profile/presentation/providers/notifications_provider.dart';
+import '../providers/client_home_stats_provider.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -26,7 +27,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateChangesProvider).value;
-    final bookings = ref.watch(userBookingsProvider);
+    final bookingStats = ref.watch(clientHomeBookingStatsProvider);
     final lawyers = ref.watch(lawyersListProvider);
     final unread = ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
     final wallet = ref.watch(clientWalletProvider);
@@ -137,14 +138,13 @@ class _HomePageState extends ConsumerState<HomePage> {
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
               sliver: SliverToBoxAdapter(
-                child: bookings.when(
+                child: bookingStats.when(
                   loading: () => const _StatsLoading(),
                   error: (_, __) =>
                       const _ClientStats(total: '—', completed: '—'),
-                  data: (items) => _ClientStats(
-                    total: '${items.length}',
-                    completed:
-                        '${items.where((b) => b.status == 'مكتمل').length}',
+                  data: (stats) => _ClientStats(
+                    total: '${stats.total}',
+                    completed: '${stats.completed}',
                   ),
                 ),
               ),
@@ -439,7 +439,7 @@ class _ClientProfileHeader extends StatelessWidget {
               child: CircleAvatar(
                 backgroundColor: AppColors.surfaceContainerHighest,
                 backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty
-                    ? NetworkImage(avatarUrl!)
+                    ? CachedNetworkImageProvider(avatarUrl!)
                     : null,
                 child: avatarUrl == null || avatarUrl!.isEmpty
                     ? const Icon(
@@ -964,8 +964,9 @@ class _SuggestedLawyerCard extends StatelessWidget {
                 CircleAvatar(
                   radius: 22,
                   backgroundColor: AppColors.primary.withValues(alpha: .10),
-                  backgroundImage:
-                      hasAvatar ? NetworkImage(lawyer.avatarUrl!) : null,
+                  backgroundImage: hasAvatar
+                      ? CachedNetworkImageProvider(lawyer.avatarUrl!)
+                      : null,
                   child: hasAvatar
                       ? null
                       : const Icon(
