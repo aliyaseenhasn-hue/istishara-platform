@@ -28,8 +28,7 @@ String _$lawyersListHash() => r'5af080b25428349010e7d5fc2be159ca5fc856ca';
 
 /// See also [lawyersList].
 @ProviderFor(lawyersList)
-final lawyersListProvider =
-    AutoDisposeFutureProvider<List<LawyerProfile>>.internal(
+final lawyersListProvider = FutureProvider<List<LawyerProfile>>.internal(
   lawyersList,
   name: r'lawyersListProvider',
   debugGetCreateSourceHash:
@@ -40,7 +39,7 @@ final lawyersListProvider =
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef LawyersListRef = AutoDisposeFutureProviderRef<List<LawyerProfile>>;
+typedef LawyersListRef = FutureProviderRef<List<LawyerProfile>>;
 String _$lawyerProfileHash() => r'6efcea409ab4b90510bf8eeecd1476141b722786';
 
 /// Copied from Dart SDK
@@ -107,7 +106,7 @@ class LawyerProfileFamily extends Family<AsyncValue<LawyerProfile?>> {
 }
 
 /// See also [lawyerProfile].
-class LawyerProfileProvider extends AutoDisposeFutureProvider<LawyerProfile?> {
+class LawyerProfileProvider extends FutureProvider<LawyerProfile?> {
   /// See also [lawyerProfile].
   LawyerProfileProvider(
     String profileId,
@@ -159,7 +158,7 @@ class LawyerProfileProvider extends AutoDisposeFutureProvider<LawyerProfile?> {
   }
 
   @override
-  AutoDisposeFutureProviderElement<LawyerProfile?> createElement() {
+  FutureProviderElement<LawyerProfile?> createElement() {
     return _LawyerProfileProviderElement(this);
   }
 
@@ -179,13 +178,13 @@ class LawyerProfileProvider extends AutoDisposeFutureProvider<LawyerProfile?> {
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-mixin LawyerProfileRef on AutoDisposeFutureProviderRef<LawyerProfile?> {
+mixin LawyerProfileRef on FutureProviderRef<LawyerProfile?> {
   /// The parameter `profileId` of this provider.
   String get profileId;
 }
 
 class _LawyerProfileProviderElement
-    extends AutoDisposeFutureProviderElement<LawyerProfile?>
+    extends FutureProviderElement<LawyerProfile?>
     with LawyerProfileRef {
   _LawyerProfileProviderElement(super.provider);
 
