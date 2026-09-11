@@ -1,4 +1,4 @@
-const CACHE_NAME = 'astshara-pwa-v15';
+const CACHE_NAME = 'astshara-pwa-v16';
 const APP_SHELL = [
   './',
   './index.html',
@@ -50,26 +50,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Flutter's main JS is the largest startup payload. After the first load,
-  // answer from the PWA cache immediately and refresh it in the background.
-  // The refresh bypasses HTTP cache, so a newly deployed bundle is ready for
-  // the next launch without blocking the current one on the network.
+  // Critical Flutter runtime files must be network-first. Serving a stale
+  // main.dart.js can keep a successfully deployed fix invisible on iOS PWA
+  // until a later launch. Cache is used only as an offline fallback.
   if (isCriticalFlutterAsset) {
-    const networkRefresh = fetch(event.request, { cache: 'no-store' })
-      .then((response) => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        }
-        return response;
-      });
-
-    event.waitUntil(networkRefresh.catch(() => undefined));
     event.respondWith(
-      caches.match(event.request).then((cached) => {
-        if (cached) return cached;
-        return networkRefresh.catch(() => caches.match('./'));
-      }),
+      fetch(event.request, { cache: 'no-store' })
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          throw new Error(`No cached fallback for critical Flutter asset: ${url.pathname}`);
+        }),
     );
     return;
   }
