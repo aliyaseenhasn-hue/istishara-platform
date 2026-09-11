@@ -74,7 +74,10 @@ Page<void> _primaryTabPage(GoRouterState state, Widget child) {
 
 @riverpod
 GoRouter router(RouterRef ref) {
-  final authState = ref.watch(authStateChangesProvider);
+  // Keep one GoRouter instance alive while auth events only trigger redirect
+  // evaluation. Rebuilding the router on every auth emission recreates the
+  // navigation tree and can cause visible flashes/state loss.
+  final authRepository = ref.read(authRepositoryProvider);
   String? cachedAccountStatus;
   String? cachedAccountUserId;
   Future<String?>? accountStatusRequest;
@@ -109,14 +112,12 @@ GoRouter router(RouterRef ref) {
   return GoRouter(
     navigatorKey: AppNavigation.navigatorKey,
     initialLocation: '/',
-    refreshListenable: GoRouterRefreshStream(
-      ref.watch(authRepositoryProvider).authStateChanges(),
-    ),
+    refreshListenable: GoRouterRefreshStream(authRepository.authStateChanges()),
     redirect: (context, state) async {
-      var user = authState.valueOrNull;
+      var user = ref.read(authStateChangesProvider).valueOrNull;
       if (user == null && SupabaseConfig.client.auth.currentUser != null) {
         try {
-          user = await ref.read(authRepositoryProvider).getCurrentUser();
+          user = await authRepository.getCurrentUser();
         } catch (_) {}
       }
 
