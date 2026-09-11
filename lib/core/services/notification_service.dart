@@ -147,6 +147,16 @@ class NotificationService {
       }
     }
 
+    if (referenceType == 'client_wallet_withdrawal') {
+      if (context.mounted) {
+        final path = type == 'client_wallet_withdrawal_admin'
+            ? '/admin/financial'
+            : '/client-wallet';
+        GoRouter.of(context).push(path);
+        return true;
+      }
+    }
+
     if (referenceType == 'appointment_request') {
       if (context.mounted) {
         final suffix = referenceId != null && referenceId.isNotEmpty
