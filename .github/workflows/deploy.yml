@@ -126,7 +126,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${PWA_VAPID_PUBLIC_KEY:-}" || { echo "::error::PWA_VAPID_PUBLIC_KEY secret is missing"; exit 1; }
-          flutter build web --release --no-wasm-dry-run --base-href "/istishara-platform/" \
+          flutter build web --release --no-wasm-dry-run --pwa-strategy=none --base-href "/istishara-platform/" \
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
             --dart-define=VAPID_PUBLIC_KEY="$PWA_VAPID_PUBLIC_KEY"
@@ -135,8 +135,15 @@ jobs:
           test -f build/web/manifest.json
           test -f build/web/assets/assets/icons/app_icon.png
           test -f build/web/pwa_service_worker_v5.js
+          test -f build/web/flutter_bootstrap.js
           grep -q "<base href=\"/istishara-platform/\">" build/web/index.html
-          grep -q "pwa_service_worker_v5.js" build/web/index.html
+          grep -q "pwa_service_worker_v5.js?v=16" build/web/index.html
+          grep -q "astshara-pwa-v16" build/web/pwa_service_worker_v5.js
+          grep -q "_flutter.loader.load();" build/web/flutter_bootstrap.js
+          if grep -q "serviceWorkerSettings" build/web/flutter_bootstrap.js; then
+            echo "::error::Flutter bootstrap must not register a second service worker"
+            exit 1
+          fi
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v4
