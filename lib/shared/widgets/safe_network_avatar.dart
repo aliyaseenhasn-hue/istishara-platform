@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// Network avatar that avoids the CanvasKit image-texture path on iOS Web/PWA.
+/// Network avatar tuned for Flutter Web/PWA on iOS.
 ///
-/// Flutter Web on iOS can occasionally render network-image textures as black
-/// after route/sliver transitions. Using an HTML image element there keeps the
-/// avatar outside that WebGL texture path while preserving the normal image
-/// pipeline on Android, iOS native, and desktop web.
+/// Prefer Flutter's normal image pipeline first. If the browser blocks that
+/// path (for example because of CORS), Flutter may fall back to an HTML image
+/// element. Forcing the HTML path on iOS can render a transparent platform view
+/// inside clipped/sliver layouts such as the client home profile card.
 class SafeNetworkAvatar extends StatelessWidget {
   final String? imageUrl;
   final double radius;
@@ -49,8 +49,7 @@ class SafeNetworkAvatar extends StatelessWidget {
       );
     }
 
-    final useHtmlImage =
-        kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    final isIosWeb = kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
     return SizedBox(
       width: diameter,
@@ -58,12 +57,13 @@ class SafeNetworkAvatar extends StatelessWidget {
       child: ClipOval(
         child: Image.network(
           url,
+          key: ValueKey(url),
           width: diameter,
           height: diameter,
           fit: BoxFit.cover,
           gaplessPlayback: true,
-          webHtmlElementStrategy: useHtmlImage
-              ? WebHtmlElementStrategy.prefer
+          webHtmlElementStrategy: isIosWeb
+              ? WebHtmlElementStrategy.fallback
               : WebHtmlElementStrategy.never,
           errorBuilder: (_, __, ___) => fallback(),
         ),
