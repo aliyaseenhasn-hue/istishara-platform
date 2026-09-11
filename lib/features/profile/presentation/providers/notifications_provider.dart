@@ -113,11 +113,11 @@ final realtimeNotificationsProvider = StreamProvider.autoDispose<AppNotification
 final unreadNotificationsCountProvider = FutureProvider<int>((ref) async {
   final client = _clientOrNull();
   if (client == null) return 0;
-  final profileId = await ref.watch(currentProfileIdProvider.future);
-  if (profileId == null || profileId.isEmpty) return 0;
+  final user = ref.watch(authStateChangesProvider).valueOrNull;
+  if (user == null) return 0;
   try {
-    final rows = await client.from('notifications').select('id').eq('user_id', profileId).eq('is_read', false);
-    return (rows as List).length;
+    final result = await client.rpc('get_my_unread_notification_count');
+    return int.tryParse('$result') ?? 0;
   } catch (_) {
     return 0;
   }
