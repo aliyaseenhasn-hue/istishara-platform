@@ -7,7 +7,6 @@ import '../core/services/notification_service.dart';
 import '../shared/widgets/loading_widget.dart';
 import '../shared/providers/global_loading_provider.dart';
 import '../features/profile/presentation/providers/notifications_provider.dart';
-import '../features/bookings/presentation/providers/bookings_realtime_provider.dart';
 import '../features/bookings/presentation/providers/bookings_provider.dart';
 import 'router.dart';
 import 'theme.dart';
@@ -21,7 +20,6 @@ class LawConnectApp extends ConsumerWidget {
     final isLoading = ref.watch(globalLoadingProvider);
     final themeMode = ref.watch(themeModeProvider);
     ref.watch(unreadNotificationsCountProvider);
-    ref.watch(bookingsRealtimeSyncProvider);
 
     ref.listen<AsyncValue<AppNotification>>(realtimeNotificationsProvider, (_, next) {
       next.whenData((notification) {
