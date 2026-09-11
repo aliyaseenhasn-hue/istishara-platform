@@ -139,9 +139,9 @@ jobs:
           grep -q "<base href=\"/istishara-platform/\">" build/web/index.html
           grep -q "pwa_service_worker_v5.js?v=16" build/web/index.html
           grep -q "astshara-pwa-v16" build/web/pwa_service_worker_v5.js
-          grep -q "_flutter.loader.load();" build/web/flutter_bootstrap.js
-          if grep -q "serviceWorkerSettings" build/web/flutter_bootstrap.js; then
-            echo "::error::Flutter bootstrap must not register a second service worker"
+          grep -Fq "_flutter.loader.load();" build/web/flutter_bootstrap.js
+          if grep -Fq "_flutter.loader.load({" build/web/flutter_bootstrap.js; then
+            echo "::error::Flutter bootstrap must not invoke a second service worker configuration"
             exit 1
           fi
 
