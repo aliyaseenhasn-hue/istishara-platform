@@ -1,4 +1,4 @@
-const CACHE_NAME = 'astshara-pwa-v14';
+const CACHE_NAME = 'astshara-pwa-v15';
 const APP_SHELL = [
   './',
   './index.html',
@@ -34,12 +34,50 @@ self.addEventListener('fetch', (event) => {
       url.pathname.endsWith('/flutter_bootstrap.js') ||
       url.pathname.endsWith('/main.dart.js') ||
       url.pathname.endsWith('/flutter.js');
-  const isIconAsset = url.pathname.endsWith('/app_icon.png') ||
-      url.pathname.endsWith('/app_icon_v2.png');
-  const forceFresh = isNavigation || isCriticalFlutterAsset || isIconAsset;
+
+  if (isNavigation) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./'))),
+    );
+    return;
+  }
+
+  // Flutter's main JS is the largest startup payload. After the first load,
+  // answer from the PWA cache immediately and refresh it in the background.
+  // The refresh bypasses HTTP cache, so a newly deployed bundle is ready for
+  // the next launch without blocking the current one on the network.
+  if (isCriticalFlutterAsset) {
+    const networkRefresh = fetch(event.request, { cache: 'no-store' })
+      .then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      });
+
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) {
+          event.waitUntil(networkRefresh.catch(() => undefined));
+          return cached;
+        }
+        return networkRefresh.catch(() => caches.match('./'));
+      }),
+    );
+    return;
+  }
 
   event.respondWith(
-    fetch(event.request, forceFresh ? { cache: 'no-store' } : undefined)
+    fetch(event.request)
       .then((response) => {
         if (response.ok) {
           const copy = response.clone();
