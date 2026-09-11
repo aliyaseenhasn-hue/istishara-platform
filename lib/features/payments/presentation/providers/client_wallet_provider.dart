@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/supabase_config.dart';
+import '../../../authentication/presentation/providers/auth_provider.dart';
 
 class ClientWalletSummary {
   final double availableBalance;
@@ -39,18 +40,7 @@ Future<ClientWalletSummary> _loadClientWallet(String profileId) async {
 }
 
 final clientWalletProvider = StreamProvider<ClientWalletSummary>((ref) async* {
-  final authUser = SupabaseConfig.client.auth.currentUser;
-  if (authUser == null) {
-    yield _emptyClientWallet;
-    return;
-  }
-
-  final profile = await SupabaseConfig.client
-      .from('profiles')
-      .select('id')
-      .eq('auth_id', authUser.id)
-      .maybeSingle();
-  final profileId = profile?['id']?.toString();
+  final profileId = await ref.watch(currentProfileIdProvider.future);
   if (profileId == null || profileId.isEmpty) {
     yield _emptyClientWallet;
     return;
