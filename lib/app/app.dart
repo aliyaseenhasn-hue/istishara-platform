@@ -20,7 +20,6 @@ class LawConnectApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
     final isLoading = ref.watch(globalLoadingProvider);
     final themeMode = ref.watch(themeModeProvider);
-    ref.watch(unreadNotificationsCountProvider);
 
     ref.listen<AsyncValue<AppNotification>>(realtimeNotificationsProvider, (_, next) {
       next.whenData((notification) {
