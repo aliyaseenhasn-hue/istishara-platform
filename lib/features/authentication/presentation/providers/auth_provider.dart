@@ -10,10 +10,10 @@ import '../../domain/repositories/auth_repository.dart';
 
 part 'auth_provider.g.dart';
 
-@riverpod
+@Riverpod(keepAlive: true)
 AuthRepository authRepository(AuthRepositoryRef ref) => AuthRepositoryImpl(SupabaseConfig.client);
 
-@riverpod
+@Riverpod(keepAlive: true)
 Stream<AppUser?> authStateChanges(AuthStateChangesRef ref) async* {
   final repository = ref.watch(authRepositoryProvider);
   // Emit the already-restored OAuth session first. This is important on web,
