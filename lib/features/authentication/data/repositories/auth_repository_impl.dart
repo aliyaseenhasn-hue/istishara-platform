@@ -10,30 +10,38 @@ class AuthRepositoryImpl implements AuthRepository {
   final _userStateController = StreamController<AppUser?>.broadcast();
   late final StreamSubscription<AuthState> _authSubscription;
 
+  static const _bootstrapCacheTtl = Duration(seconds: 3);
+  AppUser? _cachedUser;
+  String? _cachedAuthId;
+  DateTime? _cachedUserAt;
+  Future<AppUser?>? _currentUserLoad;
+
   AuthRepositoryImpl([SupabaseClient? client]) : _supabase = client ?? SupabaseConfig.client {
     _authSubscription = _supabase.auth.onAuthStateChange.listen((data) async {
       try {
         final sessionUser = data.session?.user;
         if (sessionUser == null) {
+          _clearUserCache();
           _userStateController.add(null);
           return;
         }
-        final profile = await _supabase.from('profiles').select().eq('auth_id', sessionUser.id).maybeSingle();
-        if (profile == null && await _isCurrentAccountClosed()) {
-          _userStateController.add(null);
-          return;
-        }
-        final lawyerProfile = profile?['role']?.toString() == 'lawyer'
-            ? await _supabase.from('lawyer_profiles').select('verified').eq('profile_id', profile?['id']).maybeSingle()
-            : null;
-        _userStateController.add(_toAppUser(sessionUser, profile, lawyerProfile));
+        // getCurrentUser is single-flight and briefly cached. The initial auth
+        // event can arrive at the same time as Riverpod restores the session;
+        // sharing that work avoids duplicate profile/lawyer-profile reads.
+        final user = await getCurrentUser();
+        _userStateController.add(user);
       } catch (e) {
         debugPrint('Auth state profile sync failed: $e');
       }
     }, onError: (Object e, StackTrace st) {
       debugPrint('Auth state stream error: $e');
     });
-    Future.microtask(refreshUser);
+  }
+
+  void _clearUserCache() {
+    _cachedUser = null;
+    _cachedAuthId = null;
+    _cachedUserAt = null;
   }
 
   Future<bool> _isCurrentAccountClosed() async {
@@ -81,17 +89,55 @@ class AuthRepositoryImpl implements AuthRepository {
     );
   }
 
+  Future<AppUser?> _loadCurrentUser(User user) async {
+    final profile = await _supabase
+        .from('profiles')
+        .select()
+        .eq('auth_id', user.id)
+        .maybeSingle();
+    if (profile == null && await _isCurrentAccountClosed()) return null;
+    final lawyerProfile = profile?['role']?.toString() == 'lawyer'
+        ? await _supabase
+            .from('lawyer_profiles')
+            .select('verified')
+            .eq('profile_id', profile?['id'])
+            .maybeSingle()
+        : null;
+    final appUser = _toAppUser(user, profile, lawyerProfile);
+    _cachedAuthId = user.id;
+    _cachedUser = appUser;
+    _cachedUserAt = DateTime.now();
+    return appUser;
+  }
+
   @override
   Future<AppUser?> getCurrentUser() async {
     try {
       final user = _supabase.auth.currentUser;
-      if (user == null) return null;
-      final profile = await _supabase.from('profiles').select().eq('auth_id', user.id).maybeSingle();
-      if (profile == null && await _isCurrentAccountClosed()) return null;
-      final lawyerProfile = profile?['role']?.toString() == 'lawyer'
-          ? await _supabase.from('lawyer_profiles').select('verified').eq('profile_id', profile?['id']).maybeSingle()
-          : null;
-      return _toAppUser(user, profile, lawyerProfile);
+      if (user == null) {
+        _clearUserCache();
+        return null;
+      }
+
+      final cachedAt = _cachedUserAt;
+      if (_cachedAuthId == user.id &&
+          cachedAt != null &&
+          DateTime.now().difference(cachedAt) <= _bootstrapCacheTtl) {
+        return _cachedUser;
+      }
+
+      final activeLoad = _currentUserLoad;
+      if (activeLoad != null) return activeLoad;
+
+      final load = _loadCurrentUser(user);
+      _currentUserLoad = load;
+      try {
+        return await load;
+      } finally {
+        if (identical(_currentUserLoad, load)) {
+          _currentUserLoad = null;
+        }
+      }
     } catch (e) {
       throw _friendlyNetworkError(e);
     }
@@ -100,6 +146,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> signInWithEmail({required String email, required String password}) async {
     try {
+      _clearUserCache();
       await _supabase.auth.signInWithPassword(email: email, password: password);
       if (await _isCurrentAccountClosed()) {
         await _supabase.auth.signOut();
@@ -113,6 +160,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> signUpWithEmail({required String email, required String password, required String fullName, required String role}) async {
     try {
+      _clearUserCache();
       final response = await _supabase.auth.signUp(email: email, password: password, data: {'full_name': fullName, 'role': role});
       if (response.user == null) throw Exception('تعذر إنشاء الحساب');
       await updateProfile(fullName: fullName, role: role);
@@ -124,6 +172,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> signOut() async {
     try {
+      _clearUserCache();
       await _supabase.auth.signOut();
     } catch (e) {
       throw _friendlyNetworkError(e);
@@ -185,6 +234,7 @@ class AuthRepositoryImpl implements AuthRepository {
       final accessToken = data['access_token'];
       final refreshToken = data['refresh_token'];
       if (accessToken is String && accessToken.isNotEmpty && refreshToken is String && refreshToken.isNotEmpty) {
+        _clearUserCache();
         final response = await _supabase.auth.setSession(refreshToken, accessToken: accessToken);
         if (response.session == null || _supabase.auth.currentUser == null) throw Exception('تم التحقق من Telegram لكن تعذر تثبيت جلسة الدخول في التطبيق');
         if (await _isCurrentAccountClosed()) {
@@ -212,6 +262,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> verifyOTP({required String phone, required String token}) async {
     try {
+      _clearUserCache();
       await _supabase.auth.verifyOTP(phone: phone, token: token, type: OtpType.sms);
       if (await _isCurrentAccountClosed()) {
         await _supabase.auth.signOut();
@@ -247,6 +298,7 @@ class AuthRepositoryImpl implements AuthRepository {
       } else {
         await _supabase.from('profiles').insert({...data, 'auth_id': user.id, 'updated_at': DateTime.now().toIso8601String()});
       }
+      _clearUserCache();
       await refreshUser();
     } catch (e) {
       throw _friendlyNetworkError(e);
@@ -264,6 +316,7 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       if (_supabase.auth.currentUser == null) return;
       await _supabase.rpc('close_my_account');
+      _clearUserCache();
       try {
         await _supabase.auth.signOut();
       } catch (_) {}
