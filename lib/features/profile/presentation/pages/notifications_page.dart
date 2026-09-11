@@ -18,6 +18,9 @@ class NotificationsPage extends ConsumerWidget {
   Future<void> _open(BuildContext context, AppNotification item) async {
     final referenceId = item.referenceId?.trim();
     final isAppointmentTarget = item.referenceType == 'appointment_request';
+    final isWalletWithdrawalTarget =
+        item.referenceType == 'client_wallet_withdrawal' ||
+        item.type.startsWith('client_wallet_withdrawal');
     final isBookingTarget = item.referenceType == 'booking' ||
         item.referenceType == 'payment' ||
         item.type == 'booking' ||
@@ -28,6 +31,25 @@ class NotificationsPage extends ConsumerWidget {
           ? '?request_id=${Uri.encodeQueryComponent(referenceId)}'
           : '';
       if (context.mounted) context.push('/appointment-requests$suffix');
+      return;
+    }
+
+    if (isWalletWithdrawalTarget) {
+      String? role;
+      final authId = SupabaseConfig.client.auth.currentUser?.id;
+      if (authId != null) {
+        try {
+          final profile = await SupabaseConfig.client
+              .from('profiles')
+              .select('role')
+              .eq('auth_id', authId)
+              .maybeSingle();
+          role = profile?['role']?.toString();
+        } catch (_) {}
+      }
+      if (context.mounted) {
+        context.push(role == 'admin' ? '/admin/financial' : '/client-wallet');
+      }
       return;
     }
 
