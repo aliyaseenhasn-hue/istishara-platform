@@ -28,6 +28,16 @@ const _emptyClientWallet = ClientWalletSummary(
   currency: 'IQD',
 );
 
+Future<ClientWalletSummary> _loadClientWallet(String profileId) async {
+  final row = await SupabaseConfig.client
+      .from('client_wallets')
+      .select('available_balance,held_balance,currency')
+      .eq('user_id', profileId)
+      .maybeSingle();
+  if (row == null) return _emptyClientWallet;
+  return ClientWalletSummary.fromJson(Map<String, dynamic>.from(row));
+}
+
 final clientWalletProvider = StreamProvider<ClientWalletSummary>((ref) async* {
   final authUser = SupabaseConfig.client.auth.currentUser;
   if (authUser == null) {
@@ -46,16 +56,38 @@ final clientWalletProvider = StreamProvider<ClientWalletSummary>((ref) async* {
     return;
   }
 
-  yield* SupabaseConfig.client
-      .from('client_wallets')
-      .stream(primaryKey: ['user_id'])
-      .eq('user_id', profileId)
-      .map((rows) {
-        if (rows.isEmpty) return _emptyClientWallet;
-        return ClientWalletSummary.fromJson(
-          Map<String, dynamic>.from(rows.first),
-        );
-      });
+  // Load a stable snapshot first. A temporary Realtime/WebSocket failure must
+  // not make the wallet balance disappear or expose a channel error to users.
+  yield await _loadClientWallet(profileId);
+
+  var retrySeconds = 2;
+  while (true) {
+    try {
+      await for (final rows in SupabaseConfig.client
+          .from('client_wallets')
+          .stream(primaryKey: ['user_id'])
+          .eq('user_id', profileId)) {
+        retrySeconds = 2;
+        if (rows.isEmpty) {
+          yield _emptyClientWallet;
+        } else {
+          yield ClientWalletSummary.fromJson(
+            Map<String, dynamic>.from(rows.first),
+          );
+        }
+      }
+    } catch (_) {
+      // Keep the last known wallet usable, refresh it through PostgREST, then
+      // retry Realtime with a short bounded backoff.
+      try {
+        yield await _loadClientWallet(profileId);
+      } catch (_) {
+        // If the fallback request also fails, preserve the last emitted value.
+      }
+      await Future<void>.delayed(Duration(seconds: retrySeconds));
+      retrySeconds = retrySeconds >= 15 ? 15 : retrySeconds * 2;
+    }
+  }
 });
 
 final clientWalletTopupsProvider =
