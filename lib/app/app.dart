@@ -8,6 +8,7 @@ import '../shared/widgets/loading_widget.dart';
 import '../shared/providers/global_loading_provider.dart';
 import '../features/profile/presentation/providers/notifications_provider.dart';
 import '../features/bookings/presentation/providers/bookings_provider.dart';
+import '../features/chat/presentation/providers/chat_provider.dart';
 import 'router.dart';
 import 'theme.dart';
 
@@ -45,6 +46,13 @@ class LawConnectApp extends ConsumerWidget {
             ref.invalidate(bookingDetailsProvider(bookingId));
           }
         }
+
+        final chatRelated = notification.referenceType == 'conversation' ||
+            notification.referenceType == 'chat' ||
+            notification.type == 'chat';
+        if (chatRelated) {
+          ref.invalidate(conversationsListProvider);
+        }
       });
     });
 
@@ -52,7 +60,11 @@ class LawConnectApp extends ConsumerWidget {
       title: 'استشارة',
       debugShowCheckedModeBanner: false,
       scrollBehavior: const MaterialScrollBehavior().copyWith(
-        dragDevices: {PointerDeviceKind.touch, PointerDeviceKind.mouse, PointerDeviceKind.trackpad},
+        dragDevices: {
+          PointerDeviceKind.touch,
+          PointerDeviceKind.mouse,
+          PointerDeviceKind.trackpad,
+        },
       ),
       locale: const Locale('ar', 'IQ'),
       supportedLocales: const [Locale('ar', 'IQ')],
