@@ -30,6 +30,7 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
   late Future<Map<String, dynamic>> _settingsFuture;
   XFile? _receipt;
   bool _submitting = false;
+  bool _withdrawing = false;
 
   bool get _useSafeWalletKeypads =>
       kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
@@ -139,6 +140,116 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
     if (image != null && mounted) setState(() => _receipt = image);
   }
 
+  Future<void> _requestWithdrawal() async {
+    if (_withdrawing) return;
+    try {
+      final policy = await ref.read(financialPolicyProvider.future);
+      final wallet = await ref.read(clientWalletProvider.future);
+      if (!mounted) return;
+
+      if (policy['client_withdrawal_enabled'] != true) {
+        _message('سحب الرصيد غير متاح حالياً.');
+        return;
+      }
+
+      final minimum =
+          (num.tryParse('${policy['client_withdrawal_min_amount'] ?? 10000}') ??
+                  10000)
+              .round();
+      if (wallet.availableBalance < minimum) {
+        _message('الحد الأدنى للسحب هو ${_money(minimum.toDouble())} د.ع.');
+        return;
+      }
+
+      final value = await _openSafeNumericKeypad(
+        initialValue: '',
+        title: 'سحب الرصيد غير المستخدم',
+        helperText:
+            'المتاح ${_money(wallet.availableBalance)} د.ع • الحد الأدنى ${_money(minimum.toDouble())} د.ع',
+        confirmText: 'إرسال طلب السحب',
+        formatAsAmount: true,
+        minimumValue: minimum,
+        maxDigits: 10,
+      );
+      if (value == null || !mounted) return;
+      final amount = double.tryParse(value);
+      if (amount == null || amount < minimum) {
+        _message('مبلغ السحب أقل من الحد الأدنى.');
+        return;
+      }
+      if (amount > wallet.availableBalance) {
+        _message('المبلغ أكبر من الرصيد المتاح.');
+        return;
+      }
+
+      setState(() => _withdrawing = true);
+      await SupabaseConfig.client.rpc(
+        'request_client_wallet_withdrawal',
+        params: {'p_amount': amount},
+      );
+      ref.invalidate(clientWalletProvider);
+      ref.invalidate(clientWalletWithdrawalsProvider);
+      ref.invalidate(clientWalletLedgerProvider);
+      if (mounted) {
+        _message('تم إرسال طلب السحب وحجز المبلغ إلى حين تنفيذ التحويل.');
+      }
+    } catch (error) {
+      if (!mounted) return;
+      final text = UserFacingError.text(error);
+      final needsAccount = text.contains('حساب استلام') ||
+          text.contains('طرق الدفع') ||
+          text.contains('وسيلة استلام');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(text, textAlign: TextAlign.right),
+          action: needsAccount
+              ? SnackBarAction(
+                  label: 'إضافة حساب',
+                  onPressed: () => context.push('/payment-methods'),
+                )
+              : null,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _withdrawing = false);
+    }
+  }
+
+  Future<void> _cancelWithdrawal(String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('إلغاء طلب السحب'),
+        content: const Text(
+          'سيعود المبلغ المحجوز فوراً إلى رصيدك المتاح. لا يمكن الإلغاء بعد أن تبدأ الإدارة تنفيذ التحويل.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('رجوع'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('إلغاء الطلب'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await SupabaseConfig.client.rpc(
+        'cancel_client_wallet_withdrawal',
+        params: {'p_request_id': id},
+      );
+      ref.invalidate(clientWalletProvider);
+      ref.invalidate(clientWalletWithdrawalsProvider);
+      ref.invalidate(clientWalletLedgerProvider);
+      if (mounted) _message('تم إلغاء طلب السحب وإعادة المبلغ إلى الرصيد المتاح.');
+    } catch (error) {
+      if (mounted) _message(UserFacingError.text(error));
+    }
+  }
+
   Future<void> _submit() async {
     if (_submitting) return;
     final amount = double.tryParse(
@@ -197,9 +308,19 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
 
   String _money(double value) => NumberFormat('#,##0', 'ar').format(value);
 
+  void _invalidateWalletData() {
+    ref.invalidate(clientWalletProvider);
+    ref.invalidate(financialPolicyProvider);
+    ref.invalidate(clientWalletWithdrawalsProvider);
+    ref.invalidate(clientWalletTopupsProvider);
+    ref.invalidate(clientWalletLedgerProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final wallet = ref.watch(clientWalletProvider);
+    final policy = ref.watch(financialPolicyProvider);
+    final withdrawals = ref.watch(clientWalletWithdrawalsProvider);
     final topups = ref.watch(clientWalletTopupsProvider);
     final ledger = ref.watch(clientWalletLedgerProvider);
     final scheme = Theme.of(context).colorScheme;
@@ -219,11 +340,7 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
           ),
           IconButton(
             tooltip: 'تحديث',
-            onPressed: () {
-              ref.invalidate(clientWalletProvider);
-              ref.invalidate(clientWalletTopupsProvider);
-              ref.invalidate(clientWalletLedgerProvider);
-            },
+            onPressed: _invalidateWalletData,
             color: AppColors.teal,
             icon: const Icon(Icons.refresh_rounded),
           ),
@@ -232,9 +349,7 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
       body: RefreshIndicator(
         color: AppColors.teal,
         onRefresh: () async {
-          ref.invalidate(clientWalletProvider);
-          ref.invalidate(clientWalletTopupsProvider);
-          ref.invalidate(clientWalletLedgerProvider);
+          _invalidateWalletData();
           await ref.read(clientWalletProvider.future);
         },
         child: ListView(
@@ -261,6 +376,46 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
               ),
             ],
             const SizedBox(height: 16),
+            policy.when(
+              loading: () => const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(22),
+                  child: LoadingWidget(size: 24),
+                ),
+              ),
+              error: (error, _) => _ErrorCard(text: UserFacingError.text(error)),
+              data: (value) => _WithdrawalPolicyCard(
+                policy: value,
+                withdrawing: _withdrawing,
+                onWithdraw: _requestWithdrawal,
+                onPaymentMethods: () => context.push('/payment-methods'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'طلبات سحب الرصيد',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            withdrawals.when(
+              loading: () => const LoadingWidget(size: 26),
+              error: (error, _) => _ErrorCard(text: UserFacingError.text(error)),
+              data: (items) => items.isEmpty
+                  ? const _EmptyCard(text: 'لا توجد طلبات سحب حتى الآن.')
+                  : Column(
+                      children: items
+                          .map(
+                            (item) => _WithdrawalHistoryCard(
+                              item: item,
+                              onCancel: item['status'] == 'pending_review'
+                                  ? () => _cancelWithdrawal('${item['id']}')
+                                  : null,
+                            ),
+                          )
+                          .toList(),
+                    ),
+            ),
+            const SizedBox(height: 18),
             FutureBuilder<Map<String, dynamic>>(
               future: _settingsFuture,
               builder: (context, snapshot) {
@@ -367,14 +522,219 @@ class _BalanceCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            'محجوز لطلبات المواعيد: $held د.ع',
+            'الرصيد المحجوز: $held د.ع',
             textAlign: TextAlign.right,
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w700,
             ),
           ),
+          const SizedBox(height: 3),
+          const Text(
+            'قد يكون محجوزاً لموعد أو لطلب سحب قيد المعالجة.',
+            textAlign: TextAlign.right,
+            style: TextStyle(color: Colors.white70, fontSize: 12),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _WithdrawalPolicyCard extends StatelessWidget {
+  final Map<String, dynamic> policy;
+  final bool withdrawing;
+  final VoidCallback onWithdraw;
+  final VoidCallback onPaymentMethods;
+
+  const _WithdrawalPolicyCard({
+    required this.policy,
+    required this.withdrawing,
+    required this.onWithdraw,
+    required this.onPaymentMethods,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = policy['client_withdrawal_enabled'] == true;
+    final minimum =
+        num.tryParse('${policy['client_withdrawal_min_amount'] ?? 10000}') ??
+            10000;
+    final minDays =
+        num.tryParse('${policy['client_withdrawal_processing_min_business_days'] ?? 1}') ??
+            1;
+    final maxDays =
+        num.tryParse('${policy['client_withdrawal_processing_max_business_days'] ?? 3}') ??
+            3;
+    final actualFee = policy['client_withdrawal_fee_mode'] == 'actual_transfer_fee';
+    final scheme = Theme.of(context).colorScheme;
+
+    return Card(
+      elevation: 0,
+      color: scheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: scheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.account_balance_wallet_outlined),
+                SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    'سحب الرصيد غير المستخدم',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              enabled
+                  ? 'يمكن سحب الرصيد المتاح فقط. الحد الأدنى ${NumberFormat('#,##0', 'ar').format(minimum)} د.ع، والمدة المتوقعة $minDays–$maxDays أيام عمل.'
+                  : 'سحب الرصيد متوقف مؤقتاً بقرار الإدارة.',
+              style: TextStyle(color: scheme.onSurfaceVariant, height: 1.45),
+            ),
+            if (enabled) ...[
+              const SizedBox(height: 5),
+              Text(
+                actualFee
+                    ? 'لا توجد عمولة للمنصة على السحب؛ تخصم فقط رسوم التحويل الفعلية إن وجدت.'
+                    : 'لا تخصم رسوم من مبلغ السحب.',
+                style: TextStyle(
+                  color: scheme.onSurfaceVariant,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onPaymentMethods,
+                      icon: const Icon(Icons.account_balance_outlined),
+                      label: const Text('حساب الاستلام'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: withdrawing ? null : onWithdraw,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.teal,
+                        foregroundColor: Colors.white,
+                      ),
+                      icon: withdrawing
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: LoadingWidget(size: 16, color: Colors.white),
+                            )
+                          : const Icon(Icons.payments_outlined),
+                      label: Text(withdrawing ? 'جاري الإرسال...' : 'طلب سحب'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WithdrawalHistoryCard extends StatelessWidget {
+  final Map<String, dynamic> item;
+  final VoidCallback? onCancel;
+
+  const _WithdrawalHistoryCard({required this.item, this.onCancel});
+
+  String _status(String value) => const <String, String>{
+        'pending_review': 'بانتظار مراجعة الإدارة',
+        'processing': 'قيد التحويل',
+        'paid': 'تم التحويل',
+        'rejected': 'مرفوض',
+        'cancelled': 'ملغي',
+      }[value] ??
+      value;
+
+  String _provider(String value) => const <String, String>{
+        'zain_cash': 'زين كاش',
+        'asia_hawala': 'آسيا حوالة',
+        'qi_card': 'Qi Card',
+        'bank_account': 'حساب مصرفي',
+      }[value] ??
+      value;
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = num.tryParse('${item['amount'] ?? 0}') ?? 0;
+    final fee = num.tryParse('${item['transfer_fee'] ?? 0}') ?? 0;
+    final net = num.tryParse('${item['net_amount'] ?? amount}') ?? amount;
+    final requested = DateTime.tryParse('${item['requested_at'] ?? ''}')?.toLocal();
+    final deadline =
+        DateTime.tryParse('${item['processing_deadline_at'] ?? ''}')?.toLocal();
+    final status = '${item['status'] ?? ''}';
+    final scheme = Theme.of(context).colorScheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  status == 'paid'
+                      ? Icons.check_circle_outline_rounded
+                      : Icons.outbox_outlined,
+                  color: status == 'paid' ? AppColors.success : AppColors.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${NumberFormat('#,##0', 'ar').format(amount)} د.ع',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  ),
+                ),
+                Chip(label: Text(_status(status))),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'إلى: ${_provider('${item['provider_type'] ?? ''}')} • ${item['account_number'] ?? '—'}',
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            if (requested != null)
+              Text('تاريخ الطلب: ${DateFormat('yyyy/MM/dd – hh:mm a', 'ar').format(requested)}'),
+            if (deadline != null && status != 'paid' && status != 'rejected' && status != 'cancelled')
+              Text('موعد المعالجة الأقصى: ${DateFormat('yyyy/MM/dd', 'ar').format(deadline)}'),
+            if (status == 'paid') ...[
+              if (fee > 0) Text('رسوم التحويل الفعلية: ${NumberFormat('#,##0', 'ar').format(fee)} د.ع'),
+              Text('صافي المحول: ${NumberFormat('#,##0', 'ar').format(net)} د.ع'),
+              if (item['provider_reference'] != null)
+                Text('مرجع التحويل: ${item['provider_reference']}'),
+            ],
+            if (item['rejection_reason'] != null)
+              Text('سبب الرفض: ${item['rejection_reason']}'),
+            if (onCancel != null) ...[
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: onCancel,
+                icon: const Icon(Icons.close_rounded),
+                label: const Text('إلغاء طلب السحب وإعادة الرصيد'),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -939,6 +1299,9 @@ class _LedgerCard extends StatelessWidget {
       'appointment_hold': 'حجز مبلغ لطلب الموعد',
       'appointment_release': 'إعادة مبلغ محجوز',
       'appointment_capture': 'تأكيد دفع الموعد',
+      'withdrawal_hold': 'حجز مبلغ لطلب سحب',
+      'withdrawal_release': 'إعادة مبلغ طلب سحب',
+      'withdrawal_capture': 'تنفيذ سحب الرصيد',
       'admin_adjustment': 'تسوية إدارية',
     };
     return Card(
