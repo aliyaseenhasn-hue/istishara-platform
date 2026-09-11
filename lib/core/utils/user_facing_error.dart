@@ -1,11 +1,20 @@
 class UserFacingError {
   const UserFacingError._();
 
-  static String text(Object error, {String fallback = 'تعذر إكمال العملية. يرجى المحاولة مرة أخرى.'}) {
+  static String text(
+    Object error, {
+    String fallback = 'تعذر إكمال العملية. يرجى المحاولة مرة أخرى.',
+  }) {
     var value = error.toString().trim();
     if (value.isEmpty) return fallback;
 
     final lower = value.toLowerCase();
+    if (lower.contains('realtimesubscribeexception') ||
+        lower.contains('channelerror') ||
+        lower.contains('websocket')) {
+      return 'تعذر التحديث اللحظي مؤقتاً. تحقق من الاتصال واضغط تحديث، وسيحاول التطبيق الاتصال تلقائياً.';
+    }
+
     if (lower.contains('future already completed') ||
         lower.contains('bad state') ||
         lower.contains('completer') && lower.contains('completed')) {
@@ -20,13 +29,18 @@ class UserFacingError {
     ).firstMatch(value);
     if (messageMatch != null) {
       final message = (messageMatch.group(1) ?? '').trim();
-      if (message.isNotEmpty && message.toLowerCase() != 'null') return _clean(message);
+      if (message.isNotEmpty && message.toLowerCase() != 'null') {
+        return _clean(message);
+      }
     }
 
     value = value
         .replaceAll(RegExp(r'PostgrestException\(message:\s*'), '')
         .replaceAll(RegExp(r',\s*code:\s*[^,\)]+'), '')
-        .replaceAll(RegExp(r',\s*details:\s*.*?(?=,\s*hint:|\)$)', dotAll: true), '')
+        .replaceAll(
+          RegExp(r',\s*details:\s*.*?(?=,\s*hint:|\)$)', dotAll: true),
+          '',
+        )
         .replaceAll(RegExp(r',\s*hint:\s*.*?\)$', dotAll: true), '')
         .replaceAll(RegExp(r'\)$'), '')
         .trim();
