@@ -28,11 +28,6 @@ class AvailableBookingSlot {
 @riverpod
 BookingsRepository bookingsRepository(BookingsRepositoryRef ref) => BookingsRepositoryImpl(SupabaseConfig.client);
 
-Future<String?> _getProfileId(String authUid) async {
-  final row = await SupabaseConfig.client.from('profiles').select('id').eq('auth_id', authUid).maybeSingle();
-  return row?['id'] as String?;
-}
-
 RealtimeChannel _watchBookingChanges({
   required String ownerColumn,
   required String ownerId,
@@ -56,10 +51,8 @@ RealtimeChannel _watchBookingChanges({
 
 @Riverpod(keepAlive: true)
 Future<List<Booking>> userBookings(UserBookingsRef ref) async {
-  final user = ref.watch(authStateChangesProvider).value;
-  if (user == null) return [];
-  final id = await _getProfileId(user.id);
-  if (id == null) return [];
+  final id = await ref.watch(currentProfileIdProvider.future);
+  if (id == null || id.isEmpty) return [];
 
   final channel = _watchBookingChanges(
     ownerColumn: 'user_id',
@@ -75,10 +68,8 @@ Future<List<Booking>> userBookings(UserBookingsRef ref) async {
 
 @Riverpod(keepAlive: true)
 Future<List<Booking>> lawyerBookings(LawyerBookingsRef ref) async {
-  final user = ref.watch(authStateChangesProvider).value;
-  if (user == null) return [];
-  final id = await _getProfileId(user.id);
-  if (id == null) return [];
+  final id = await ref.watch(currentProfileIdProvider.future);
+  if (id == null || id.isEmpty) return [];
 
   final channel = _watchBookingChanges(
     ownerColumn: 'lawyer_id',
@@ -101,7 +92,7 @@ final bookingLawyerInfoProvider = FutureProvider.family<Map<String, dynamic>?, S
   return {'full_name': name == null || name.isEmpty ? 'اسم المحامي غير متوفر' : name, 'avatar_url': row?['avatar_url']?.toString()};
 });
 
-final availableSlotsProvider = FutureProvider.family<List<AvailableBookingSlot>, String>((ref, lawyerId) async {
+final availableSlotsProvider = FutureProvider.autoDispose.family<List<AvailableBookingSlot>, String>((ref, lawyerId) async {
   final stamp = DateTime.now().microsecondsSinceEpoch;
   final channels = <RealtimeChannel>[
     SupabaseConfig.client
@@ -224,9 +215,9 @@ final lawyerAcceptedWhatsAppProvider = FutureProvider.family<String?, String>((r
 });
 
 final currentUserWhatsAppProvider = FutureProvider<String?>((ref) async {
-  final user = ref.watch(authStateChangesProvider).value;
-  if (user == null) return null;
-  final row = await SupabaseConfig.client.from('profiles').select('whatsapp_number').eq('auth_id', user.id).maybeSingle();
+  final profileId = await ref.watch(currentProfileIdProvider.future);
+  if (profileId == null || profileId.isEmpty) return null;
+  final row = await SupabaseConfig.client.from('profiles').select('whatsapp_number').eq('id', profileId).maybeSingle();
   final value = row?['whatsapp_number']?.toString().trim();
   return value == null || value.isEmpty ? null : value;
 });
