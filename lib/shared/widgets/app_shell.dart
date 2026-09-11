@@ -87,9 +87,7 @@ class AppShell extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     return ColoredBox(
       color: scheme.surface,
-      child: ClipRect(
-        child: RepaintBoundary(child: child),
-      ),
+      child: ClipRect(child: child),
     );
   }
 
