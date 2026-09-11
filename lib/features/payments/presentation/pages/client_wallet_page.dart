@@ -180,6 +180,7 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
         _transactionController.clear();
       });
       _message('تم إرسال الإيصال. ستراجعه الإدارة خلال 30 دقيقة في ساعات العمل.');
+      context.go('/home');
     } catch (error) {
       if (mounted) _message(UserFacingError.text(error));
     } finally {
