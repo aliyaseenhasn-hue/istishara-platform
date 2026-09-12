@@ -73,7 +73,16 @@ class AuthController extends _$AuthController {
     try {
       await PwaNotificationService.releaseForCurrentUser();
       await PushNotificationService.releaseForCurrentUser();
-      await ref.read(authRepositoryProvider).deleteAccount();
+      final response = await SupabaseConfig.client.functions.invoke(
+        'delete-account',
+        body: {'confirm': true},
+      );
+      if (response.data is Map && (response.data as Map)['ok'] != true) {
+        throw Exception((response.data as Map)['error']?.toString() ?? 'تعذر حذف الحساب');
+      }
+      try {
+        await SupabaseConfig.client.auth.signOut();
+      } catch (_) {}
       state = const AsyncData(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
