@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/play-signed-bundle.yml'
+      - 'android/app/build.gradle.kts'
+      - 'pubspec.yaml'
 
 permissions:
   contents: read
@@ -27,6 +29,15 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Validate Play target API
+        run: |
+          set -euo pipefail
+          if ! grep -Eq 'targetSdk[[:space:]]*=[[:space:]]*36' android/app/build.gradle.kts; then
+            echo "::error::Google Play release must explicitly target Android 16 / API 36."
+            exit 1
+          fi
+          echo "Target API 36 confirmed."
 
       - name: Validate required secrets
         env:
@@ -52,8 +63,6 @@ jobs:
           set -euo pipefail
 
           echo "--- Decoding Keystore ---"
-          # Preserve the current working secret while removing copy/paste noise that
-          # GitHub Secrets can contain. The decoded file is validated by keytool below.
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -dc 'a-zA-Z0-9+/=' | base64 --decode > android/upload-keystore.jks
 
           KEYSTORE_PATH="android/upload-keystore.jks"
@@ -117,8 +126,6 @@ jobs:
           echo "Is Private Key Entry: yes"
 
           echo "--- Validating Private Key Password Safely ---"
-          # Do not use keytool -keypasswd here. That command is a mutation command and
-          # is not a reliable password probe for PKCS12. Read the private key instead.
           cat > /tmp/CheckKeyPassword.java <<'JAVA'
           import java.io.FileInputStream;
           import java.security.Key;
