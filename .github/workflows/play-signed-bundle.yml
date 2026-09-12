@@ -50,16 +50,16 @@ jobs:
           ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
         run: |
           set -euo pipefail
-          
+
           echo "--- Decoding Keystore ---"
-          # Strict Sanitization: Remove ALL whitespace and filter for valid Base64 characters ONLY
-          # This prevents "base64: invalid input" errors caused by hidden characters
+          # Preserve the current working secret while removing copy/paste noise that
+          # GitHub Secrets can contain. The decoded file is validated by keytool below.
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -dc 'a-zA-Z0-9+/=' | base64 --decode > android/upload-keystore.jks
-          
+
           KEYSTORE_PATH="android/upload-keystore.jks"
           KEYSTORE_SIZE=$(stat -c%s "$KEYSTORE_PATH")
           echo "Decoded Keystore Size: $KEYSTORE_SIZE bytes"
-          
+
           if [ "$KEYSTORE_SIZE" -lt 100 ]; then
             echo "::error::Keystore file is too small, likely corrupted during encoding."
             exit 1
@@ -68,12 +68,15 @@ jobs:
           echo "--- Diagnostic SHA-256 (Safe) ---"
           sha256sum "$KEYSTORE_PATH" | cut -d' ' -f1
 
-          echo "--- Detecting Keystore Type and Validating Password ---"
+          echo "--- Detecting Keystore Type and Validating Store Password ---"
           STORE_TYPE="UNKNOWN"
           PASSWORD_VALID="no"
-          
+
           for type in PKCS12 JKS JCEKS; do
-            if keytool -list -keystore "$KEYSTORE_PATH" -storepass "$ANDROID_STORE_PASSWORD" -storetype "$type" > /dev/null 2>&1; then
+            if keytool -list \
+              -keystore "$KEYSTORE_PATH" \
+              -storepass "$ANDROID_STORE_PASSWORD" \
+              -storetype "$type" > /dev/null 2>&1; then
               STORE_TYPE="$type"
               PASSWORD_VALID="yes"
               break
@@ -89,56 +92,106 @@ jobs:
             exit 1
           fi
 
-          echo "--- Validating Alias ---"
-          ALIAS_EXISTS="no"
-          IS_PRIVATE_KEY="no"
-          
-          # List entries and check for alias
-          ENTRY_INFO=$(keytool -list -keystore "$KEYSTORE_PATH" -storepass "$ANDROID_STORE_PASSWORD" -storetype "$STORE_TYPE" -v | grep "Alias name: $ANDROID_KEY_ALIAS" -A 10 || true)
-          
-          if [[ -n "$ENTRY_INFO" ]]; then
-            ALIAS_EXISTS="yes"
-            if echo "$ENTRY_INFO" | grep -q "PrivateKeyEntry"; then
-              IS_PRIVATE_KEY="yes"
-            fi
-          fi
-
-          echo "Alias Exists: $ALIAS_EXISTS"
-          echo "Is Private Key Entry: $IS_PRIVATE_KEY"
-
-          if [ "$ALIAS_EXISTS" = "no" ]; then
-            echo "::error::ANDROID_KEY_ALIAS '$ANDROID_KEY_ALIAS' not found in keystore."
+          echo "--- Validating Alias and Entry Type ---"
+          if ! keytool -list \
+            -keystore "$KEYSTORE_PATH" \
+            -storepass "$ANDROID_STORE_PASSWORD" \
+            -storetype "$STORE_TYPE" \
+            -alias "$ANDROID_KEY_ALIAS" > /dev/null 2>&1; then
+            echo "::error::ANDROID_KEY_ALIAS does not match an alias in this keystore."
             exit 1
           fi
 
-          if [ "$IS_PRIVATE_KEY" = "no" ]; then
-            echo "::error::Alias exists but is not a PrivateKeyEntry (cannot be used for signing)."
+          ENTRY_INFO="$(keytool -list -v \
+            -keystore "$KEYSTORE_PATH" \
+            -storepass "$ANDROID_STORE_PASSWORD" \
+            -storetype "$STORE_TYPE" \
+            -alias "$ANDROID_KEY_ALIAS" 2>/dev/null)"
+
+          echo "Alias Exists: yes"
+          if ! printf '%s\n' "$ENTRY_INFO" | grep -q "PrivateKeyEntry"; then
+            echo "Is Private Key Entry: no"
+            echo "::error::Alias exists but is not a PrivateKeyEntry and cannot sign the app."
             exit 1
           fi
+          echo "Is Private Key Entry: yes"
 
-          echo "--- Validating Key Password ---"
-          KEY_PASSWORD_VALID="no"
-          if keytool -keypasswd -keystore "$KEYSTORE_PATH" -storepass "$ANDROID_STORE_PASSWORD" -storetype "$STORE_TYPE" -alias "$ANDROID_KEY_ALIAS" -keypass "$ANDROID_KEY_PASSWORD" -new "$ANDROID_KEY_PASSWORD" > /dev/null 2>&1; then
-            KEY_PASSWORD_VALID="yes"
-          fi
-          
-          echo "Key Password Valid: $KEY_PASSWORD_VALID"
-          
-          if [ "$KEY_PASSWORD_VALID" = "no" ]; then
-            echo "STATUS: BLOCKED_BY_KEYSTORE_CREDENTIALS"
-            echo "Diagnosis: ANDROID_KEY_PASSWORD is incorrect for alias '$ANDROID_KEY_ALIAS'."
+          echo "--- Validating Private Key Password Safely ---"
+          # Do not use keytool -keypasswd here. That command is a mutation command and
+          # is not a reliable password probe for PKCS12. Read the private key instead.
+          cat > /tmp/CheckKeyPassword.java <<'JAVA'
+          import java.io.FileInputStream;
+          import java.security.Key;
+          import java.security.KeyStore;
+
+          public class CheckKeyPassword {
+              public static void main(String[] args) throws Exception {
+                  String path = args[0];
+                  String type = args[1];
+                  String storePass = System.getenv("ANDROID_STORE_PASSWORD");
+                  String keyPass = System.getenv("ANDROID_KEY_PASSWORD");
+                  String alias = System.getenv("ANDROID_KEY_ALIAS");
+
+                  KeyStore ks = KeyStore.getInstance(type);
+                  try (FileInputStream in = new FileInputStream(path)) {
+                      ks.load(in, storePass.toCharArray());
+                  }
+
+                  if (!ks.containsAlias(alias) || !ks.isKeyEntry(alias)) {
+                      System.err.println("KEY_ENTRY_NOT_FOUND");
+                      System.exit(2);
+                  }
+
+                  try {
+                      Key key = ks.getKey(alias, keyPass.toCharArray());
+                      if (key != null) {
+                          System.out.println("KEY_PASSWORD_OK");
+                          System.exit(0);
+                      }
+                  } catch (Exception ignored) {
+                  }
+
+                  try {
+                      Key key = ks.getKey(alias, storePass.toCharArray());
+                      if (key != null) {
+                          System.out.println("KEY_USES_STORE_PASSWORD");
+                          System.exit(10);
+                      }
+                  } catch (Exception ignored) {
+                  }
+
+                  System.err.println("KEY_PASSWORD_INVALID");
+                  System.exit(3);
+              }
+          }
+          JAVA
+
+          javac /tmp/CheckKeyPassword.java
+          set +e
+          java -cp /tmp CheckKeyPassword "$KEYSTORE_PATH" "$STORE_TYPE"
+          KEY_RESULT=$?
+          set -e
+
+          if [ "$KEY_RESULT" -eq 0 ]; then
+            echo "Key Password Valid: yes"
+            EFFECTIVE_KEY_PASSWORD="$ANDROID_KEY_PASSWORD"
+          elif [ "$KEY_RESULT" -eq 10 ]; then
+            echo "Key Password Valid: yes (uses store password)"
+            EFFECTIVE_KEY_PASSWORD="$ANDROID_STORE_PASSWORD"
+          else
+            echo "Key Password Valid: no"
+            echo "STATUS: BLOCKED_BY_KEY_PASSWORD"
+            echo "Diagnosis: neither ANDROID_KEY_PASSWORD nor ANDROID_STORE_PASSWORD unlocks the private key entry."
             exit 1
           fi
 
           echo "--- Generating key.properties ---"
           cat > android/key.properties <<EOF
           storePassword=$ANDROID_STORE_PASSWORD
-          keyPassword=$ANDROID_KEY_PASSWORD
+          keyPassword=$EFFECTIVE_KEY_PASSWORD
           keyAlias=$ANDROID_KEY_ALIAS
           storeFile=upload-keystore.jks
           EOF
-          # Note: we don't explicitly pass storetype to Gradle as it usually auto-detects, 
-          # but if it fails we might need to add it to build.gradle.kts later.
 
       - name: Create environment file
         env:
@@ -165,17 +218,18 @@ jobs:
 
       - name: Verify AAB Signature
         run: |
+          set -euo pipefail
           echo "--- Verifying AAB Signature ---"
-          # Using jarsigner to verify. It should show 'jar verified' if signed.
-          # We check if it's signed by the expected alias by checking the output.
-          jarsigner -verify -verbose build/app/outputs/bundle/release/app-release.aab | head -n 20
-          
-          # Check for debug certificate to ensure we didn't fallback
-          if jarsigner -verify -verbose build/app/outputs/bundle/release/app-release.aab | grep -qi "Android Debug"; then
-            echo "::error::Fallback detected! AAB is signed with a debug key."
+          jarsigner -verify -verbose build/app/outputs/bundle/release/app-release.aab > /tmp/aab-signature.txt
+          if ! grep -qi "jar verified" /tmp/aab-signature.txt; then
+            echo "::error::AAB signature verification did not report 'jar verified'."
             exit 1
           fi
-          echo "Signature verified successfully."
+          if grep -qi "Android Debug" /tmp/aab-signature.txt; then
+            echo "::error::Fallback detected: AAB is signed with a debug certificate."
+            exit 1
+          fi
+          echo "Signature verified successfully and no debug certificate was detected."
 
       - name: Upload Play-ready App Bundle
         uses: actions/upload-artifact@v4
