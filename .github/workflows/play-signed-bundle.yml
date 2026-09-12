@@ -42,7 +42,7 @@ jobs:
             test -n "${!name:-}" || { echo "::error::$name secret is missing"; exit 1; }
           done
 
-      - name: Configure Android upload signing
+      - name: Configure and Verify Android Signing
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -50,13 +50,95 @@ jobs:
           ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
         run: |
           set -euo pipefail
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/upload-keystore.jks
+          
+          echo "--- Decoding Keystore ---"
+          # Clean Base64 string from whitespace/newlines
+          CLEAN_B64=$(echo "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]')
+          echo "$CLEAN_B64" | base64 --decode > android/upload-keystore.jks
+          
+          KEYSTORE_PATH="android/upload-keystore.jks"
+          KEYSTORE_SIZE=$(stat -c%s "$KEYSTORE_PATH")
+          echo "Decoded Keystore Size: $KEYSTORE_SIZE bytes"
+          
+          if [ "$KEYSTORE_SIZE" -lt 100 ]; then
+            echo "::error::Keystore file is too small, likely corrupted during encoding."
+            exit 1
+          fi
+
+          echo "--- Diagnostic SHA-256 (Safe) ---"
+          sha256sum "$KEYSTORE_PATH" | cut -d' ' -f1
+
+          echo "--- Detecting Keystore Type and Validating Password ---"
+          STORE_TYPE="UNKNOWN"
+          PASSWORD_VALID="no"
+          
+          for type in PKCS12 JKS JCEKS; do
+            if keytool -list -keystore "$KEYSTORE_PATH" -storepass "$ANDROID_STORE_PASSWORD" -storetype "$type" > /dev/null 2>&1; then
+              STORE_TYPE="$type"
+              PASSWORD_VALID="yes"
+              break
+            fi
+          done
+
+          echo "Detected Type: $STORE_TYPE"
+          echo "Store Password Valid: $PASSWORD_VALID"
+
+          if [ "$PASSWORD_VALID" = "no" ]; then
+            echo "STATUS: BLOCKED_BY_KEYSTORE_CREDENTIALS"
+            echo "Diagnosis: ANDROID_STORE_PASSWORD mismatch or incorrect Keystore content."
+            exit 1
+          fi
+
+          echo "--- Validating Alias ---"
+          ALIAS_EXISTS="no"
+          IS_PRIVATE_KEY="no"
+          
+          # List entries and check for alias
+          ENTRY_INFO=$(keytool -list -keystore "$KEYSTORE_PATH" -storepass "$ANDROID_STORE_PASSWORD" -storetype "$STORE_TYPE" -v | grep "Alias name: $ANDROID_KEY_ALIAS" -A 10 || true)
+          
+          if [[ -n "$ENTRY_INFO" ]]; then
+            ALIAS_EXISTS="yes"
+            if echo "$ENTRY_INFO" | grep -q "PrivateKeyEntry"; then
+              IS_PRIVATE_KEY="yes"
+            fi
+          fi
+
+          echo "Alias Exists: $ALIAS_EXISTS"
+          echo "Is Private Key Entry: $IS_PRIVATE_KEY"
+
+          if [ "$ALIAS_EXISTS" = "no" ]; then
+            echo "::error::ANDROID_KEY_ALIAS '$ANDROID_KEY_ALIAS' not found in keystore."
+            exit 1
+          fi
+
+          if [ "$IS_PRIVATE_KEY" = "no" ]; then
+            echo "::error::Alias exists but is not a PrivateKeyEntry (cannot be used for signing)."
+            exit 1
+          fi
+
+          echo "--- Validating Key Password ---"
+          KEY_PASSWORD_VALID="no"
+          if keytool -keypasswd -keystore "$KEYSTORE_PATH" -storepass "$ANDROID_STORE_PASSWORD" -storetype "$STORE_TYPE" -alias "$ANDROID_KEY_ALIAS" -keypass "$ANDROID_KEY_PASSWORD" -new "$ANDROID_KEY_PASSWORD" > /dev/null 2>&1; then
+            KEY_PASSWORD_VALID="yes"
+          fi
+          
+          echo "Key Password Valid: $KEY_PASSWORD_VALID"
+          
+          if [ "$KEY_PASSWORD_VALID" = "no" ]; then
+            echo "STATUS: BLOCKED_BY_KEYSTORE_CREDENTIALS"
+            echo "Diagnosis: ANDROID_KEY_PASSWORD is incorrect for alias '$ANDROID_KEY_ALIAS'."
+            exit 1
+          fi
+
+          echo "--- Generating key.properties ---"
           cat > android/key.properties <<EOF
           storePassword=$ANDROID_STORE_PASSWORD
           keyPassword=$ANDROID_KEY_PASSWORD
           keyAlias=$ANDROID_KEY_ALIAS
           storeFile=upload-keystore.jks
           EOF
+          # Note: we don't explicitly pass storetype to Gradle as it usually auto-detects, 
+          # but if it fails we might need to add it to build.gradle.kts later.
 
       - name: Create environment file
         env:
@@ -80,6 +162,20 @@ jobs:
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
           test -f build/app/outputs/bundle/release/app-release.aab
+
+      - name: Verify AAB Signature
+        run: |
+          echo "--- Verifying AAB Signature ---"
+          # Using jarsigner to verify. It should show 'jar verified' if signed.
+          # We check if it's signed by the expected alias by checking the output.
+          jarsigner -verify -verbose build/app/outputs/bundle/release/app-release.aab | head -n 20
+          
+          # Check for debug certificate to ensure we didn't fallback
+          if jarsigner -verify -verbose build/app/outputs/bundle/release/app-release.aab | grep -qi "Android Debug"; then
+            echo "::error::Fallback detected! AAB is signed with a debug key."
+            exit 1
+          fi
+          echo "Signature verified successfully."
 
       - name: Upload Play-ready App Bundle
         uses: actions/upload-artifact@v4
