@@ -1,19 +1,51 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
+class AppUser {
+  final String id;
+  final String? email;
+  final String? fullName;
+  final String? phone;
+  final String? avatarUrl;
+  final String role;
+  final bool isVerified;
+  final bool hasProfessionalProfile;
+  final bool isOnboardingComplete;
+  final String? walletNumber;
 
-part 'app_user.freezed.dart';
+  const AppUser({
+    required this.id,
+    this.email,
+    this.fullName,
+    this.phone,
+    this.avatarUrl,
+    this.role = 'user',
+    this.isVerified = false,
+    this.hasProfessionalProfile = false,
+    this.isOnboardingComplete = false,
+    this.walletNumber,
+  });
 
-@freezed
-class AppUser with _$AppUser {
-  const factory AppUser({
-    required String id,
+  AppUser copyWith({
+    String? id,
     String? email,
     String? fullName,
     String? phone,
     String? avatarUrl,
-    @Default('user') String role,
-    @Default(false) bool isVerified,
-    @Default(false) bool hasProfessionalProfile,
-    @Default(false) bool isOnboardingComplete,
+    String? role,
+    bool? isVerified,
+    bool? hasProfessionalProfile,
+    bool? isOnboardingComplete,
     String? walletNumber,
-  }) = _AppUser;
+  }) {
+    return AppUser(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      fullName: fullName ?? this.fullName,
+      phone: phone ?? this.phone,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      role: role ?? this.role,
+      isVerified: isVerified ?? this.isVerified,
+      hasProfessionalProfile: hasProfessionalProfile ?? this.hasProfessionalProfile,
+      isOnboardingComplete: isOnboardingComplete ?? this.isOnboardingComplete,
+      walletNumber: walletNumber ?? this.walletNumber,
+    );
+  }
 }

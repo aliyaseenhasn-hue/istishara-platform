@@ -6,19 +6,20 @@ part of 'admin_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$adminStatsHash() => r'd67eff0f83de89d876bcd35d1ede37a1bcbd479d';
+String _$adminStatsHash() => r'4a59e5198a1b2f0cb407b1a232d3348be1850a2f';
 
 /// See also [AdminStats].
 @ProviderFor(AdminStats)
 final adminStatsProvider =
     AutoDisposeAsyncNotifierProvider<AdminStats, Map<String, dynamic>>.internal(
-  AdminStats.new,
-  name: r'adminStatsProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$adminStatsHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+      AdminStats.new,
+      name: r'adminStatsProvider',
+      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+          ? null
+          : _$adminStatsHash,
+      dependencies: null,
+      allTransitiveDependencies: null,
+    );
 
 typedef _$AdminStats = AutoDisposeAsyncNotifier<Map<String, dynamic>>;
 // ignore_for_file: type=lint

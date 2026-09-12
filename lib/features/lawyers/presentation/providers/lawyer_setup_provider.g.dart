@@ -7,20 +7,20 @@ part of 'lawyer_setup_provider.dart';
 // **************************************************************************
 
 String _$lawyerSetupControllerHash() =>
-    r'14e99a03dce4439ebf0bfa13492fe50833bc81c3';
+    r'61caf38ba0a5391a913fda7510e998133f693d4a';
 
 /// See also [LawyerSetupController].
 @ProviderFor(LawyerSetupController)
 final lawyerSetupControllerProvider =
     AutoDisposeAsyncNotifierProvider<LawyerSetupController, void>.internal(
-  LawyerSetupController.new,
-  name: r'lawyerSetupControllerProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$lawyerSetupControllerHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+      LawyerSetupController.new,
+      name: r'lawyerSetupControllerProvider',
+      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+          ? null
+          : _$lawyerSetupControllerHash,
+      dependencies: null,
+      allTransitiveDependencies: null,
+    );
 
 typedef _$LawyerSetupController = AutoDisposeAsyncNotifier<void>;
 // ignore_for_file: type=lint

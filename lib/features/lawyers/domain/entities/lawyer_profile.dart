@@ -9,6 +9,10 @@ class LawyerService {
     this.description,
   });
 
+  /// Compatibility identifier used by booking UI. Services in the current
+  /// profile model are embedded by title rather than by a separate database id.
+  String get id => title;
+
   Map<String, dynamic> toJson() => {
         'title': title,
         'price': price,
@@ -34,6 +38,7 @@ class LawyerProfile {
   final String profileId;
   final String? fullName;
   final String? licenseNumber;
+  final String? practiceLicenseClass;
   final String? bio;
   final List<String> specializations;
   final int? yearsExperience;
@@ -52,6 +57,7 @@ class LawyerProfile {
     required this.profileId,
     this.fullName,
     this.licenseNumber,
+    this.practiceLicenseClass,
     this.bio,
     this.specializations = const [],
     this.yearsExperience,
@@ -71,6 +77,7 @@ class LawyerProfile {
     String? profileId,
     String? fullName,
     String? licenseNumber,
+    String? practiceLicenseClass,
     String? bio,
     List<String>? specializations,
     int? yearsExperience,
@@ -89,6 +96,7 @@ class LawyerProfile {
       profileId: profileId ?? this.profileId,
       fullName: fullName ?? this.fullName,
       licenseNumber: licenseNumber ?? this.licenseNumber,
+      practiceLicenseClass: practiceLicenseClass ?? this.practiceLicenseClass,
       bio: bio ?? this.bio,
       specializations: specializations ?? this.specializations,
       yearsExperience: yearsExperience ?? this.yearsExperience,

@@ -1,32 +1,48 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
 import '../../domain/entities/app_user.dart';
 
-part 'app_user_model.freezed.dart';
-part 'app_user_model.g.dart';
+class AppUserModel {
+  final String id;
+  final String? email;
+  final String? fullName;
+  final String? phone;
+  final String? avatarUrl;
+  final String role;
+  final bool isVerified;
+  final bool hasProfessionalProfile;
+  final bool? isOnboardingComplete;
+  final String? walletNumber;
 
-@freezed
-class AppUserModel with _$AppUserModel {
-  const AppUserModel._();
+  const AppUserModel({
+    required this.id,
+    this.email,
+    this.fullName,
+    this.phone,
+    this.avatarUrl,
+    this.role = 'user',
+    this.isVerified = false,
+    this.hasProfessionalProfile = false,
+    this.isOnboardingComplete,
+    this.walletNumber,
+  });
 
-  const factory AppUserModel({
-    required String id,
-    String? email,
-    @JsonKey(name: 'full_name') String? fullName,
-    String? phone,
-    @JsonKey(name: 'avatar_url') String? avatarUrl,
-    @Default('user') String role,
-    @JsonKey(name: 'is_verified') @Default(false) bool isVerified,
-    @Default(false) bool hasProfessionalProfile,
-    @JsonKey(name: 'onboarding_completed') bool? isOnboardingComplete,
-    @JsonKey(name: 'wallet_number') String? walletNumber,
-  }) = _AppUserModel;
-
-  factory AppUserModel.fromJson(Map<String, dynamic> json) =>
-      _$AppUserModelFromJson(json);
+  factory AppUserModel.fromJson(Map<String, dynamic> json) {
+    return AppUserModel(
+      id: json['id'] as String? ?? '',
+      email: json['email'] as String?,
+      fullName: json['full_name'] as String?,
+      phone: json['phone'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
+      role: json['role'] as String? ?? 'user',
+      isVerified: json['is_verified'] as bool? ?? false,
+      hasProfessionalProfile: json['has_professional_profile'] as bool? ?? false,
+      isOnboardingComplete: json['onboarding_completed'] as bool?,
+      walletNumber: json['wallet_number'] as String?,
+    );
+  }
 
   AppUser toEntity() => AppUser(
         id: id,
-        email: email ?? '',
+        email: email,
         fullName: fullName,
         phone: phone,
         avatarUrl: avatarUrl,

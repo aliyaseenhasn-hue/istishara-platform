@@ -1,6 +1,5 @@
 import 'package:image_picker/image_picker.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:astshara/core/config/supabase_config.dart';
 import '../../data/repositories/payments_repository_impl.dart';
 import '../../domain/entities/payment.dart';
@@ -13,7 +12,6 @@ PaymentsRepository paymentsRepository(PaymentsRepositoryRef ref) {
   return PaymentsRepositoryImpl(SupabaseConfig.client);
 }
 
-// استخدام FutureProvider.family لتجنب مشاكل توليد الكود في البيئة الحالية
 final bookingPaymentProvider =
     FutureProvider.family<Payment?, String>((ref, bookingId) {
   return ref.watch(paymentsRepositoryProvider).getPaymentByBookingId(bookingId);
@@ -32,7 +30,7 @@ class PaymentsController extends _$PaymentsController {
     XFile? receiptFile,
   }) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    try {
       final repository = ref.read(paymentsRepositoryProvider);
       String? receiptUrl;
 
@@ -53,6 +51,10 @@ class PaymentsController extends _$PaymentsController {
       );
 
       await repository.createPayment(payment);
-    });
+      state = const AsyncData(null);
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
   }
 }

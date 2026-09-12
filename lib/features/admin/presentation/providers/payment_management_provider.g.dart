@@ -6,20 +6,20 @@ part of 'payment_management_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$paymentManagementHash() => r'a4da7a54350d6633ee4113093ca055745f113c61';
+String _$paymentManagementHash() => r'1759eda9c0afbd5b53c18594baee15e6c6edfb25';
 
 /// See also [PaymentManagement].
 @ProviderFor(PaymentManagement)
 final paymentManagementProvider =
     AutoDisposeAsyncNotifierProvider<PaymentManagement, List<Payment>>.internal(
-  PaymentManagement.new,
-  name: r'paymentManagementProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$paymentManagementHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+      PaymentManagement.new,
+      name: r'paymentManagementProvider',
+      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+          ? null
+          : _$paymentManagementHash,
+      dependencies: null,
+      allTransitiveDependencies: null,
+    );
 
 typedef _$PaymentManagement = AutoDisposeAsyncNotifier<List<Payment>>;
 // ignore_for_file: type=lint

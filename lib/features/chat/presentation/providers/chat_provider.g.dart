@@ -6,7 +6,7 @@ part of 'chat_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$chatRepositoryHash() => r'74c4c1245032d05c14b6754abfecfb3d5b700c1e';
+String _$chatRepositoryHash() => r'e7e00087dc32c8950d90e087950f722c3a438b14';
 
 /// See also [chatRepository].
 @ProviderFor(chatRepository)
@@ -23,7 +23,7 @@ final chatRepositoryProvider = AutoDisposeProvider<ChatRepository>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef ChatRepositoryRef = AutoDisposeProviderRef<ChatRepository>;
-String _$chatMessagesHash() => r'ba5e833f511a084efb8e2f1c4bca0bb76ad5af0a';
+String _$chatMessagesHash() => r'638511a473a5ad483cc733bb97953604342a2786';
 
 /// Copied from Dart SDK
 class _SystemHash {
@@ -56,21 +56,15 @@ class ChatMessagesFamily extends Family<AsyncValue<List<Message>>> {
   const ChatMessagesFamily();
 
   /// See also [chatMessages].
-  ChatMessagesProvider call(
-    String conversationId,
-  ) {
-    return ChatMessagesProvider(
-      conversationId,
-    );
+  ChatMessagesProvider call(String conversationId) {
+    return ChatMessagesProvider(conversationId);
   }
 
   @override
   ChatMessagesProvider getProviderOverride(
     covariant ChatMessagesProvider provider,
   ) {
-    return call(
-      provider.conversationId,
-    );
+    return call(provider.conversationId);
   }
 
   static const Iterable<ProviderOrFamily>? _dependencies = null;
@@ -91,24 +85,19 @@ class ChatMessagesFamily extends Family<AsyncValue<List<Message>>> {
 /// See also [chatMessages].
 class ChatMessagesProvider extends AutoDisposeStreamProvider<List<Message>> {
   /// See also [chatMessages].
-  ChatMessagesProvider(
-    String conversationId,
-  ) : this._internal(
-          (ref) => chatMessages(
-            ref as ChatMessagesRef,
-            conversationId,
-          ),
-          from: chatMessagesProvider,
-          name: r'chatMessagesProvider',
-          debugGetCreateSourceHash:
-              const bool.fromEnvironment('dart.vm.product')
-                  ? null
-                  : _$chatMessagesHash,
-          dependencies: ChatMessagesFamily._dependencies,
-          allTransitiveDependencies:
-              ChatMessagesFamily._allTransitiveDependencies,
-          conversationId: conversationId,
-        );
+  ChatMessagesProvider(String conversationId)
+    : this._internal(
+        (ref) => chatMessages(ref as ChatMessagesRef, conversationId),
+        from: chatMessagesProvider,
+        name: r'chatMessagesProvider',
+        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+            ? null
+            : _$chatMessagesHash,
+        dependencies: ChatMessagesFamily._dependencies,
+        allTransitiveDependencies:
+            ChatMessagesFamily._allTransitiveDependencies,
+        conversationId: conversationId,
+      );
 
   ChatMessagesProvider._internal(
     super._createNotifier, {
@@ -176,20 +165,20 @@ class _ChatMessagesProviderElement
   String get conversationId => (origin as ChatMessagesProvider).conversationId;
 }
 
-String _$chatControllerHash() => r'926382fb6691ddc44cdae72805c0749912a585f5';
+String _$chatControllerHash() => r'68fbc7bbe6075ce09d2662293a9b078e7abaf54a';
 
 /// See also [ChatController].
 @ProviderFor(ChatController)
 final chatControllerProvider =
     AutoDisposeAsyncNotifierProvider<ChatController, void>.internal(
-  ChatController.new,
-  name: r'chatControllerProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$chatControllerHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+      ChatController.new,
+      name: r'chatControllerProvider',
+      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+          ? null
+          : _$chatControllerHash,
+      dependencies: null,
+      allTransitiveDependencies: null,
+    );
 
 typedef _$ChatController = AutoDisposeAsyncNotifier<void>;
 // ignore_for_file: type=lint

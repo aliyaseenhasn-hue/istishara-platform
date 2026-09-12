@@ -1,0 +1,35 @@
+name: Inspect Stitch Design Archive
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Inspect archive
+        run: |
+          set -euo pipefail
+          test -f 'stitch_istishara_premium_ui_redesign 2.zip'
+          unzip -l 'stitch_istishara_premium_ui_redesign 2.zip' | tee stitch-archive-list.txt
+          rm -rf stitch-extracted
+          mkdir stitch-extracted
+          unzip -q 'stitch_istishara_premium_ui_redesign 2.zip' -d stitch-extracted
+          find stitch-extracted -maxdepth 4 -type f -print | sort | tee stitch-extracted-files.txt
+
+      - name: Upload Stitch inspection artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stitch-inspection
+          path: |
+            stitch-archive-list.txt
+            stitch-extracted-files.txt
+            stitch-extracted
+          retention-days: 3

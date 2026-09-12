@@ -3,259 +3,334 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/entities/app_user.dart';
 import '../../domain/repositories/auth_repository.dart';
-import '../models/app_user_model.dart';
+import '../../../../core/config/supabase_config.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final SupabaseClient _supabase;
   final _userStateController = StreamController<AppUser?>.broadcast();
-  bool _isListening = false;
-  Future<AppUser?>? _currentUserFuture;
+  late final StreamSubscription<AuthState> _authSubscription;
 
-  AuthRepositoryImpl(this._supabase) {
-    _setupAuthListener();
+  static const _bootstrapCacheTtl = Duration(seconds: 3);
+  AppUser? _cachedUser;
+  String? _cachedAuthId;
+  DateTime? _cachedUserAt;
+  Future<AppUser?>? _currentUserLoad;
+
+  AuthRepositoryImpl([SupabaseClient? client]) : _supabase = client ?? SupabaseConfig.client {
+    _authSubscription = _supabase.auth.onAuthStateChange.listen((data) async {
+      try {
+        final sessionUser = data.session?.user;
+        if (sessionUser == null) {
+          _clearUserCache();
+          _userStateController.add(null);
+          return;
+        }
+        // getCurrentUser is single-flight and briefly cached. The initial auth
+        // event can arrive at the same time as Riverpod restores the session;
+        // sharing that work avoids duplicate profile/lawyer-profile reads.
+        final user = await getCurrentUser();
+        _userStateController.add(user);
+      } catch (e) {
+        debugPrint('Auth state profile sync failed: $e');
+      }
+    }, onError: (Object e, StackTrace st) {
+      debugPrint('Auth state stream error: $e');
+    });
   }
 
-  void _setupAuthListener() {
-    if (_isListening) return;
-    _isListening = true;
+  void _clearUserCache() {
+    _cachedUser = null;
+    _cachedAuthId = null;
+    _cachedUserAt = null;
+  }
 
-    _supabase.auth.onAuthStateChange.listen((data) async {
-      final user = data.session?.user;
-      if (user == null) {
-        _userStateController.add(null);
-      } else {
-        final currentUser = await getCurrentUser();
-        _userStateController.add(currentUser);
+  Future<bool> _isCurrentAccountClosed() async {
+    try {
+      final result = await _supabase.rpc('is_my_account_closed');
+      return result == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Exception _friendlyNetworkError(Object error) {
+    final text = error.toString().toLowerCase();
+    const networkHints = ['socketexception','failed host lookup','network is unreachable','network request failed','networkerror','failed to fetch','xmlhttprequest','connection reset','connection refused','connection closed','connection timed out','timed out','timeout','clientexception','no internet','internet connection'];
+    if (networkHints.any(text.contains)) return Exception('تعذر إكمال العملية بسبب انقطاع الاتصال بالإنترنت. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.');
+    if (error is AuthException) return Exception(error.message);
+    if (error is FunctionException) {
+      final details = error.details;
+      if (details is Map) {
+        final message = details['error']?.toString().trim();
+        if (message != null && message.isNotEmpty) return Exception(message);
+        final messageAlt = details['message']?.toString().trim();
+        if (messageAlt != null && messageAlt.isNotEmpty) return Exception(messageAlt);
       }
-    });
+      final detailText = details?.toString().trim();
+      if (detailText != null && detailText.isNotEmpty && detailText != 'null') return Exception(detailText);
+      return Exception(error.reasonPhrase ?? 'تعذر الاتصال بالخدمة. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.');
+    }
+    return Exception(error.toString().replaceFirst('Exception: ', ''));
+  }
+
+  AppUser _toAppUser(User user, Map<String, dynamic>? profile, [Map<String, dynamic>? lawyerProfile]) {
+    final lawyerVerified = profile?['role']?.toString() == 'lawyer' && lawyerProfile?['verified'] == true;
+    return AppUser(
+      id: user.id,
+      email: profile?['email']?.toString() ?? user.email,
+      fullName: profile?['full_name']?.toString() ?? user.userMetadata?['full_name']?.toString(),
+      phone: profile?['phone']?.toString() ?? user.phone,
+      avatarUrl: profile?['avatar_url']?.toString(),
+      role: profile?['role']?.toString() ?? user.userMetadata?['role']?.toString() ?? 'user',
+      isVerified: lawyerVerified || profile?['is_verified'] == true,
+      hasProfessionalProfile: profile?['has_professional_profile'] == true,
+      isOnboardingComplete: profile?['onboarding_completed'] == true,
+      walletNumber: profile?['wallet_number']?.toString(),
+    );
+  }
+
+  Future<AppUser?> _loadCurrentUser(User user) async {
+    final profile = await _supabase
+        .from('profiles')
+        .select()
+        .eq('auth_id', user.id)
+        .maybeSingle();
+    if (profile == null && await _isCurrentAccountClosed()) return null;
+    final lawyerProfile = profile?['role']?.toString() == 'lawyer'
+        ? await _supabase
+            .from('lawyer_profiles')
+            .select('verified')
+            .eq('profile_id', profile?['id'])
+            .maybeSingle()
+        : null;
+    final appUser = _toAppUser(user, profile, lawyerProfile);
+    _cachedAuthId = user.id;
+    _cachedUser = appUser;
+    _cachedUserAt = DateTime.now();
+    return appUser;
   }
 
   @override
   Future<AppUser?> getCurrentUser() async {
-    if (_currentUserFuture != null) return _currentUserFuture;
-
-    _currentUserFuture = _getCurrentUserInternal();
     try {
-      return await _currentUserFuture;
-    } finally {
-      _currentUserFuture = null;
-    }
-  }
-
-  Future<AppUser?> _getCurrentUserInternal() async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) return null;
-
-    try {
-      final profileResponse = await _supabase
-          .from('profiles')
-          .select()
-          .eq('auth_id', user.id)
-          .maybeSingle();
-
-      if (profileResponse == null) {
-        debugPrint('Profile not found in database for user_id: ${user.id}');
-        return AppUser(
-          id: user.id,
-          email: user.email,
-          fullName: user.userMetadata?['full_name'] as String?,
-          phone: user.phone,
-          role: 'user',
-          isOnboardingComplete: false,
-        );
+      final user = _supabase.auth.currentUser;
+      if (user == null) {
+        _clearUserCache();
+        return null;
       }
 
-      bool isVerified = false;
-      bool hasProfessionalProfile = false;
+      final cachedAt = _cachedUserAt;
+      if (_cachedAuthId == user.id &&
+          cachedAt != null &&
+          DateTime.now().difference(cachedAt) <= _bootstrapCacheTtl) {
+        return _cachedUser;
+      }
 
-      final dynamic roleValue = profileResponse['role'];
-      final String roleStr =
-          (roleValue is String) ? roleValue : (roleValue?.toString() ?? 'user');
+      final activeLoad = _currentUserLoad;
+      if (activeLoad != null) return activeLoad;
 
-      if (roleStr == 'lawyer') {
-        final profileId = profileResponse['id'] as String;
-        final lawyerResponse = await _supabase
-            .from('lawyer_profiles')
-            .select('verified')
-            .eq('profile_id', profileId)
-            .maybeSingle();
-
-        if (lawyerResponse != null) {
-          isVerified = (lawyerResponse['verified'] == true);
-          hasProfessionalProfile = true;
+      final load = _loadCurrentUser(user);
+      _currentUserLoad = load;
+      try {
+        return await load;
+      } finally {
+        if (identical(_currentUserLoad, load)) {
+          _currentUserLoad = null;
         }
       }
-
-      final appUser = AppUserModel.fromJson(profileResponse).toEntity();
-      final bool isOnboarded = profileResponse['onboarding_completed'] == true;
-
-      return appUser.copyWith(
-        isVerified: isVerified,
-        hasProfessionalProfile: hasProfessionalProfile,
-        isOnboardingComplete: isOnboarded,
-      );
     } catch (e) {
-      debugPrint('Error fetching user profile from DB: $e');
-      return AppUser(
-        id: user.id,
-        email: user.email,
-        phone: user.phone,
-        fullName: user.userMetadata?['full_name'] as String?,
-        role: (user.userMetadata?['role'] as String?) ?? 'user',
-      );
+      throw _friendlyNetworkError(e);
     }
   }
 
   @override
-  Future<void> signInWithEmail(
-      {required String email, required String password}) async {
-    await _supabase.auth.signInWithPassword(email: email, password: password);
+  Future<void> signInWithEmail({required String email, required String password}) async {
+    try {
+      _clearUserCache();
+      await _supabase.auth.signInWithPassword(email: email, password: password);
+      if (await _isCurrentAccountClosed()) {
+        await _supabase.auth.signOut();
+        throw Exception('هذا الحساب مغلق ولا يمكن تسجيل الدخول إليه.');
+      }
+    } catch (e) {
+      throw _friendlyNetworkError(e);
+    }
   }
 
   @override
-  Future<void> signUpWithEmail({
-    required String email,
-    required String password,
-    required String fullName,
-    required String role,
-  }) async {
-    await _supabase.auth.signUp(
-      email: email,
-      password: password,
-      data: {
-        'full_name': fullName,
-        'role': role,
-      },
-    );
+  Future<void> signUpWithEmail({required String email, required String password, required String fullName, required String role}) async {
+    try {
+      _clearUserCache();
+      final response = await _supabase.auth.signUp(email: email, password: password, data: {'full_name': fullName, 'role': role});
+      if (response.user == null) throw Exception('تعذر إنشاء الحساب');
+      await updateProfile(fullName: fullName, role: role);
+    } catch (e) {
+      throw _friendlyNetworkError(e);
+    }
   }
 
   @override
   Future<void> signOut() async {
-    await _supabase.auth.signOut();
+    try {
+      _clearUserCache();
+      await _supabase.auth.signOut();
+    } catch (e) {
+      throw _friendlyNetworkError(e);
+    }
   }
 
   @override
   Future<void> signInWithPhone(String phone) async {
-    String formattedPhone = phone.trim().replaceAll(' ', '');
-    if (!formattedPhone.startsWith('+')) {
-      formattedPhone = '+$formattedPhone';
+    try {
+      await _supabase.auth.signInWithOtp(phone: phone);
+    } catch (e) {
+      throw _friendlyNetworkError(e);
     }
-    await _supabase.auth.signInWithOtp(phone: formattedPhone);
   }
 
   @override
   Future<void> signInWithGoogle() async {
     try {
-      // تحديد رابط الرد تلقائياً بناءً على البيئة (محلي أو إنتاج)
-      String redirectUrl = 'io.supabase.astshara://login-callback';
-
-      if (kIsWeb) {
-        final String currentUri = Uri.base.origin + Uri.base.path;
-        redirectUrl = currentUri;
-        debugPrint('🌐 Web Auth Redirect URL: $redirectUrl');
-      }
-
+      final redirectUrl = kIsWeb
+          ? Uri.parse('${Uri.base.origin}${Uri.base.path.startsWith('/istishara-platform') ? '/istishara-platform/' : '/'}')
+          : Uri.parse('io.supabase.astshara://login-callback/');
       await _supabase.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: redirectUrl,
-        queryParams: {
-          'prompt': 'select_account',
-        },
+        redirectTo: redirectUrl.toString(),
+        queryParams: {'prompt': 'select_account'},
       );
-    } on AuthException catch (e) {
-      debugPrint('Google OAuth AuthException: ${e.message}');
-      rethrow;
     } catch (e) {
-      debugPrint('Unexpected Google OAuth error: $e');
-      rethrow;
+      throw _friendlyNetworkError(e);
+    }
+  }
+
+  @override
+  Future<void> signInWithTelegram() async => throw UnsupportedError('استخدم تسجيل Telegram عبر رمز التحقق داخل التطبيق');
+
+  @override
+  Future<Map<String, dynamic>> startTelegramLogin(String phone, {bool registration = false, String? fullName, String? role}) async {
+    try {
+      final body = <String, dynamic>{'action': 'start', 'phone': phone, 'mode': registration ? 'signup' : 'login'};
+      if (fullName != null && fullName.trim().isNotEmpty) body['full_name'] = fullName.trim();
+      if (role != null && role.trim().isNotEmpty) body['role'] = role.trim();
+      final result = await _supabase.functions.invoke('telegram-auth-v2', body: body);
+      if (result.data is! Map) throw Exception('تعذر بدء تسجيل Telegram');
+      final data = Map<String, dynamic>.from(result.data as Map);
+      if (data['ok'] != true) throw Exception(data['error'] ?? 'تعذر بدء تسجيل Telegram');
+      return data;
+    } catch (e) {
+      throw _friendlyNetworkError(e);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> verifyTelegramLogin({required String requestToken, required String code}) async {
+    try {
+      final result = await _supabase.functions.invoke('telegram-auth-v2', body: {'action': 'verify', 'request_token': requestToken, 'code': code});
+      if (result.data is! Map) throw Exception('تعذر التحقق من Telegram');
+      final data = Map<String, dynamic>.from(result.data as Map);
+      if (data['ok'] != true) throw Exception(data['error'] ?? 'تعذر إكمال تسجيل الدخول');
+
+      final accessToken = data['access_token'];
+      final refreshToken = data['refresh_token'];
+      if (accessToken is String && accessToken.isNotEmpty && refreshToken is String && refreshToken.isNotEmpty) {
+        _clearUserCache();
+        final response = await _supabase.auth.setSession(refreshToken, accessToken: accessToken);
+        if (response.session == null || _supabase.auth.currentUser == null) throw Exception('تم التحقق من Telegram لكن تعذر تثبيت جلسة الدخول في التطبيق');
+        if (await _isCurrentAccountClosed()) {
+          await _supabase.auth.signOut();
+          throw Exception('هذا الحساب مغلق ولا يمكن تسجيل الدخول إليه.');
+        }
+        await refreshUser();
+        return data;
+      }
+
+      final syntheticEmail = data['syntheticEmail'];
+      final password = data['password'];
+      if (syntheticEmail is String && syntheticEmail.isNotEmpty && password is String && password.isNotEmpty) {
+        await signInWithEmail(email: syntheticEmail, password: password);
+        if (_supabase.auth.currentUser == null) throw Exception('تعذر تثبيت جلسة الدخول في التطبيق');
+        await refreshUser();
+        return data;
+      }
+      throw Exception('تم التحقق من Telegram لكن تعذر إنشاء جلسة الدخول');
+    } catch (e) {
+      throw _friendlyNetworkError(e);
     }
   }
 
   @override
   Future<void> verifyOTP({required String phone, required String token}) async {
-    await _supabase.auth.verifyOTP(
-      phone: phone,
-      token: token,
-      type: OtpType.sms,
-    );
+    try {
+      _clearUserCache();
+      await _supabase.auth.verifyOTP(phone: phone, token: token, type: OtpType.sms);
+      if (await _isCurrentAccountClosed()) {
+        await _supabase.auth.signOut();
+        throw Exception('هذا الحساب مغلق ولا يمكن تسجيل الدخول إليه.');
+      }
+    } catch (e) {
+      throw _friendlyNetworkError(e);
+    }
   }
 
   @override
-  Future<void> updateProfile({
-    String? fullName,
-    String? email,
-    String? role,
-    String? avatarUrl,
-    bool? onboardingCompleted,
-    String? walletNumber,
-  }) async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) {
-      throw Exception('❌ لا يوجد مستخدم مسجل دخول');
-    }
-
-    final data = <String, dynamic>{};
-    if (fullName != null && fullName.trim().isNotEmpty) {
-      data['full_name'] = fullName.trim();
-    }
-    if (email != null && email.trim().isNotEmpty) {
-      data['email'] = email.trim();
-    }
-    if (role != null && role.trim().isNotEmpty) {
-      data['role'] = role.trim();
-    }
-    if (avatarUrl != null && avatarUrl.trim().isNotEmpty) {
-      data['avatar_url'] = avatarUrl.trim();
-    }
-    if (onboardingCompleted != null) {
-      data['onboarding_completed'] = onboardingCompleted;
-    }
-    if (walletNumber != null) {
-      data['wallet_number'] = walletNumber.trim();
-    }
-
-    if (data.isEmpty) return;
-
+  Future<void> updateProfile({String? fullName, String? email, String? role, String? avatarUrl, bool? onboardingCompleted, String? walletNumber}) async {
     try {
-      await _supabase.from('profiles').upsert({
-        ...data,
-        'auth_id': user.id,
-        'id': user.id,
-        'updated_at': DateTime.now().toIso8601String(),
-      }, onConflict: 'auth_id');
+      final user = _supabase.auth.currentUser;
+      if (user == null) throw Exception('لا يوجد مستخدم مسجل دخول');
+      if (await _isCurrentAccountClosed()) throw Exception('هذا الحساب مغلق ولا يمكن تعديله.');
 
+      final data = <String, dynamic>{};
+      if (fullName != null && fullName.trim().isNotEmpty) data['full_name'] = fullName.trim();
+      if (email != null && email.trim().isNotEmpty) data['email'] = email.trim();
+      if (role != null && (role == 'lawyer' || role == 'user')) data['role'] = role;
+      if (avatarUrl != null && avatarUrl.trim().isNotEmpty) data['avatar_url'] = avatarUrl.trim();
+      if (onboardingCompleted != null) data['onboarding_completed'] = onboardingCompleted;
+      if (walletNumber != null) data['wallet_number'] = walletNumber.trim();
+      if (data.isEmpty) return;
+
+      final existing = await _supabase.from('profiles').select('id, role').eq('auth_id', user.id).maybeSingle();
+      if (existing != null) {
+        data.remove('role');
+        if (data.isNotEmpty) {
+          await _supabase.from('profiles').update({...data, 'updated_at': DateTime.now().toIso8601String()}).eq('auth_id', user.id);
+        }
+      } else {
+        await _supabase.from('profiles').insert({...data, 'auth_id': user.id, 'updated_at': DateTime.now().toIso8601String()});
+      }
+      _clearUserCache();
       await refreshUser();
-    } on PostgrestException catch (e) {
-      debugPrint('❌ خطأ Supabase: ${e.message}');
-      rethrow;
     } catch (e) {
-      debugPrint('❌ خطأ غير متوقع: $e');
-      rethrow;
+      throw _friendlyNetworkError(e);
     }
   }
 
+  @override
   Future<void> refreshUser() async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) return;
-    _userStateController.add(await getCurrentUser());
+    final current = await getCurrentUser();
+    _userStateController.add(current);
   }
 
   @override
   Future<void> deleteAccount() async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) return;
-
-    await _supabase.from('profiles').delete().eq('auth_id', user.id);
     try {
-      await _supabase.rpc('delete_user_account');
+      if (_supabase.auth.currentUser == null) return;
+      await _supabase.rpc('close_my_account');
+      _clearUserCache();
+      try {
+        await _supabase.auth.signOut();
+      } catch (_) {}
+      _userStateController.add(null);
     } catch (e) {
-      debugPrint('RPC delete failed: $e');
+      throw _friendlyNetworkError(e);
     }
-    await signOut();
   }
 
   @override
-  Stream<AppUser?> authStateChanges() {
-    return _userStateController.stream;
+  Stream<AppUser?> authStateChanges() => _userStateController.stream;
+
+  void dispose() {
+    _authSubscription.cancel();
+    _userStateController.close();
   }
 }

@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin-login
+Disallow: /complete-profile
+Disallow: /lawyer-onboarding
+Disallow: /lawyer-pending
+Disallow: /manual-payment
+Disallow: /manual-payment-required
+Disallow: /upload-payment
+Disallow: /payment-result
+
+Sitemap: https://aliyaseenhasn-hue.github.io/istishara-platform/sitemap.xml

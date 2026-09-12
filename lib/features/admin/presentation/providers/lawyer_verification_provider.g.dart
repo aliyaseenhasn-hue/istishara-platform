@@ -7,20 +7,23 @@ part of 'lawyer_verification_provider.dart';
 // **************************************************************************
 
 String _$lawyerVerificationHash() =>
-    r'de56614d3711a09f1b94fe401b0d8931b3d026fd';
+    r'57a407391d1cf800a2508823742fbae2f7ebc708';
 
 /// See also [LawyerVerification].
 @ProviderFor(LawyerVerification)
-final lawyerVerificationProvider = AutoDisposeAsyncNotifierProvider<
-    LawyerVerification, List<LawyerProfile>>.internal(
-  LawyerVerification.new,
-  name: r'lawyerVerificationProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$lawyerVerificationHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+final lawyerVerificationProvider =
+    AutoDisposeAsyncNotifierProvider<
+      LawyerVerification,
+      List<LawyerProfile>
+    >.internal(
+      LawyerVerification.new,
+      name: r'lawyerVerificationProvider',
+      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+          ? null
+          : _$lawyerVerificationHash,
+      dependencies: null,
+      allTransitiveDependencies: null,
+    );
 
 typedef _$LawyerVerification = AutoDisposeAsyncNotifier<List<LawyerProfile>>;
 // ignore_for_file: type=lint

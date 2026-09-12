@@ -1,13 +1,16 @@
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
-import '../../../../shared/widgets/loading_widget.dart';
+import '../../../../core/constants/legal_specializations.dart';
 import '../../../../shared/providers/global_loading_provider.dart';
+import '../../../../shared/widgets/loading_widget.dart';
 import '../../../lawyers/presentation/providers/lawyer_setup_provider.dart';
 import '../providers/auth_provider.dart';
 
@@ -15,221 +18,151 @@ class CompleteProfilePage extends ConsumerStatefulWidget {
   const CompleteProfilePage({super.key});
 
   @override
-  ConsumerState<CompleteProfilePage> createState() =>
-      _CompleteProfilePageState();
+  ConsumerState<CompleteProfilePage> createState() => _CompleteProfilePageState();
 }
 
 class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
+  static const int _maxSpecializations = LegalSpecializations.maxLawyerSpecializations;
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _whatsappController = TextEditingController();
+  final List<String> _selectedSpecializations = [];
+  final List<String> _specializations = LegalSpecializations.all;
 
   String _selectedRole = 'user';
   Uint8List? _profilePhotoBytes;
   Uint8List? _idCardBytes;
-  final List<String> _selectedSpecializations = [];
-  bool _isInitialized = false;
-
-  final List<String> _allSpecializations = [
-    'جنائي',
-    'أحوال شخصية',
-    'مدني',
-    'تجاري',
-    'عمل',
-    'عقارات',
-    'إداري',
-    'عسكري',
-  ];
+  bool _initialized = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_isInitialized) {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user != null && user.userMetadata != null) {
-        final googleName =
-            user.userMetadata?['full_name'] ?? user.userMetadata?['name'];
-        if (googleName != null) _nameController.text = googleName;
-        if (user.email != null) _emailController.text = user.email ?? '';
-      }
-      _isInitialized = true;
+    if (_initialized) return;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      _nameController.text = user.userMetadata?['full_name'] ?? user.userMetadata?['name'] ?? '';
+      _emailController.text = user.email ?? '';
     }
+    _initialized = true;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
-    _whatsappController.dispose();
     super.dispose();
   }
 
   Future<void> _pickImage(String type) async {
     try {
-      final picker = ImagePicker();
-      final image =
-          await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
-      if (image != null) {
-        final bytes = await image.readAsBytes();
-        setState(() {
-          if (type == 'profile') _profilePhotoBytes = bytes;
-          if (type == 'id') _idCardBytes = bytes;
-        });
-      }
+      final image = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
+      if (image == null) return;
+      final bytes = await image.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        if (type == 'profile') _profilePhotoBytes = bytes;
+        if (type == 'id') _idCardBytes = bytes;
+      });
     } catch (e) {
-      debugPrint('Pick image error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تعذر اختيار الصورة: $e'), backgroundColor: AppColors.error),
+      );
     }
+  }
+
+  void _toggleSpecialization(String spec, bool value) {
+    if (value) {
+      if (_selectedSpecializations.contains(spec)) return;
+      if (_selectedSpecializations.length >= _maxSpecializations) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('يمكنك اختيار تخصص رئيسي واحد وتخصصين إضافيين فقط.'),
+          ),
+        );
+        return;
+      }
+      setState(() => _selectedSpecializations.add(spec));
+      return;
+    }
+    setState(() => _selectedSpecializations.remove(spec));
   }
 
   Future<void> _submit() async {
-    if (_formKey.currentState?.validate() ?? false) {
-      final authId = Supabase.instance.client.auth.currentUser?.id;
-      if (authId == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('❌ خطأ: لم نتمكن من الحصول على معرف المستخدم'),
-              backgroundColor: AppColors.error,
-            ),
-          );
-        }
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    final authId = Supabase.instance.client.auth.currentUser?.id;
+    if (authId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر الحصول على معرف المستخدم'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+
+    if (_selectedRole == 'lawyer') {
+      if (_profilePhotoBytes == null || _idCardBytes == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('يرجى رفع الصورة الشخصية وصورة الهوية'), backgroundColor: AppColors.error),
+        );
+        return;
+      }
+      if (_selectedSpecializations.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('يرجى اختيار تخصص رئيسي واحد على الأقل'), backgroundColor: AppColors.error),
+        );
+        return;
+      }
+      if (_selectedSpecializations.length > _maxSpecializations) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('الحد الأقصى ثلاثة تخصصات فقط.')),
+        );
         return;
       }
 
-      if (_selectedRole == 'lawyer') {
-        if (_profilePhotoBytes == null || _idCardBytes == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('⚠️ يرجى رفع الصورة الشخصية وصورة الهوية'),
-              backgroundColor: AppColors.error,
-            ),
-          );
-          return;
-        }
-
-        if (_selectedSpecializations.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('⚠️ يرجى اختيار تخصص واحد على الأقل'),
-              backgroundColor: AppColors.error,
-            ),
-          );
-          return;
-        }
-
-        try {
-          debugPrint('📤 بدء عملية إرسال بيانات المحامي...');
-
-          // استدعاء العملية
-          await ref
-              .read(lawyerSetupControllerProvider.notifier)
-              .completeProfile(
-                authUid: authId,
-                fullName: _nameController.text.trim(),
-                email: _emailController.text.trim(),
-                whatsapp: _whatsappController.text.trim(),
-                specializations: _selectedSpecializations,
-                profilePhotoBytes: _profilePhotoBytes,
-                idCardBytes: _idCardBytes,
-              );
-
-          // انتظر قليلاً للتأكد من تحديث الحالة
-          await Future.delayed(const Duration(milliseconds: 500));
-
-          if (mounted) {
-            // اقرأ الحالة بعد التأكد من التحديث
-            final state = ref.read(lawyerSetupControllerProvider);
-            debugPrint('📊 حالة النتيجة: ${state.runtimeType}');
-
-            if (state.hasError) {
-              debugPrint('❌ خطأ: ${state.error}');
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('❌ خطأ أثناء الحفظ: ${state.error}'),
-                  backgroundColor: AppColors.error,
-                  duration: const Duration(seconds: 5),
-                ),
-              );
-            } else {
-              debugPrint('✅ تم الحفظ بنجاح');
-              _showSuccessDialog();
-            }
-          }
-        } catch (e) {
-          debugPrint('🚨 استثناء: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('❌ خطأ غير متوقع: $e'),
-                backgroundColor: AppColors.error,
-                duration: const Duration(seconds: 5),
-              ),
-            );
-          }
-        }
+      await ref.read(lawyerSetupControllerProvider.notifier).completeProfile(
+        authUid: authId,
+        fullName: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        specializations: _selectedSpecializations,
+        profilePhotoBytes: _profilePhotoBytes,
+        idCardBytes: _idCardBytes,
+      );
+      if (!mounted) return;
+      final state = ref.read(lawyerSetupControllerProvider);
+      if (state.hasError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ أثناء الحفظ: ${state.error}'), backgroundColor: AppColors.error),
+        );
       } else {
-        try {
-          debugPrint('📤 بدء تحديث بيانات المستخدم العادي...');
-
-          await ref.read(authControllerProvider.notifier).updateInitialProfile(
-                fullName: _nameController.text.trim(),
-                email: _emailController.text.trim(),
-                role: _selectedRole,
-              );
-
-          // انتظر قليلاً للتأكد من تحديث الحالة
-          await Future.delayed(const Duration(milliseconds: 500));
-
-          if (mounted) {
-            final authState = ref.read(authControllerProvider);
-            debugPrint('📊 حالة المستخدم: ${authState.runtimeType}');
-
-            if (authState.hasError) {
-              debugPrint('❌ خطأ: ${authState.error}');
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('❌ خطأ أثناء الحفظ: ${authState.error}'),
-                  backgroundColor: AppColors.error,
-                  duration: const Duration(seconds: 5),
-                ),
-              );
-            } else {
-              debugPrint('✅ تم الحفظ والدخول بنجاح');
-              context.go('/');
-            }
-          }
-        } catch (e) {
-          debugPrint('🚨 استثناء: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('❌ خطأ غير متوقع: $e'),
-                backgroundColor: AppColors.error,
-                duration: const Duration(seconds: 5),
-              ),
-            );
-          }
-        }
+        _showSuccessDialog();
       }
+      return;
     }
+
+    await ref.read(authControllerProvider.notifier).updateInitialProfile(
+      fullName: _nameController.text.trim(),
+      email: _emailController.text.trim(),
+      role: _selectedRole,
+    );
+    if (mounted) context.go('/');
   }
 
   void _showSuccessDialog() {
-    showDialog(
+    final scheme = Theme.of(context).colorScheme;
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text('تم إرسال الطلب'),
-        content: const Text(
-            'شكراً لانضمامك! ملفك قيد المراجعة الآن. سنتواصل معك فور التفعيل.'),
+        content: const Text('تم إرسال ملفك للمراجعة. ستظهر حالة الحساب في التطبيق فور الانتهاء من التدقيق.'),
         actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // إغلاق الحوار
-              // الـ Router سيتكفل بالباقي ويوجه المحامي لصفحة الانتظار
-            },
-            child: const Text('حسناً'),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('حسناً', style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800)),
           ),
         ],
       ),
@@ -237,137 +170,91 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
   }
 
   void _cancelAndLogout() {
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text('إلغاء العملية؟'),
-        content: const Text(
-            'سيتم تسجيل خروجك، ولن يتم حفظ البيانات المدخلة. هل تريد الاستمرار؟'),
+        content: const Text('سيتم تسجيل خروجك ولن يتم حفظ البيانات المدخلة. هل تريد الاستمرار؟'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('رجوع'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('رجوع')),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               ref.read(authControllerProvider.notifier).logout();
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('تأكيد الإلغاء',
-                style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            child: const Text('تأكيد الإلغاء'),
           ),
         ],
       ),
     );
   }
 
+  InputDecoration _inputDecoration(BuildContext context, {required String label, required IconData icon}) {
+    final scheme = Theme.of(context).colorScheme;
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      filled: true,
+      fillColor: scheme.surfaceContainerHighest.withValues(alpha: .45),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(17), borderSide: BorderSide(color: scheme.outlineVariant)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(17), borderSide: BorderSide(color: scheme.outlineVariant)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(17), borderSide: BorderSide(color: scheme.primary, width: 2)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final isLoading = ref.watch(globalLoadingProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        title: const Text('إكمال الملف الشخصي'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.close_rounded), onPressed: _cancelAndLogout),
+        title: const Text('إكمال الملف الشخصي', style: TextStyle(fontWeight: FontWeight.w800)),
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: AppColors.error),
-          onPressed: _cancelAndLogout,
-          tooltip: 'إلغاء وتسجيل الخروج',
-        ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSizes.p24),
+        padding: const EdgeInsets.fromLTRB(AppSizes.p24, 8, AppSizes.p24, 40),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildHeader(),
-              const SizedBox(height: 32),
-
-              // 1. اختيار نوع الحساب في الأعلى
-              const Text('نوع الحساب:',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                      child: _RoleCard(
-                          title: 'عميل',
-                          icon: Icons.person_search,
-                          isSelected: _selectedRole == 'user',
-                          onTap: () => setState(() => _selectedRole = 'user'))),
-                  const SizedBox(width: 16),
-                  Expanded(
-                      child: _RoleCard(
-                          title: 'محامي',
-                          icon: Icons.gavel,
-                          isSelected: _selectedRole == 'lawyer',
-                          onTap: () =>
-                              setState(() => _selectedRole = 'lawyer'))),
-                ],
-              ),
-
-              const SizedBox(height: 32),
-              const Divider(),
-              const SizedBox(height: 24),
-
-              // 2. المعلومات الأساسية
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                    labelText: 'الاسم الكامل',
-                    prefixIcon: Icon(Icons.person_outline),
-                    border: OutlineInputBorder()),
-                validator: (val) =>
-                    val?.trim().isEmpty ?? true ? 'مطلوب' : null,
-              ),
+              _HeroHeader(scheme: scheme),
+              const SizedBox(height: 28),
+              _SectionCard(child: _buildRoleSection()),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                    labelText: 'البريد الإلكتروني (اختياري)',
-                    prefixIcon: Icon(Icons.email_outlined),
-                    border: OutlineInputBorder()),
-                validator: (val) =>
-                    (val != null && val.isNotEmpty && !val.contains('@'))
-                        ? 'بريد غير صحيح'
-                        : null,
-              ),
-
-              // 3. قسم المحامي (يظهر بانسيابية أسفل البيانات)
+              _SectionCard(child: _buildBasicSection()),
               AnimatedSize(
-                duration: const Duration(milliseconds: 300),
-                child: _selectedRole == 'lawyer'
-                    ? _buildLawyerSection()
-                    : const SizedBox.shrink(),
+                duration: const Duration(milliseconds: 250),
+                child: _selectedRole == 'lawyer' ? _buildLawyerSection() : const SizedBox.shrink(),
               ),
-
-              const SizedBox(height: 40),
-
-              // 4. زر الحفظ في نهاية النموذج
-              isLoading
-                  ? const Center(child: LoadingWidget())
-                  : ElevatedButton(
-                      onPressed: _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        minimumSize: const Size(double.infinity, 56),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: Text(
-                          _selectedRole == 'lawyer'
-                              ? 'إرسال طلب الانضمام'
-                              : 'حفظ والدخول',
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white)),
+              const SizedBox(height: 22),
+              if (isLoading)
+                const Center(child: LoadingWidget())
+              else
+                SizedBox(
+                  height: 56,
+                  child: ElevatedButton.icon(
+                    onPressed: _submit,
+                    icon: Icon(_selectedRole == 'lawyer' ? Icons.send_rounded : Icons.arrow_forward_rounded),
+                    label: Text(_selectedRole == 'lawyer' ? 'إرسال طلب الانضمام' : 'حفظ والمتابعة'),
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: scheme.primary,
+                      foregroundColor: scheme.onPrimary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17)),
                     ),
-              const SizedBox(height: 24),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              Text('يمكنك تعديل بعض البيانات لاحقاً من ملفك الشخصي.', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
             ],
           ),
         ),
@@ -375,181 +262,211 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     );
   }
 
-  Widget _buildHeader() {
-    return const Column(
+  Widget _buildRoleSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(Icons.assignment_ind_outlined, size: 70, color: AppColors.primary),
-        SizedBox(height: 12),
-        Text('خطوة واحدة تفصلك عن البداية',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        Text('أكمل بياناتك لضمان تجربة قانونية آمنة',
-            style: TextStyle(color: AppColors.outline, fontSize: 13)),
+        const _SectionTitle(title: 'نوع الحساب', subtitle: 'اختر طريقة استخدامك لتطبيق استشارة'),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child: _RoleCard(title: 'طالب استشارة', subtitle: 'أطلب استشارة', icon: Icons.person_search_rounded, selected: _selectedRole == 'user', onTap: () => setState(() => _selectedRole = 'user'))),
+            const SizedBox(width: 12),
+            Expanded(child: _RoleCard(title: 'محامي', subtitle: 'أقدم استشارات', icon: Icons.gavel_rounded, selected: _selectedRole == 'lawyer', onTap: () => setState(() => _selectedRole = 'lawyer'))),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBasicSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SectionTitle(title: 'المعلومات الأساسية', subtitle: 'هذه البيانات تظهر في ملفك عند الحاجة'),
+        const SizedBox(height: 17),
+        TextFormField(controller: _nameController, textInputAction: TextInputAction.next, decoration: _inputDecoration(context, label: 'الاسم الكامل', icon: Icons.person_outline_rounded), validator: (v) => v?.trim().isEmpty ?? true ? 'الاسم مطلوب' : null),
+        const SizedBox(height: 14),
+        TextFormField(controller: _emailController, keyboardType: TextInputType.emailAddress, decoration: _inputDecoration(context, label: 'البريد الإلكتروني (اختياري)', icon: Icons.mail_outline_rounded), validator: (v) => v != null && v.isNotEmpty && !v.contains('@') ? 'البريد الإلكتروني غير صحيح' : null),
       ],
     );
   }
 
   Widget _buildLawyerSection() {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: _SectionCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _SectionTitle(title: 'البيانات المهنية', subtitle: 'معلومات مطلوبة للتحقق من حساب المحامي'),
+            const SizedBox(height: 18),
+            Center(
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  CircleAvatar(
+                    radius: 52,
+                    backgroundColor: scheme.surfaceContainerHighest,
+                    backgroundImage: _profilePhotoBytes != null ? MemoryImage(_profilePhotoBytes!) : null,
+                    child: _profilePhotoBytes == null ? Icon(Icons.person_rounded, size: 44, color: scheme.onSurfaceVariant) : null,
+                  ),
+                  Positioned(
+                    bottom: -2,
+                    right: -2,
+                    child: Material(
+                      color: scheme.primary,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        onTap: () => _pickImage('profile'),
+                        customBorder: const CircleBorder(),
+                        child: Padding(padding: const EdgeInsets.all(10), child: Icon(Icons.edit_rounded, size: 16, color: scheme.onPrimary)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text('الصورة الشخصية', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 22),
+            Text('التخصصات القانونية', style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onSurface)),
+            const SizedBox(height: 4),
+            Text(
+              'اختر التخصص الرئيسي أولاً، ثم يمكنك إضافة تخصصين فقط (${_selectedSpecializations.length}/$_maxSpecializations)',
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 11),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _specializations.map((spec) {
+                final selected = _selectedSpecializations.contains(spec);
+                final position = selected ? _selectedSpecializations.indexOf(spec) : -1;
+                final suffix = position == 0 ? ' • رئيسي' : (position > 0 ? ' • إضافي' : '');
+                return FilterChip(
+                  label: Text('$spec$suffix'),
+                  selected: selected,
+                  onSelected: (value) => _toggleSpecialization(spec, value),
+                  selectedColor: scheme.primaryContainer,
+                  checkmarkColor: scheme.primary,
+                  side: BorderSide(color: selected ? scheme.primary : scheme.outlineVariant),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  labelStyle: TextStyle(color: selected ? scheme.onPrimaryContainer : scheme.onSurface, fontWeight: selected ? FontWeight.w700 : FontWeight.w500),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 22),
+            Text('هوية النقابة', style: TextStyle(fontWeight: FontWeight.w800, color: scheme.onSurface)),
+            const SizedBox(height: 4),
+            Text('يتم استخدام الصورة للتحقق فقط', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 11),
+            InkWell(
+              onTap: () => _pickImage('id'),
+              borderRadius: BorderRadius.circular(18),
+              child: Container(
+                height: 155,
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: .45),
+                  border: Border.all(color: _idCardBytes == null ? scheme.outlineVariant : scheme.primary, width: _idCardBytes == null ? 1 : 1.5),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: _idCardBytes == null
+                    ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.badge_outlined, size: 40, color: scheme.primary), const SizedBox(height: 8), Text('اضغط لرفع صورة الهوية', style: TextStyle(fontWeight: FontWeight.w700, color: scheme.onSurface)), const SizedBox(height: 3), Text('JPG أو PNG', style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant))])
+                    : ClipRRect(borderRadius: BorderRadius.circular(18), child: Image.memory(_idCardBytes!, fit: BoxFit.cover)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroHeader extends StatelessWidget {
+  final ColorScheme scheme;
+  const _HeroHeader({required this.scheme});
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 32),
-        const Text('بيانات التوثيق المهنية:',
-            style: TextStyle(
-                fontWeight: FontWeight.bold, color: AppColors.primary)),
-        const SizedBox(height: 24),
-
-        // الصورة الشخصية
-        Center(
-          child: Stack(
-            children: [
-              CircleAvatar(
-                radius: 50,
-                backgroundColor: AppColors.surfaceVariant,
-                backgroundImage: _profilePhotoBytes != null
-                    ? MemoryImage(_profilePhotoBytes!)
-                    : null,
-                child: _profilePhotoBytes == null
-                    ? const Icon(Icons.camera_alt_outlined,
-                        size: 40, color: AppColors.outline)
-                    : null,
-              ),
-              Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: CircleAvatar(
-                      backgroundColor: AppColors.primary,
-                      radius: 18,
-                      child: IconButton(
-                          icon: const Icon(Icons.edit,
-                              size: 16, color: Colors.white),
-                          onPressed: () => _pickImage('profile')))),
-            ],
-          ),
-        ),
-        const Center(
-            child: Text('الصورة الشخصية (Portrait)',
-                style: TextStyle(fontSize: 12, color: AppColors.outline))),
-
-        const SizedBox(height: 24),
-        TextFormField(
-          controller: _whatsappController,
-          decoration: const InputDecoration(
-              labelText: 'رقم الواتساب',
-              prefixIcon: Icon(Icons.phone),
-              border: OutlineInputBorder(),
-              hintText: '9647XXXXXXXX'),
-          keyboardType: TextInputType.phone,
-          validator: (val) =>
-              val?.trim().isEmpty ?? true ? 'مطلوب للتواصل' : null,
-        ),
-
-        const SizedBox(height: 24),
-        const Text('التخصصات القانونية (اختر واحدة أو أكثر):',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _allSpecializations.map((spec) {
-            final isSelected = _selectedSpecializations.contains(spec);
-            return FilterChip(
-              label: Text(spec),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  if (selected) {
-                    _selectedSpecializations.add(spec);
-                  } else {
-                    _selectedSpecializations.remove(spec);
-                  }
-                });
-              },
-              selectedColor: AppColors.primary.withValues(alpha: 0.2),
-              checkmarkColor: AppColors.primary,
-              labelStyle: TextStyle(
-                color: isSelected ? AppColors.primary : Colors.black87,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            );
-          }).toList(),
-        ),
-
-        const SizedBox(height: 24),
-        const Text('صورة هوية النقابة:',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
-        InkWell(
-          onTap: () => _pickImage('id'),
-          child: Container(
-            height: 160,
-            decoration: BoxDecoration(
-                border: Border.all(
-                    color: _idCardBytes == null
-                        ? AppColors.error.withValues(alpha: 0.3)
-                        : AppColors.outline),
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.white),
-            child: _idCardBytes == null
-                ? const Center(
-                    child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                        Icon(Icons.badge_outlined,
-                            size: 40, color: Colors.grey),
-                        Text('اضغط لرفع الهوية', style: TextStyle(fontSize: 12))
-                      ]))
-                : ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.memory(_idCardBytes!, fit: BoxFit.cover)),
-          ),
-        ),
+        Container(width: 76, height: 76, alignment: Alignment.center, decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(25), border: Border.all(color: scheme.primary.withValues(alpha: .28))), child: Icon(Icons.assignment_ind_rounded, size: 40, color: scheme.primary)),
+        const SizedBox(height: 20),
+        Text('أكمل ملفك الشخصي', textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: scheme.onSurface)),
+        const SizedBox(height: 7),
+        Text('خطوة واحدة تفصلك عن تجربة قانونية آمنة ومتكاملة.', textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant, height: 1.55)),
       ],
     );
   }
 }
 
-class _RoleCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-  const _RoleCard(
-      {required this.title,
-      required this.icon,
-      required this.isSelected,
-      required this.onTap});
+class _SectionCard extends StatelessWidget {
+  final Widget child;
+  const _SectionCard({required this.child});
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: dark ? scheme.surfaceContainerHighest.withValues(alpha: .72) : scheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .85)),
+        boxShadow: dark ? null : [BoxShadow(color: Colors.black.withValues(alpha: .035), blurRadius: 24, offset: const Offset(0, 9))],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  const _SectionTitle({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: scheme.onSurface)), const SizedBox(height: 4), Text(subtitle, style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant, height: 1.45))]);
+  }
+}
+
+class _RoleCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _RoleCard({required this.title, required this.subtitle, required this.icon, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-              color: isSelected ? AppColors.primary : AppColors.surfaceVariant,
-              width: 2),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4))
-                ]
-              : [],
+          color: selected ? scheme.primaryContainer : scheme.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: selected ? scheme.primary : scheme.outlineVariant, width: selected ? 1.7 : 1),
         ),
-        child: Column(children: [
-          Icon(icon,
-              color: isSelected ? Colors.white : AppColors.primary, size: 30),
-          const SizedBox(height: 8),
-          Text(title,
-              style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.black,
-                  fontWeight: FontWeight.bold))
-        ]),
+        child: Column(
+          children: [
+            Container(width: 44, height: 44, alignment: Alignment.center, decoration: BoxDecoration(color: selected ? scheme.primary.withValues(alpha: .12) : scheme.surfaceContainerHighest, shape: BoxShape.circle), child: Icon(icon, color: selected ? scheme.primary : scheme.onSurfaceVariant, size: 24)),
+            const SizedBox(height: 9),
+            Text(title, style: TextStyle(fontWeight: FontWeight.w900, color: selected ? scheme.onPrimaryContainer : scheme.onSurface)),
+            const SizedBox(height: 3),
+            Text(subtitle, textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: selected ? scheme.onPrimaryContainer.withValues(alpha: .75) : scheme.onSurfaceVariant)),
+          ],
+        ),
       ),
     );
   }

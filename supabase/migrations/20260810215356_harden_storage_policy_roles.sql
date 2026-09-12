@@ -1,0 +1,18 @@
+drop policy if exists avatars_insert on storage.objects;
+create policy avatars_insert on storage.objects for insert to authenticated with check (bucket_id='avatars' and (select auth.uid())::text=(storage.foldername(name))[1]);
+drop policy if exists avatars_select on storage.objects;
+create policy avatars_select on storage.objects for select to authenticated using (bucket_id='avatars');
+drop policy if exists avatars_update on storage.objects;
+create policy avatars_update on storage.objects for update to authenticated using (bucket_id='avatars' and (select auth.uid())::text=(storage.foldername(name))[1]) with check (bucket_id='avatars' and (select auth.uid())::text=(storage.foldername(name))[1]);
+drop policy if exists lawyer_documents_insert on storage.objects;
+create policy lawyer_documents_insert on storage.objects for insert to authenticated with check (bucket_id='lawyer_documents' and (select auth.uid())::text=(storage.foldername(name))[1]);
+drop policy if exists lawyer_documents_update on storage.objects;
+create policy lawyer_documents_update on storage.objects for update to authenticated using (bucket_id='lawyer_documents' and (select auth.uid())::text=(storage.foldername(name))[1]) with check (bucket_id='lawyer_documents' and (select auth.uid())::text=(storage.foldername(name))[1]);
+drop policy if exists receipts_insert on storage.objects;
+create policy receipts_insert on storage.objects for insert to authenticated with check (bucket_id='receipts' and (select auth.uid())::text=(storage.foldername(name))[1]);
+drop policy if exists receipts_update on storage.objects;
+create policy receipts_update on storage.objects for update to authenticated using (bucket_id='receipts' and (select auth.uid())::text=(storage.foldername(name))[1]) with check (bucket_id='receipts' and (select auth.uid())::text=(storage.foldername(name))[1]);
+drop policy if exists "عرض الإيصالات" on storage.objects;
+create policy "عرض الإيصالات" on storage.objects for select to authenticated using (bucket_id='receipts' and ((select auth.uid())::text=(storage.foldername(name))[1] or (select profiles.role from public.profiles where profiles.auth_id=(select auth.uid())) = any(array['admin'::user_role,'moderator'::user_role])));
+drop policy if exists "عرض وثائق المحامي" on storage.objects;
+create policy "عرض وثائق المحامي" on storage.objects for select to authenticated using (bucket_id='lawyer_documents' and ((select auth.uid())::text=(storage.foldername(name))[1] or (select profiles.role from public.profiles where profiles.auth_id=(select auth.uid())) = any(array['admin'::user_role,'moderator'::user_role])));

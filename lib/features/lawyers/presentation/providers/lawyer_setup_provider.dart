@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../core/config/supabase_config.dart';
+import '../../../../core/constants/legal_specializations.dart';
 import '../../../../shared/providers/global_loading_provider.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../../domain/entities/lawyer_profile.dart';
@@ -17,7 +18,6 @@ class LawyerSetupController extends _$LawyerSetupController {
     required String authUid,
     required String fullName,
     String? email,
-    required String whatsapp,
     String? licenseNumber,
     String? bio,
     List<String>? specializations,
@@ -26,10 +26,33 @@ class LawyerSetupController extends _$LawyerSetupController {
     Uint8List? profilePhotoBytes,
     Uint8List? idCardBytes,
   }) async {
-    // التحقق من البيانات المطلوبة
-    if (fullName.isEmpty || whatsapp.isEmpty) {
-      throw Exception('البيانات المطلوبة غير كاملة');
+    if (fullName.isEmpty) {
+      state = AsyncValue.error(Exception('البيانات المطلوبة غير كاملة'), StackTrace.current);
+      return;
     }
+
+    if (idCardBytes == null || idCardBytes.isEmpty) {
+      state = AsyncValue.error(Exception('صورة هوية النقابة إلزامية'), StackTrace.current);
+      return;
+    }
+
+    final normalizedSpecializations = (specializations ?? const <String>[])
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty && LegalSpecializations.all.contains(value))
+        .toSet()
+        .take(LegalSpecializations.maxLawyerSpecializations)
+        .toList(growable: false);
+
+    if (normalizedSpecializations.isEmpty) {
+      state = AsyncValue.error(
+        Exception('اختر تخصصاً رئيسياً واحداً على الأقل'),
+        StackTrace.current,
+      );
+      return;
+    }
+
+    final requestedPrice = consultationPrice ?? 20000;
+    final normalizedPrice = requestedPrice.clamp(20000, 50000).toDouble();
 
     ref.read(globalLoadingProvider.notifier).setLoading(true);
     state = const AsyncLoading();
@@ -38,19 +61,15 @@ class LawyerSetupController extends _$LawyerSetupController {
       final lawyersRepo = ref.read(lawyersRepositoryProvider);
       final authRepo = ref.read(authRepositoryProvider);
 
-      debugPrint('--- 🔄 بدء عملية إكمال الملف للمحامي ---');
-
-      // 1. تحديث البروفايل الأساسي أولاً (role + fullName)
-      debugPrint('📝 الخطوة 1: تحديث ملف المحامي الأساسي...');
       await authRepo.updateProfile(
         fullName: fullName,
         email: email,
         role: 'lawyer',
         onboardingCompleted: false,
       );
-      debugPrint('✅ تم تحديث الملف الأساسي');
 
-      // 1b. جلب profiles.id الحقيقي (UUID مختلف عن auth.uid)
+      await SupabaseConfig.client.rpc('register_self_as_lawyer');
+
       final profileRow = await SupabaseConfig.client
           .from('profiles')
           .select('id')
@@ -58,74 +77,50 @@ class LawyerSetupController extends _$LawyerSetupController {
           .maybeSingle();
 
       if (profileRow == null) {
-        throw Exception('❌ لم يتم العثور على سجل Profile للمستخدم');
+        throw Exception('لم يتم العثور على سجل المستخدم');
       }
       final profileId = profileRow['id'] as String;
-      debugPrint('✅ profiles.id = $profileId');
 
       String? avatarUrl;
-      String? idCardUrl;
-
-      // 2. رفع الصورة الشخصية
       if (profilePhotoBytes != null && profilePhotoBytes.isNotEmpty) {
         try {
-          debugPrint('📸 الخطوة 2: رفع الصورة الشخصية...');
-          final fileName =
-              'avatar_${profileId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-          avatarUrl = await lawyersRepo.uploadFile(
-              profilePhotoBytes, fileName, 'avatars');
-          debugPrint('✅ تم رفع الصورة الشخصية: $avatarUrl');
+          final fileName = 'avatar_${profileId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          avatarUrl = await lawyersRepo.uploadFile(profilePhotoBytes, fileName, 'avatars');
         } catch (e) {
-          debugPrint('⚠️ تحذير: فشل رفع الصورة الشخصية: $e');
+          debugPrint('فشل رفع الصورة الشخصية الاختيارية: $e');
         }
       }
 
-      // 3. رفع هوية النقابة
-      if (idCardBytes != null && idCardBytes.isNotEmpty) {
-        try {
-          debugPrint('📄 الخطوة 3: رفع صورة الهوية...');
-          final fileName =
-              'id_${profileId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-          idCardUrl = await lawyersRepo.uploadFile(
-              idCardBytes, fileName, 'lawyer_documents');
-          debugPrint('✅ تم رفع صورة الهوية: $idCardUrl');
-        } catch (e) {
-          debugPrint('⚠️ تحذير: فشل رفع صورة الهوية: $e');
-        }
+      final idFileName = 'id_${profileId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final idCardUrl = await lawyersRepo.uploadFile(idCardBytes, idFileName, 'lawyer_documents');
+      if (idCardUrl.trim().isEmpty) {
+        throw Exception('تعذر حفظ وثيقة التحقق. حاول رفعها مرة أخرى.');
       }
 
-      // 4. إنشاء سجل المحامي — profileId هنا = profiles.id الصحيح
-      debugPrint('⚖️ الخطوة 4: تحديث ملف المحامي المهني...');
       final lawyerProfile = LawyerProfile(
         id: '',
         profileId: profileId,
         fullName: fullName,
-        whatsapp: whatsapp,
+        whatsapp: null,
         idCardUrl: idCardUrl,
         verified: false,
         licenseNumber: licenseNumber ?? 'PENDING',
-        specializations: specializations ?? [],
+        specializations: normalizedSpecializations,
         bio: bio ?? 'طلب انضمام جديد',
         yearsExperience: yearsExperience ?? 0,
-        consultationPrice: consultationPrice ?? 0,
+        consultationPrice: normalizedPrice,
       );
 
       await lawyersRepo.updateLawyerProfile(lawyerProfile);
-      debugPrint('✅ تم تحديث ملف المحامي المهني');
 
-      // 5. التحديث النهائي للبروفايل مع رابط الصورة وعلامة الإكمال
-      debugPrint('🔚 الخطوة 5: إنهاء الملف الشخصي...');
       await authRepo.updateProfile(
         avatarUrl: avatarUrl,
         onboardingCompleted: true,
       );
-      debugPrint('✅ تم إنهاء الملف الشخصي');
 
-      debugPrint('--- ✅ تمت العملية بنجاح ---');
       state = const AsyncData(null);
     } catch (e, st) {
-      debugPrint('❌ خطأ حرج: $e');
-      debugPrint('📍 Stack trace: $st');
+      debugPrint('خطأ في إكمال الملف: $e');
       state = AsyncValue.error(e, st);
     } finally {
       ref.read(globalLoadingProvider.notifier).setLoading(false);

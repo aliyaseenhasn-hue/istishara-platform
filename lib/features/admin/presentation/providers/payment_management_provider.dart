@@ -3,56 +3,69 @@ import '../../../../core/config/supabase_config.dart';
 import '../../../../shared/providers/global_loading_provider.dart';
 import '../../../payments/data/models/payment_model.dart';
 import '../../../payments/domain/entities/payment.dart';
-import '../../../bookings/presentation/providers/bookings_provider.dart';
 
 part 'payment_management_provider.g.dart';
 
 @riverpod
 class PaymentManagement extends _$PaymentManagement {
-  @override
-  FutureOr<List<Payment>> build() async {
+  Future<List<Payment>> _fetchPendingPayments() async {
     final response = await SupabaseConfig.client
         .from('payments')
         .select()
-        .eq('status', 'pending')
+        .eq('status', 'قيد معالجة الدفع')
+        .eq('payment_method', 'bank_transfer')
         .order('created_at');
 
     return (response as List)
-        .map((json) => PaymentModel.fromJson(json).toEntity())
+        .map((json) => PaymentModel.fromJson(Map<String, dynamic>.from(json as Map)).toEntity())
         .toList();
   }
 
-  Future<void> approvePayment(Payment payment) async {
+  @override
+  FutureOr<List<Payment>> build() async => _fetchPendingPayments();
+
+  Future<void> approvePayment(Payment payment, {String? note}) async {
     ref.read(globalLoadingProvider.notifier).setLoading(true);
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      // 1. تحديث حالة الدفعة
-      await SupabaseConfig.client
-          .from('payments')
-          .update({'status': 'paid'}).eq('id', payment.id);
-
-      // 2. تحديث حالة الحجز المرتبط ليكون مقبولاً
-      await SupabaseConfig.client
-          .from('bookings')
-          .update({'status': 'accepted'}).eq('id', payment.bookingId);
-
-      // 3. تحديث القوائم
-      ref.invalidate(userBookingsProvider);
-      return build();
-    });
-    ref.read(globalLoadingProvider.notifier).setLoading(false);
+    try {
+      await SupabaseConfig.client.rpc(
+        'admin_review_manual_payment',
+        params: {
+          'p_payment_id': payment.id,
+          'p_approved': true,
+          'p_note': note?.trim().isEmpty == true ? null : note?.trim(),
+        },
+      );
+      state = AsyncData(await _fetchPendingPayments());
+    } catch (e, st) {
+      state = AsyncError(e, st);
+    } finally {
+      ref.read(globalLoadingProvider.notifier).setLoading(false);
+    }
   }
 
-  Future<void> rejectPayment(Payment payment) async {
+  Future<void> rejectPayment(Payment payment, {String? note}) async {
     ref.read(globalLoadingProvider.notifier).setLoading(true);
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      await SupabaseConfig.client
-          .from('payments')
-          .update({'status': 'rejected'}).eq('id', payment.id);
+    try {
+      await SupabaseConfig.client.rpc(
+        'admin_review_manual_payment',
+        params: {
+          'p_payment_id': payment.id,
+          'p_approved': false,
+          'p_note': note?.trim().isEmpty == true ? null : note?.trim(),
+        },
+      );
+      state = AsyncData(await _fetchPendingPayments());
+    } catch (e, st) {
+      state = AsyncError(e, st);
+    } finally {
+      ref.read(globalLoadingProvider.notifier).setLoading(false);
+    }
+  }
 
-      return build();
-    });
-    ref.read(globalLoadingProvider.notifier).setLoading(false);
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(_fetchPendingPayments);
   }
 }

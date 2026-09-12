@@ -14,7 +14,7 @@
 <intent-filter>
     <action android:name="android.intent.action.VIEW" />
     <category android:name="android.intent.category.DEFAULT" />
-    <category android:name="android.intent.category.BROWSABLE" />
+    <category name="android.intent.category.BROWSABLE" />
     <data android:scheme="io.supabase.astshara" android:host="login-callback" />
 </intent-filter>
 ```
@@ -54,15 +54,7 @@
 
 #### [supabase_config.dart](file:///C:/Allmyprojects/astshara/lib/core/config/supabase_config.dart)
 
-إضافة `authFlowType` لدعم PKCE (الذي يستخدمه Supabase افتراضياً حالياً).
-
-```dart
-      await Supabase.initialize(
-        url: url,
-        anonKey: publishableKey, // تأكد من استخدام anonKey
-        authFlowType: AuthFlowType.pkce,
-      );
-```
+إضافة `authFlowType` لدعم PKCE.
 
 ### 4. الإعدادات المطلوبة في Supabase Dashboard (يجب القيام بها يدوياً)
 
@@ -75,3 +67,13 @@
 - الضغط على زر "تسجيل الدخول بواسطة جوجل".
 - التأكد من فتح المتصفح واختيار الحساب.
 - التأكد من عودة المتصفح تلقائياً إلى التطبيق بعد نجاح العملية.
+
+## إصلاح PWA — تفعيل الإشعارات
+
+تم تحديث مسار تفعيل إشعارات PWA في الويب.
+
+- حالة `Notification.permission` والـ Push subscription من المتصفح أصبحت المصدر الفعلي لحالة المفتاح.
+- تم منع أخطاء Push API من تعطيل واجهة التفعيل.
+- تتم مزامنة الحالة عند فتح الصفحة وبعد التفعيل، مع إظهار حالة `إشعارات PWA مفعّلة` ومؤشر تنفيذ.
+- **Commits:** `352c035ec5ba7d41ab3db32daad9047be1f3808c`, `1daee5b6b0e5f8112817d3cf9bc56d39306a1a18`, `3f9860cc6932597eea8e3eae10f5a05d7b04b0d6`, `41c166712ce1c763013081d2d7877d8fdbeefbb1`.
+- **الحالة:** إصلاح المصدر مكتمل، وCI للنسخة الأخيرة مطلوب للتأكيد النهائي.

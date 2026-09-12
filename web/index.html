@@ -1,46 +1,185 @@
 <!DOCTYPE html>
-<html>
+<html lang="ar" dir="rtl">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
-
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
-
-  <!-- iOS meta tags & icons -->
+  <meta name="description" content="استشارة منصة عراقية للاستشارات القانونية تربط طالبي الاستشارات بالمحامين وتتيح متابعة الطلبات إلكترونياً.">
+  <meta name="keywords" content="استشارة قانونية, محامي, محامين العراق, استشارات قانونية العراق, محامي بغداد, قانون العراق">
+  <meta name="author" content="استشارة">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#243B53">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="astshara">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="استشارة">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="canonical" href="https://aliyaseenhasn-hue.github.io/istishara-platform/">
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="استشارة">
+  <meta property="og:locale" content="ar_IQ">
+  <meta property="og:url" content="https://aliyaseenhasn-hue.github.io/istishara-platform/">
+  <meta property="og:title" content="استشارة | منصة الاستشارات القانونية في العراق">
+  <meta property="og:description" content="تعرّف على المحامين واطلب استشارتك القانونية وتابع طلبك من منصة واحدة.">
+  <meta property="og:image" content="https://aliyaseenhasn-hue.github.io/istishara-platform/assets/assets/icons/app_icon_v2.png">
 
-  <title>astshara</title>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="استشارة | منصة الاستشارات القانونية في العراق">
+  <meta name="twitter:description" content="منصة تربط طالبي الاستشارات القانونية بالمحامين في العراق.">
+  <meta name="twitter:image" content="https://aliyaseenhasn-hue.github.io/istishara-platform/assets/assets/icons/app_icon_v2.png">
+
+  <link rel="apple-touch-icon" href="assets/assets/icons/app_icon_v2.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/assets/icons/app_icon_v2.png">
+  <link rel="icon" type="image/png" href="assets/assets/icons/app_icon_v2.png">
   <link rel="manifest" href="manifest.json">
+  <title>استشارة | منصة الاستشارات القانونية في العراق</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://aliyaseenhasn-hue.github.io/istishara-platform/#website",
+        "url": "https://aliyaseenhasn-hue.github.io/istishara-platform/",
+        "name": "استشارة",
+        "description": "منصة عراقية للاستشارات القانونية تربط طالبي الاستشارات بالمحامين.",
+        "inLanguage": "ar-IQ",
+        "hasPart": [
+          {"@type":"WebPage","url":"https://aliyaseenhasn-hue.github.io/istishara-platform/legal-consultation-iraq.html","name":"استشارة قانونية في العراق"},
+          {"@type":"WebPage","url":"https://aliyaseenhasn-hue.github.io/istishara-platform/lawyers-iraq.html","name":"محامون في العراق"},
+          {"@type":"WebPage","url":"https://aliyaseenhasn-hue.github.io/istishara-platform/privacy.html","name":"سياسة الخصوصية"},
+          {"@type":"WebPage","url":"https://aliyaseenhasn-hue.github.io/istishara-platform/delete-account.html","name":"حذف الحساب والبيانات"}
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://aliyaseenhasn-hue.github.io/istishara-platform/#organization",
+        "name": "استشارة",
+        "url": "https://aliyaseenhasn-hue.github.io/istishara-platform/",
+        "logo": "https://aliyaseenhasn-hue.github.io/istishara-platform/assets/assets/icons/app_icon_v2.png"
+      }
+    ]
+  }
+  </script>
+  <style>
+    :root { color-scheme: light dark; }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; min-height: 100%; background: #F7F8F6; direction: rtl; overflow: hidden; overscroll-behavior: none; }
+    body { font-family: 'Cairo', sans-serif; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; -webkit-tap-highlight-color: transparent; touch-action: manipulation; -webkit-text-size-adjust: 100%; }
+
+    flt-semantics-host input,
+    flt-semantics-host textarea {
+      font-size: 16px !important;
+      -webkit-text-size-adjust: 100% !important;
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <noscript>
+    <main style="max-width:760px;margin:40px auto;padding:24px;line-height:1.9;font-family:Arial,sans-serif">
+      <h1>منصة استشارة للاستشارات القانونية في العراق</h1>
+      <p>يتطلب التطبيق JavaScript للعمل. يمكنك في الوقت نفسه الاطلاع على الصفحات المعلوماتية الرسمية التالية:</p>
+      <nav aria-label="روابط منصة استشارة">
+        <a href="legal-consultation-iraq.html">استشارة قانونية في العراق</a> ·
+        <a href="lawyers-iraq.html">محامون في العراق</a> ·
+        <a href="privacy.html">سياسة الخصوصية</a> ·
+        <a href="delete-account.html">حذف الحساب والبيانات</a>
+      </nav>
+    </main>
+  </noscript>
+  <script>
+    window.astsharaGetPushDeviceKey = function() {
+      try {
+        const storageKey = 'astshara_push_device_key_v1';
+        let value = localStorage.getItem(storageKey);
+        if (!value) {
+          value = (window.crypto && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : 'dev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+          localStorage.setItem(storageKey, value);
+        }
+        return value;
+      } catch (_) {
+        return '';
+      }
+    };
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+    async function astsharaCurrentPushSubscription() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return null;
+      if (Notification.permission !== 'granted') return null;
+      const registration = await navigator.serviceWorker.ready;
+      return await registration.pushManager.getSubscription();
+    }
+
+    window.astsharaGetExistingPushSubscription = async function() {
+      try {
+        const subscription = await astsharaCurrentPushSubscription();
+        return subscription ? JSON.stringify(subscription.toJSON()) : null;
+      } catch (error) {
+        console.warn('PWA existing push subscription lookup failed:', error);
+        return null;
+      }
+    };
+
+    window.astsharaEnablePush = async function(vapidPublicKey) {
+      try {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return null;
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return null;
+        const registration = await navigator.serviceWorker.ready;
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+          const padding = '='.repeat((4 - vapidPublicKey.length % 4) % 4);
+          const base64 = vapidPublicKey.replace(/-/g, '+').replace(/_/g, '/') + padding;
+          const binary = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+          subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: binary });
+        }
+        return JSON.stringify(subscription.toJSON());
+      } catch (error) {
+        console.warn('PWA push enable failed:', error);
+        return null;
+      }
+    };
+
+    window.astsharaGetPushState = async function() {
+      try {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+          return JSON.stringify({ permission: 'unsupported', subscribed: false });
+        }
+        const permission = Notification.permission;
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        return JSON.stringify({ permission: permission, subscribed: Boolean(subscription) });
+      } catch (error) {
+        console.warn('PWA push state check failed:', error);
+        return JSON.stringify({ permission: Notification.permission || 'unknown', subscribed: false });
+      }
+    };
+
+    window.astsharaDisablePush = async function() {
+      try {
+        if (!('serviceWorker' in navigator)) return true;
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) await subscription.unsubscribe();
+        return true;
+      } catch (error) {
+        console.warn('PWA push disable failed:', error);
+        return false;
+      }
+    };
+
+    // Single app-owned service worker: handles PWA cache plus Web Push.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('pwa_service_worker_v5.js?v=16', { scope: './', updateViaCache: 'none' }).catch((error) => console.warn('PWA service worker registration failed:', error));
+      });
+    }
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

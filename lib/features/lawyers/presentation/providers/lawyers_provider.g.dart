@@ -6,42 +6,42 @@ part of 'lawyers_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$lawyersRepositoryHash() => r'e408f7eb69d98a71f55840f02a1bb4775a28e3ca';
+String _$lawyersRepositoryHash() => r'38457caea744ba9819d03e55c9b2b9d2e0bda98a';
 
 /// See also [lawyersRepository].
 @ProviderFor(lawyersRepository)
 final lawyersRepositoryProvider =
     AutoDisposeProvider<LawyersRepository>.internal(
-  lawyersRepository,
-  name: r'lawyersRepositoryProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$lawyersRepositoryHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+      lawyersRepository,
+      name: r'lawyersRepositoryProvider',
+      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+          ? null
+          : _$lawyersRepositoryHash,
+      dependencies: null,
+      allTransitiveDependencies: null,
+    );
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef LawyersRepositoryRef = AutoDisposeProviderRef<LawyersRepository>;
-String _$lawyersListHash() => r'5af080b25428349010e7d5fc2be159ca5fc856ca';
+String _$lawyersListHash() => r'b27d48112b5d2150c7a0d263c36cc90b6ee51381';
 
 /// See also [lawyersList].
 @ProviderFor(lawyersList)
-final lawyersListProvider =
-    AutoDisposeFutureProvider<List<LawyerProfile>>.internal(
+final lawyersListProvider = FutureProvider<List<LawyerProfile>>.internal(
   lawyersList,
   name: r'lawyersListProvider',
-  debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$lawyersListHash,
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$lawyersListHash,
   dependencies: null,
   allTransitiveDependencies: null,
 );
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef LawyersListRef = AutoDisposeFutureProviderRef<List<LawyerProfile>>;
-String _$lawyerProfileHash() => r'6efcea409ab4b90510bf8eeecd1476141b722786';
+typedef LawyersListRef = FutureProviderRef<List<LawyerProfile>>;
+String _$lawyerProfileHash() => r'387c0512bfb7a55d4e484fe3c81209fde042a616';
 
 /// Copied from Dart SDK
 class _SystemHash {
@@ -74,21 +74,15 @@ class LawyerProfileFamily extends Family<AsyncValue<LawyerProfile?>> {
   const LawyerProfileFamily();
 
   /// See also [lawyerProfile].
-  LawyerProfileProvider call(
-    String profileId,
-  ) {
-    return LawyerProfileProvider(
-      profileId,
-    );
+  LawyerProfileProvider call(String profileId) {
+    return LawyerProfileProvider(profileId);
   }
 
   @override
   LawyerProfileProvider getProviderOverride(
     covariant LawyerProfileProvider provider,
   ) {
-    return call(
-      provider.profileId,
-    );
+    return call(provider.profileId);
   }
 
   static const Iterable<ProviderOrFamily>? _dependencies = null;
@@ -107,26 +101,21 @@ class LawyerProfileFamily extends Family<AsyncValue<LawyerProfile?>> {
 }
 
 /// See also [lawyerProfile].
-class LawyerProfileProvider extends AutoDisposeFutureProvider<LawyerProfile?> {
+class LawyerProfileProvider extends FutureProvider<LawyerProfile?> {
   /// See also [lawyerProfile].
-  LawyerProfileProvider(
-    String profileId,
-  ) : this._internal(
-          (ref) => lawyerProfile(
-            ref as LawyerProfileRef,
-            profileId,
-          ),
-          from: lawyerProfileProvider,
-          name: r'lawyerProfileProvider',
-          debugGetCreateSourceHash:
-              const bool.fromEnvironment('dart.vm.product')
-                  ? null
-                  : _$lawyerProfileHash,
-          dependencies: LawyerProfileFamily._dependencies,
-          allTransitiveDependencies:
-              LawyerProfileFamily._allTransitiveDependencies,
-          profileId: profileId,
-        );
+  LawyerProfileProvider(String profileId)
+    : this._internal(
+        (ref) => lawyerProfile(ref as LawyerProfileRef, profileId),
+        from: lawyerProfileProvider,
+        name: r'lawyerProfileProvider',
+        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+            ? null
+            : _$lawyerProfileHash,
+        dependencies: LawyerProfileFamily._dependencies,
+        allTransitiveDependencies:
+            LawyerProfileFamily._allTransitiveDependencies,
+        profileId: profileId,
+      );
 
   LawyerProfileProvider._internal(
     super._createNotifier, {
@@ -159,7 +148,7 @@ class LawyerProfileProvider extends AutoDisposeFutureProvider<LawyerProfile?> {
   }
 
   @override
-  AutoDisposeFutureProviderElement<LawyerProfile?> createElement() {
+  FutureProviderElement<LawyerProfile?> createElement() {
     return _LawyerProfileProviderElement(this);
   }
 
@@ -179,13 +168,13 @@ class LawyerProfileProvider extends AutoDisposeFutureProvider<LawyerProfile?> {
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-mixin LawyerProfileRef on AutoDisposeFutureProviderRef<LawyerProfile?> {
+mixin LawyerProfileRef on FutureProviderRef<LawyerProfile?> {
   /// The parameter `profileId` of this provider.
   String get profileId;
 }
 
 class _LawyerProfileProviderElement
-    extends AutoDisposeFutureProviderElement<LawyerProfile?>
+    extends FutureProviderElement<LawyerProfile?>
     with LawyerProfileRef {
   _LawyerProfileProviderElement(super.provider);
 
@@ -193,20 +182,20 @@ class _LawyerProfileProviderElement
   String get profileId => (origin as LawyerProfileProvider).profileId;
 }
 
-String _$selectedCategoryHash() => r'7211a856149692f396d3d0d456fee1b23ec1ec9e';
+String _$selectedCategoryHash() => r'80b7dddf22c543c0a0dfab3a807aec2c5f3819a7';
 
 /// See also [SelectedCategory].
 @ProviderFor(SelectedCategory)
 final selectedCategoryProvider =
     AutoDisposeNotifierProvider<SelectedCategory, String?>.internal(
-  SelectedCategory.new,
-  name: r'selectedCategoryProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$selectedCategoryHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+      SelectedCategory.new,
+      name: r'selectedCategoryProvider',
+      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+          ? null
+          : _$selectedCategoryHash,
+      dependencies: null,
+      allTransitiveDependencies: null,
+    );
 
 typedef _$SelectedCategory = AutoDisposeNotifier<String?>;
 // ignore_for_file: type=lint

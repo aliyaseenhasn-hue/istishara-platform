@@ -1,26 +1,40 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
 import '../../domain/entities/payment.dart';
 
-part 'payment_model.freezed.dart';
-part 'payment_model.g.dart';
+class PaymentModel {
+  final String id;
+  final String bookingId;
+  final double amount;
+  final String paymentMethod;
+  final String? transactionNumber;
+  final String? receiptUrl;
+  final String status;
+  final DateTime? createdAt;
 
-@freezed
-class PaymentModel with _$PaymentModel {
-  const PaymentModel._();
+  const PaymentModel({
+    required this.id,
+    required this.bookingId,
+    required this.amount,
+    required this.paymentMethod,
+    this.transactionNumber,
+    this.receiptUrl,
+    required this.status,
+    this.createdAt,
+  });
 
-  const factory PaymentModel({
-    required String id,
-    @JsonKey(name: 'booking_id') required String bookingId,
-    required double amount,
-    @JsonKey(name: 'payment_method') required String paymentMethod,
-    @JsonKey(name: 'transaction_number') String? transactionNumber,
-    @JsonKey(name: 'receipt_url') String? receiptUrl,
-    @Default('pending') String status,
-    @JsonKey(name: 'created_at') DateTime? createdAt,
-  }) = _PaymentModel;
-
-  factory PaymentModel.fromJson(Map<String, dynamic> json) =>
-      _$PaymentModelFromJson(json);
+  factory PaymentModel.fromJson(Map<String, dynamic> json) {
+    return PaymentModel(
+      id: json['id'] as String? ?? '',
+      bookingId: json['booking_id'] as String? ?? '',
+      amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+      paymentMethod: json['payment_method'] as String? ?? '',
+      transactionNumber: json['transaction_number'] as String?,
+      receiptUrl: json['receipt_url'] as String?,
+      status: json['status'] as String? ?? 'pending',
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
+    );
+  }
 
   Payment toEntity() => Payment(
         id: id,

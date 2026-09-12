@@ -1,0 +1,21 @@
+name: CI Heartbeat
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Verify workflow trigger
+        run: |
+          echo "CI heartbeat for ${GITHUB_SHA}"
+          test -f pubspec.yaml
+          test -f .github/workflows/deploy.yml

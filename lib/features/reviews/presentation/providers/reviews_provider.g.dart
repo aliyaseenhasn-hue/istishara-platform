@@ -12,14 +12,14 @@ String _$reviewsRepositoryHash() => r'7bfc10b7def2c521bde7fb4ab17b164b55193d39';
 @ProviderFor(reviewsRepository)
 final reviewsRepositoryProvider =
     AutoDisposeProvider<ReviewsRepository>.internal(
-  reviewsRepository,
-  name: r'reviewsRepositoryProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$reviewsRepositoryHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+      reviewsRepository,
+      name: r'reviewsRepositoryProvider',
+      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+          ? null
+          : _$reviewsRepositoryHash,
+      dependencies: null,
+      allTransitiveDependencies: null,
+    );
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
@@ -57,21 +57,15 @@ class LawyerReviewsFamily extends Family<AsyncValue<List<Review>>> {
   const LawyerReviewsFamily();
 
   /// See also [lawyerReviews].
-  LawyerReviewsProvider call(
-    String lawyerId,
-  ) {
-    return LawyerReviewsProvider(
-      lawyerId,
-    );
+  LawyerReviewsProvider call(String lawyerId) {
+    return LawyerReviewsProvider(lawyerId);
   }
 
   @override
   LawyerReviewsProvider getProviderOverride(
     covariant LawyerReviewsProvider provider,
   ) {
-    return call(
-      provider.lawyerId,
-    );
+    return call(provider.lawyerId);
   }
 
   static const Iterable<ProviderOrFamily>? _dependencies = null;
@@ -92,24 +86,19 @@ class LawyerReviewsFamily extends Family<AsyncValue<List<Review>>> {
 /// See also [lawyerReviews].
 class LawyerReviewsProvider extends AutoDisposeFutureProvider<List<Review>> {
   /// See also [lawyerReviews].
-  LawyerReviewsProvider(
-    String lawyerId,
-  ) : this._internal(
-          (ref) => lawyerReviews(
-            ref as LawyerReviewsRef,
-            lawyerId,
-          ),
-          from: lawyerReviewsProvider,
-          name: r'lawyerReviewsProvider',
-          debugGetCreateSourceHash:
-              const bool.fromEnvironment('dart.vm.product')
-                  ? null
-                  : _$lawyerReviewsHash,
-          dependencies: LawyerReviewsFamily._dependencies,
-          allTransitiveDependencies:
-              LawyerReviewsFamily._allTransitiveDependencies,
-          lawyerId: lawyerId,
-        );
+  LawyerReviewsProvider(String lawyerId)
+    : this._internal(
+        (ref) => lawyerReviews(ref as LawyerReviewsRef, lawyerId),
+        from: lawyerReviewsProvider,
+        name: r'lawyerReviewsProvider',
+        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+            ? null
+            : _$lawyerReviewsHash,
+        dependencies: LawyerReviewsFamily._dependencies,
+        allTransitiveDependencies:
+            LawyerReviewsFamily._allTransitiveDependencies,
+        lawyerId: lawyerId,
+      );
 
   LawyerReviewsProvider._internal(
     super._createNotifier, {
@@ -176,20 +165,20 @@ class _LawyerReviewsProviderElement
   String get lawyerId => (origin as LawyerReviewsProvider).lawyerId;
 }
 
-String _$reviewControllerHash() => r'fb14e2afd625344a37698909930bb80ef16fd4ee';
+String _$reviewControllerHash() => r'1363ed4eef90ed627d14f0703703c53290730015';
 
 /// See also [ReviewController].
 @ProviderFor(ReviewController)
 final reviewControllerProvider =
     AutoDisposeAsyncNotifierProvider<ReviewController, void>.internal(
-  ReviewController.new,
-  name: r'reviewControllerProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$reviewControllerHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+      ReviewController.new,
+      name: r'reviewControllerProvider',
+      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+          ? null
+          : _$reviewControllerHash,
+      dependencies: null,
+      allTransitiveDependencies: null,
+    );
 
 typedef _$ReviewController = AutoDisposeAsyncNotifier<void>;
 // ignore_for_file: type=lint
