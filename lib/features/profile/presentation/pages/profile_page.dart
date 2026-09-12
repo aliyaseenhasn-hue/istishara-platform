@@ -119,13 +119,15 @@ class ProfilePage extends ConsumerWidget {
           children: [
             Text('سياسة الخصوصية', textAlign: TextAlign.right, style: TextStyle(color: scheme.primary, fontSize: 22, fontWeight: FontWeight.w900)),
             const SizedBox(height: 14),
-            _privacySection(context, 'البيانات التي نجمعها', 'قد تشمل الاسم ورقم واتساب والمدينة وبيانات الحساب وصورة الملف الشخصي وبيانات الحجوزات والملفات التي يختار المستخدم رفعها.'),
-            _privacySection(context, 'لماذا نستخدمها؟', 'لتشغيل الحسابات والحجوزات والاستشارات والمدفوعات والتواصل والإشعارات ومنع إساءة استخدام المنصة.'),
-            _privacySection(context, 'مشاركة البيانات', 'تظهر بيانات التواصل المرتبطة بالاستشارة وفق حالة الحجز والصلاحيات المعتمدة في التطبيق، وقد تُشارك البيانات التقنية اللازمة مع مزودي الخدمات الذين تعتمد عليهم المنصة.'),
-            _privacySection(context, 'حذف الحساب', 'يمكن طلب حذف الحساب من داخل التطبيق، مع الاحتفاظ بما يلزم قانونياً أو تشغيلياً من السجلات المرتبطة بالحجوزات والمدفوعات والنزاعات.'),
-            _privacySection(context, 'التحديثات', 'قد تتغير هذه السياسة عند إضافة وظائف أو متطلبات جديدة، وسيتم نشر النسخة المحدثة داخل التطبيق.'),
+            _privacySection(context, 'البيانات التي نجمعها', 'قد تشمل الاسم ورقم الهاتف أو البريد الإلكتروني عند استخدامه ورقم واتساب والمدينة وبيانات الحساب والصورة الشخصية وبيانات الحجوزات والرسائل والملفات التي يختار المستخدم رفعها، إضافة إلى بيانات تقنية لازمة لتشغيل الإشعارات والخدمة.'),
+            _privacySection(context, 'بيانات المحامين', 'قد تشمل بيانات الملف المهني والتخصص والخبرة وبيانات الترخيص أو النقابة ومستندات التحقق. لا تُعامل مستندات التحقق كمحتوى عام.'),
+            _privacySection(context, 'لماذا نستخدمها؟', 'لتشغيل الحسابات والحجوزات والاستشارات والمدفوعات والتواصل والإشعارات ودعم المستخدمين ومنع إساءة استخدام المنصة.'),
+            _privacySection(context, 'مشاركة البيانات', 'تظهر المعلومات وفق حالة الحجز والصلاحيات المعتمدة، وقد تُعالج البيانات التقنية اللازمة لدى مزودي الخدمات الذين تعتمد عليهم المنصة لتشغيل الاستضافة والمصادقة والإشعارات وتسجيل الدخول والدفع عند استخدامه.'),
+            _privacySection(context, 'حذف الحساب', 'يمكن طلب حذف الحساب من داخل التطبيق. عند اكتمال الحذف تُزال بيانات التعريف المباشر وهوية تسجيل الدخول والملفات الشخصية التي لا يلزم الاحتفاظ بها. قد تبقى سجلات محدودة مرتبطة بالحجوزات أو المدفوعات أو النزاعات أو متطلبات أمنية وقانونية مشروعة، وتُفصل عن الملف العام كلما أمكن.'),
+            _privacySection(context, 'الاستشارات النشطة', 'قد يلزم إنهاء أو إلغاء الاستشارات النشطة قبل إكمال حذف الحساب حتى لا يؤدي الحذف إلى الإخلال بخدمة جارية أو بحقوق الأطراف.'),
+            _privacySection(context, 'التحديثات', 'قد تتغير هذه السياسة عند إضافة وظائف أو مزودي خدمات أو متطلبات جديدة، وتنشر النسخة المحدثة مع تاريخ سريان واضح.'),
             const SizedBox(height: 6),
-            Text('يجب اعتماد الصياغة القانونية النهائية لهذه السياسة قبل الإطلاق التجاري.', textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11, height: 1.6)),
+            Text('آخر تحديث: 12 سبتمبر 2026. النسخة الكاملة منشورة في الموقع الرسمي لمنصة استشارة.', textAlign: TextAlign.right, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11, height: 1.6)),
           ],
         ),
       ),
@@ -287,5 +289,25 @@ class ProfilePage extends ConsumerWidget {
   }
 
   Future<void> _logout(BuildContext context, WidgetRef ref) async { await ref.read(authControllerProvider.notifier).logout(); if (context.mounted) context.go('/login'); }
-  void _showDeleteConfirmation(BuildContext context, WidgetRef ref) { showDialog(context: context, builder: (context) => AlertDialog(title: const Text('حذف الحساب؟'), content: const Text('هل أنت متأكد من حذف حسابك نهائياً؟ لا يمكن التراجع عن هذا الإجراء وسيتم حذف كافة بياناتك وحجوزاتك.'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')), ElevatedButton(onPressed: () { Navigator.pop(context); ref.read(authControllerProvider.notifier).deleteAccount(); }, style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white, elevation: 0), child: const Text('نعم، احذف الحساب', style: TextStyle(fontWeight: FontWeight.bold)))],)); }
+
+  void _showDeleteConfirmation(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('حذف الحساب؟'),
+        content: const Text('هل أنت متأكد من حذف حسابك نهائياً؟ لا يمكن التراجع عن هذا الإجراء. ستُزال بيانات التعريف وهوية تسجيل الدخول والملفات الشخصية التي لا يلزم الاحتفاظ بها، وقد تبقى سجلات محدودة مرتبطة بالحجوزات أو المدفوعات عند الحاجة القانونية أو التشغيلية. يجب إنهاء أو إلغاء أي استشارة نشطة أولاً.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ref.read(authControllerProvider.notifier).deleteAccount();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white, elevation: 0),
+            child: const Text('نعم، احذف الحساب', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
 }
