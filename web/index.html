@@ -154,6 +154,13 @@
         return false;
       }
     };
+
+    // Single app-owned service worker: handles PWA cache plus Web Push.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('pwa_service_worker_v5.js?v=16', { scope: './', updateViaCache: 'none' }).catch((error) => console.warn('PWA service worker registration failed:', error));
+      });
+    }
   </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
