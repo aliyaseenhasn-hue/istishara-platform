@@ -52,9 +52,9 @@ jobs:
           set -euo pipefail
           
           echo "--- Decoding Keystore ---"
-          # Clean Base64 string from whitespace/newlines
-          CLEAN_B64=$(echo "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]')
-          echo "$CLEAN_B64" | base64 --decode > android/upload-keystore.jks
+          # Strict Sanitization: Remove ALL whitespace and filter for valid Base64 characters ONLY
+          # This prevents "base64: invalid input" errors caused by hidden characters
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -dc 'a-zA-Z0-9+/=' | base64 --decode > android/upload-keystore.jks
           
           KEYSTORE_PATH="android/upload-keystore.jks"
           KEYSTORE_SIZE=$(stat -c%s "$KEYSTORE_PATH")
