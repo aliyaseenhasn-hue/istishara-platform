@@ -15,7 +15,7 @@ permissions:
 jobs:
   build-signed-aab:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -236,12 +236,44 @@ jobs:
             echo "::error::Fallback detected: AAB is signed with a debug certificate."
             exit 1
           fi
-          echo "Signature verified successfully and no debug certificate was detected."
+          echo "AAB signature verified successfully and no debug certificate was detected."
+
+      - name: Build signed Release APK
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          flutter build apk --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+          test -f build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Verify APK Signature
+        run: |
+          set -euo pipefail
+          echo "--- Verifying APK Signature ---"
+          APKSIGNER="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -n "$APKSIGNER" || { echo "::error::apksigner was not found in Android SDK build-tools."; exit 1; }
+          "$APKSIGNER" verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk > /tmp/apk-signature.txt
+          if grep -qi "Android Debug" /tmp/apk-signature.txt; then
+            echo "::error::Fallback detected: APK is signed with a debug certificate."
+            exit 1
+          fi
+          echo "APK signature verified successfully and no debug certificate was detected."
 
       - name: Upload Play-ready App Bundle
         uses: actions/upload-artifact@v4
         with:
           name: istishara-play-signed-aab
           path: build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload signed Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: istishara-signed-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
