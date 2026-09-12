@@ -145,6 +145,21 @@ jobs:
             exit 1
           fi
 
+      # Temporary export used to prepare the first Play Store upload bundle.
+      # This block and the exported file are removed immediately after the
+      # production-signed bundle is prepared.
+      - name: Export first Play Store bundle
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          flutter build appbundle --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+          cp build/app/outputs/bundle/release/app-release.aab \
+            build/web/play-prep-v1.aab
+
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
