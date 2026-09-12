@@ -17,7 +17,7 @@ if (hasReleaseSigning) {
 
 android {
     namespace = "com.istishara.app"
-    // file_picker / flutter_plugin_android_lifecycle now require API 36 at compile time.
+    // Google Play requires API 36 for new apps and updates from 31 Aug 2026.
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
@@ -30,7 +30,7 @@ android {
     defaultConfig {
         applicationId = "com.istishara.app"
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
