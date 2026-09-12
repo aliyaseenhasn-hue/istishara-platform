@@ -12,7 +12,7 @@
 **/build/
 /.dart_tool/
 .dart_tool/
-/captures
+captures
 .externalNativeBuild
 .cxx
 local.properties
@@ -23,3 +23,10 @@ local.properties
 .env
 .env.*
 !.env.example
+
+# Android release signing (never commit these)
+android/key.properties
+android/*.jks
+android/*.keystore
+*.jks
+*.keystore
