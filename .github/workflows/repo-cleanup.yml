@@ -1,0 +1,157 @@
+name: One-time repository cleanup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/repo-cleanup.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Consolidate change records and remove generated clutter
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob globstar
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          tmp="$(mktemp)"
+          cat > "$tmp" <<'EOF'
+          # استشارة — سجل التغييرات الموحد
+
+          هذا الملف هو المصدر الوحيد لسجل التغييرات التاريخي للمشروع. تم جمع محتوى ملفات السجل والتدقيق المتفرقة كما هو للحفاظ على التاريخ مع تقليل فوضى المستودع.
+
+          > ملاحظة: الكود الفعلي وآخر commit على `main` وقاعدة Supabase الفعلية تبقى مصدر الحقيقة عند وجود اختلاف مع ملاحظة تاريخية قديمة.
+          EOF
+
+          history_files=()
+          add_if_exists() {
+            local p="$1"
+            [[ -f "$p" ]] && history_files+=("$p")
+          }
+
+          add_if_exists "BUILD_TRIGGER.md"
+          for p in CHANGELOG_AI_*.md; do add_if_exists "$p"; done
+          for p in STITCH_SCREEN_AUDIT_*.md; do add_if_exists "$p"; done
+          for p in UI_CLIENT_HOME_FORMAL_PALETTE_*.md; do add_if_exists "$p"; done
+          for p in UI_UX_REFACTOR_AUDIT_*.md; do add_if_exists "$p"; done
+          add_if_exists "docs/DATABASE_FIXES.md"
+          for p in docs/production-audit-*.md; do add_if_exists "$p"; done
+          for p in docs/ui-client-lawyer-palette-alignment-*.md; do add_if_exists "$p"; done
+          for p in .artifacts/**/*.md; do add_if_exists "$p"; done
+
+          # De-duplicate and sort the selected historical records.
+          mapfile -t history_files < <(printf '%s\n' "${history_files[@]}" | awk 'NF && !seen[$0]++' | sort)
+
+          # Preserve the historical audit section that had been embedded in README.
+          if grep -q '^## Production Audit' README.md; then
+            printf '\n\n---\n\n## Imported from `README.md` — historical audit section\n\n' >> "$tmp"
+            awk '/^## Production Audit/{copy=1} copy' README.md >> "$tmp"
+          fi
+
+          for p in "${history_files[@]}"; do
+            printf '\n\n---\n\n## Imported from `%s`\n\n' "$p" >> "$tmp"
+            cat "$p" >> "$tmp"
+            printf '\n' >> "$tmp"
+          done
+
+          mv "$tmp" CHANGELOG.md
+
+          # Replace the generic/dated README with a concise entry point; history now lives in CHANGELOG.md.
+          cat > README.md <<'EOF'
+          # استشارة | Istishara
+
+          منصة قانونية عراقية مبنية بـ Flutter وSupabase لربط طالبي الاستشارة بالمحامين وإدارة الحجوزات والتواصل والمدفوعات والإشعارات.
+
+          ## الوثائق
+
+          - `PROJECT_MASTER_DOCUMENTATION.md` — التوثيق العام للمشروع.
+          - `PROJECT_AI_CONTEXT.md` — سياق العمل والقرارات المهمة للوكيل الهندسي.
+          - `DEVELOPER_SETUP_GUIDE.md` — إعداد بيئة التطوير.
+          - `docs/booking_lifecycle.md` — دورة حياة الحجز.
+          - `CHANGELOG.md` — سجل التغييرات والتدقيق التاريخي الموحد.
+
+          ## البنية الأساسية
+
+          - Flutter: Android / iOS / Web-PWA.
+          - Supabase: Auth / PostgreSQL / Storage / Realtime / Edge Functions.
+          - الفرع الإنتاجي: `main`.
+          - Android package: `com.istishara.app`.
+
+          لا تحفظ المفاتيح السرية أو ملفات توقيع Android داخل المستودع.
+          EOF
+
+          # Point active documentation at the new canonical changelog without rewriting imported history.
+          if [[ -f PROJECT_AI_CONTEXT.md ]]; then
+            sed -E -i 's/`CHANGELOG_AI_[^`]+\.md`/`CHANGELOG.md`/g' PROJECT_AI_CONTEXT.md
+          fi
+
+          # Remove the records after their exact contents were consolidated.
+          for p in "${history_files[@]}"; do
+            [[ -e "$p" ]] && git rm -f -- "$p"
+          done
+
+          # Obvious generated/local/temporary files.
+          [[ -f .flutter-plugins-dependencies ]] && git rm -f .flutter-plugins-dependencies
+          [[ -f ci_trigger.txt ]] && git rm -f ci_trigger.txt
+          [[ -d .idea ]] && git rm -rf .idea
+          [[ -d .artifacts ]] && git rm -rf .artifacts
+
+          # Temporary Stitch inspection archive and the workflow whose only job was to unpack it.
+          [[ -f 'stitch_istishara_premium_ui_redesign 2.zip' ]] && git rm -f -- 'stitch_istishara_premium_ui_redesign 2.zip'
+          [[ -f .github/workflows/inspect-stitch.yml ]] && git rm -f .github/workflows/inspect-stitch.yml
+
+          # Prevent the same clutter from being recommitted.
+          cat >> .gitignore <<'EOF'
+
+          # Repository hygiene
+          .idea/
+          .artifacts/
+          *.zip
+          *.apk
+          *.aab
+          ci_trigger.txt
+          BUILD_TRIGGER.md
+          CHANGELOG_AI_*.md
+          EOF
+
+          # Normalize duplicated ignore entries while preserving order/comments.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('.gitignore')
+          lines = p.read_text(encoding='utf-8').splitlines()
+          seen = set()
+          out = []
+          for line in lines:
+              key = line.strip()
+              if key and not key.startswith('#'):
+                  if key in seen:
+                      continue
+                  seen.add(key)
+              out.append(line)
+          p.write_text('\n'.join(out).rstrip() + '\n', encoding='utf-8')
+          PY
+
+          # Remove this one-time workflow from the final repository state.
+          git rm -f .github/workflows/repo-cleanup.yml
+
+          git add CHANGELOG.md README.md PROJECT_AI_CONTEXT.md .gitignore
+
+          echo '--- Cleanup summary ---'
+          git status --short
+          echo "Consolidated historical records: ${#history_files[@]}"
+
+          git commit -m "chore: consolidate change history and clean repository"
+          git push origin HEAD:main
