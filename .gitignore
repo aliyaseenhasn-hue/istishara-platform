@@ -30,3 +30,13 @@ android/*.jks
 android/*.keystore
 *.jks
 *.keystore
+
+# Repository hygiene
+.idea/
+.artifacts/
+*.zip
+*.apk
+*.aab
+ci_trigger.txt
+BUILD_TRIGGER.md
+CHANGELOG_AI_*.md
