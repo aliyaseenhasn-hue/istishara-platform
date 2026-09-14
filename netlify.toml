@@ -1,0 +1,8 @@
+[build]
+  publish = "build/web"
+  command = "rm -rf \"$HOME/flutter\" && git clone --depth 1 --branch 3.47.0 https://github.com/flutter/flutter.git \"$HOME/flutter\" && export PATH=\"$HOME/flutter/bin:$PATH\" && flutter config --enable-web && flutter pub get && flutter build web --release --no-wasm-dry-run --pwa-strategy=none --base-href \"/\" --dart-define=SUPABASE_URL=\"$SUPABASE_URL\" --dart-define=SUPABASE_ANON_KEY=\"$SUPABASE_ANON_KEY\" --dart-define=VAPID_PUBLIC_KEY=\"$PWA_VAPID_PUBLIC_KEY\""
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
