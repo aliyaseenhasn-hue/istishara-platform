@@ -17,6 +17,8 @@ class NotificationsPage extends ConsumerWidget {
 
   Future<void> _open(BuildContext context, AppNotification item) async {
     final referenceId = item.referenceId?.trim();
+    final isAdminUserTarget =
+        item.referenceType == 'admin_user' || item.type == 'admin_new_user';
     final isAppointmentTarget = item.referenceType == 'appointment_request';
     final isWalletWithdrawalTarget =
         item.referenceType == 'client_wallet_withdrawal' ||
@@ -25,6 +27,11 @@ class NotificationsPage extends ConsumerWidget {
         item.referenceType == 'payment' ||
         item.type == 'booking' ||
         item.type == 'payment';
+
+    if (isAdminUserTarget) {
+      if (context.mounted) context.push('/admin/users');
+      return;
+    }
 
     if (isAppointmentTarget) {
       final suffix = referenceId != null && referenceId.isNotEmpty
