@@ -16,8 +16,134 @@ import '../providers/notifications_provider.dart';
 class NotificationsPage extends ConsumerWidget {
   const NotificationsPage({super.key});
 
+  Future<String?> _currentRole() async {
+    final authId = SupabaseConfig.client.auth.currentUser?.id;
+    if (authId == null) return null;
+    try {
+      final profile = await SupabaseConfig.client
+          .from('profiles')
+          .select('role')
+          .eq('auth_id', authId)
+          .maybeSingle();
+      return profile?['role']?.toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<bool> _openAdminTarget(
+    BuildContext context,
+    AppNotification item,
+    String? referenceId,
+  ) async {
+    final type = item.type.toLowerCase();
+    final referenceType = item.referenceType?.toLowerCase();
+
+    if (referenceType == 'admin_user' || type == 'admin_new_user') {
+      if (!context.mounted) return true;
+      if (referenceId != null && referenceId.isNotEmpty) {
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => AdminUserDetailsPage(userId: referenceId),
+          ),
+        );
+      } else {
+        context.push('/admin/users');
+      }
+      return true;
+    }
+
+    if (referenceType == 'wallet_topup' ||
+        type.startsWith('wallet_topup') ||
+        type.contains('manual_payment') ||
+        type.contains('payment_admin') ||
+        referenceType == 'payment') {
+      if (context.mounted) context.push('/admin/payments');
+      return true;
+    }
+
+    if (referenceType == 'client_wallet_withdrawal' ||
+        referenceType == 'client_credit' ||
+        referenceType == 'lawyer_payout' ||
+        referenceType == 'lawyer_penalty' ||
+        type.startsWith('client_wallet_withdrawal') ||
+        type.startsWith('client_credit') ||
+        type.startsWith('lawyer_payout') ||
+        type.startsWith('lawyer_penalty')) {
+      if (context.mounted) context.push('/admin/financial');
+      return true;
+    }
+
+    if (referenceType == 'cancellation_request' ||
+        type.contains('cancellation_admin') ||
+        type.contains('cancellation_request_admin') ||
+        type == 'client_cancellation_admin_review') {
+      if (context.mounted) context.push('/admin/cancellation-requests');
+      return true;
+    }
+
+    if (referenceType == 'no_show_review_request' ||
+        referenceType == 'no_show_request' ||
+        type.startsWith('no_show_admin') ||
+        type.contains('no_show_review')) {
+      if (context.mounted) context.push('/admin/no-show-reviews');
+      return true;
+    }
+
+    if (referenceType == 'specialization_change_request' ||
+        type.startsWith('specialization_change_admin')) {
+      if (context.mounted) {
+        context.push('/admin/specialization-change-requests');
+      }
+      return true;
+    }
+
+    if (referenceType == 'lawyer_verification' ||
+        referenceType == 'lawyer_profile' ||
+        type.startsWith('lawyer_verification_admin') ||
+        type.contains('verification_admin')) {
+      if (context.mounted) context.push('/admin/lawyer-verifications');
+      return true;
+    }
+
+    if (referenceType == 'review' ||
+        type.startsWith('review_admin') ||
+        type.contains('review_report')) {
+      if (context.mounted) context.push('/admin/reviews');
+      return true;
+    }
+
+    // Booking references sent to administrators currently represent items that
+    // require administrative payment/reconciliation review. Route them to the
+    // payment workspace instead of the client/lawyer booking details page.
+    if (referenceType == 'booking') {
+      if (type.contains('no_show')) {
+        if (context.mounted) context.push('/admin/no-show-reviews');
+      } else if (type.contains('cancellation')) {
+        if (context.mounted) context.push('/admin/cancellation-requests');
+      } else {
+        if (context.mounted) context.push('/admin/payments');
+      }
+      return true;
+    }
+
+    if (type == 'admin' || type.startsWith('admin_')) {
+      if (context.mounted) context.push('/admin');
+      return true;
+    }
+
+    return false;
+  }
+
   Future<void> _open(BuildContext context, AppNotification item) async {
     final referenceId = item.referenceId?.trim();
+    final role = await _currentRole();
+
+    if (role == 'admin') {
+      final handled = await _openAdminTarget(context, item, referenceId);
+      if (handled) return;
+    }
+
     final isAdminUserTarget =
         item.referenceType == 'admin_user' || item.type == 'admin_new_user';
     final isAppointmentTarget = item.referenceType == 'appointment_request';
@@ -52,18 +178,6 @@ class NotificationsPage extends ConsumerWidget {
     }
 
     if (isWalletWithdrawalTarget) {
-      String? role;
-      final authId = SupabaseConfig.client.auth.currentUser?.id;
-      if (authId != null) {
-        try {
-          final profile = await SupabaseConfig.client
-              .from('profiles')
-              .select('role')
-              .eq('auth_id', authId)
-              .maybeSingle();
-          role = profile?['role']?.toString();
-        } catch (_) {}
-      }
       if (context.mounted) {
         context.push(role == 'admin' ? '/admin/financial' : '/client-wallet');
       }
@@ -209,8 +323,10 @@ class NotificationsPage extends ConsumerWidget {
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.delete_outline_rounded,
-                                    color: Colors.white),
+                                Icon(
+                                  Icons.delete_outline_rounded,
+                                  color: Colors.white,
+                                ),
                                 SizedBox(width: 8),
                                 Text(
                                   'حذف',
