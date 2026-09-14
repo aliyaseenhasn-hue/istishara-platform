@@ -9,6 +9,7 @@ import '../../../../core/config/supabase_config.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../shared/styles/priority_visuals.dart';
 import '../../../../shared/widgets/loading_widget.dart';
+import '../../../admin/presentation/pages/admin_user_details_page.dart';
 import '../../../bookings/data/models/booking_model.dart';
 import '../providers/notifications_provider.dart';
 
@@ -29,7 +30,16 @@ class NotificationsPage extends ConsumerWidget {
         item.type == 'payment';
 
     if (isAdminUserTarget) {
-      if (context.mounted) context.push('/admin/users');
+      if (!context.mounted) return;
+      if (referenceId != null && referenceId.isNotEmpty) {
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => AdminUserDetailsPage(userId: referenceId),
+          ),
+        );
+      } else {
+        context.push('/admin/users');
+      }
       return;
     }
 
@@ -199,7 +209,8 @@ class NotificationsPage extends ConsumerWidget {
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.delete_outline_rounded, color: Colors.white),
+                                Icon(Icons.delete_outline_rounded,
+                                    color: Colors.white),
                                 SizedBox(width: 8),
                                 Text(
                                   'حذف',
@@ -331,7 +342,8 @@ class _NotificationsHeader extends StatelessWidget {
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primaryDark,
                 backgroundColor: AppColors.goldLight,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -466,7 +478,9 @@ class _NotificationCard extends StatelessWidget {
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: Text(
-                                        unread ? '${visual.label} • جديد' : visual.label,
+                                        unread
+                                            ? '${visual.label} • جديد'
+                                            : visual.label,
                                         style: TextStyle(
                                           color: visual.foreground,
                                           fontSize: 10,
@@ -570,7 +584,8 @@ class _NotificationIcon extends StatelessWidget {
           end: Alignment.bottomLeft,
         ),
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(color: color.withValues(alpha: unread ? .34 : .20)),
+        border:
+            Border.all(color: color.withValues(alpha: unread ? .34 : .20)),
       ),
       child: Icon(icon, color: color, size: 25),
     );
@@ -688,7 +703,8 @@ class _NotificationState extends StatelessWidget {
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.teal,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
