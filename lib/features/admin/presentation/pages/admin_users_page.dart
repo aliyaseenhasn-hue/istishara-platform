@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'admin_user_details_page.dart';
 
 final adminUsersProvider = FutureProvider.family.autoDispose<
     List<Map<String, dynamic>>,
@@ -175,6 +178,12 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
 
   @override
   Widget build(BuildContext context) {
+    final requestedUserId =
+        GoRouterState.of(context).uri.queryParameters['user_id']?.trim();
+    if (requestedUserId != null && requestedUserId.isNotEmpty) {
+      return AdminUserDetailsPage(userId: requestedUserId);
+    }
+
     final users = ref.watch(adminUsersProvider(filter));
     return Scaffold(
       appBar: AppBar(
@@ -305,6 +314,11 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
 
     return Card(
       child: ListTile(
+        onTap: () => context
+            .push(
+              '/admin/users?user_id=${Uri.encodeQueryComponent(u['id'].toString())}',
+            )
+            .then((_) => refresh()),
         leading: CircleAvatar(child: Text(name.characters.first)),
         title: Text(name),
         subtitle: Text(
