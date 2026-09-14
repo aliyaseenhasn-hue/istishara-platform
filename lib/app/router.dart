@@ -299,6 +299,7 @@ GoRouter router(RouterRef ref) {
         path: '/admin',
         builder: (c, s) => const AdminDashboardPage(),
         routes: [
+          GoRoute(path: 'notifications', builder: (c, s) => const NotificationsPage()),
           GoRoute(path: 'reviews', builder: (c, s) => const AdminReviewsPage()),
           GoRoute(path: 'no-show-reviews', builder: (c, s) => const NoShowReviewsPage()),
           GoRoute(path: 'users', builder: (c, s) => const AdminUsersPage()),
