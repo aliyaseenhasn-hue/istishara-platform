@@ -1,0 +1,71 @@
+name: Redirect legacy GitHub Pages to Netlify
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build legacy redirect shell
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cat > _site/index.html <<'HTML'
+          <!doctype html>
+          <html lang="ar" dir="rtl">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <meta name="robots" content="noindex,follow">
+            <link rel="canonical" href="https://istishara-iq.netlify.app/">
+            <meta http-equiv="refresh" content="0;url=https://istishara-iq.netlify.app/">
+            <title>استشارة — تم نقل الموقع</title>
+          </head>
+          <body>
+            <p>تم نقل منصة استشارة إلى موقعها الرسمي: <a id="official" href="https://istishara-iq.netlify.app/">https://istishara-iq.netlify.app/</a></p>
+            <script>
+              (function () {
+                var prefix = '/istishara-platform';
+                var path = window.location.pathname || '/';
+                if (path.indexOf(prefix) === 0) path = path.slice(prefix.length) || '/';
+                var target = 'https://istishara-iq.netlify.app' + path + window.location.search + window.location.hash;
+                document.getElementById('official').href = target;
+                window.location.replace(target);
+              }());
+            </script>
+          </body>
+          </html>
+          HTML
+          cp _site/index.html _site/404.html
+          cat > _site/robots.txt <<'TXT'
+          User-agent: *
+          Disallow: /
+          TXT
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy redirect to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
