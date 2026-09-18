@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+  <rect width="1080" height="1350" fill="#F7F5F0"/>
+  <circle cx="30" cy="120" r="250" fill="#E9EEF4"/><circle cx="1000" cy="140" r="330" fill="none" stroke="#B99B62" stroke-width="8"/>
+  <rect x="790" y="65" width="220" height="58" rx="29" fill="#102A43"/>
+  <text x="900" y="105" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#fff" direction="rtl">استشارة قانونية</text>
+  <text x="1010" y="390" text-anchor="end" font-family="Arial, sans-serif" font-size="72" font-weight="700" fill="#102A43" direction="rtl"><tspan x="1010" dy="0">تخصصات مختلفة</tspan></text>
+  <text x="1010" y="700" text-anchor="end" font-family="Arial, sans-serif" font-size="40" font-weight="600" fill="#486581" direction="rtl"><tspan x="1010" dy="0">مكان واحد.</tspan></text>
+  <rect x="100" y="930" width="880" height="180" rx="36" fill="#FFFDF8" stroke="#D5DEE7" stroke-width="2"/>
+  <circle cx="170" cy="1020" r="40" fill="#1F4E79"/>
+  <text x="170" y="1033" text-anchor="middle" font-family="Arial, sans-serif" font-size="38" font-weight="700" fill="#fff">✓</text>
+  <text x="925" y="1035" text-anchor="end" font-family="Arial, sans-serif" font-size="32" font-weight="700" fill="#1C2733" direction="rtl">اختر التخصص الأقرب لمشكلتك</text>
+  <line x1="70" y1="1142" x2="1010" y2="1142" stroke="#D9E2EC" stroke-width="2"/>
+  <text x="1010" y="1280" text-anchor="end" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#102A43" direction="rtl">استشارة</text>
+  <text x="70" y="1274" font-family="Arial, sans-serif" font-size="26" fill="#486581">@istsh_iq</text>
+  </svg>
