@@ -29,19 +29,50 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site
-          cat > _site/index.html <<'HTML'
+
+          write_redirect() {
+            local output="$1"
+            local target="$2"
+            cat > "$output" <<HTML
           <!doctype html>
           <html lang="ar" dir="rtl">
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width,initial-scale=1">
             <meta name="robots" content="noindex,follow">
-            <link rel="canonical" href="https://istishara-iq.netlify.app/">
-            <meta http-equiv="refresh" content="0;url=https://istishara-iq.netlify.app/">
+            <link rel="canonical" href="https://istishara-iq.netlify.app${target}">
+            <meta http-equiv="refresh" content="0;url=https://istishara-iq.netlify.app${target}">
             <title>استشارة — تم نقل الموقع</title>
           </head>
           <body>
-            <p>تم نقل منصة استشارة إلى موقعها الرسمي: <a id="official" href="https://istishara-iq.netlify.app/">https://istishara-iq.netlify.app/</a></p>
+            <p>تم نقل منصة استشارة إلى موقعها الرسمي:
+              <a href="https://istishara-iq.netlify.app${target}">https://istishara-iq.netlify.app${target}</a>
+            </p>
+            <script>window.location.replace("https://istishara-iq.netlify.app${target}" + window.location.search + window.location.hash);</script>
+          </body>
+          </html>
+          HTML
+          }
+
+          write_redirect "_site/index.html" "/"
+
+          for slug in             online-legal-consultation-iraq             lawyer-baghdad             family-law-lawyer-iraq             criminal-law-lawyer-iraq             civil-law-lawyer-iraq             real-estate-lawyer-iraq             corporate-lawyer-iraq             legal-consultation-iraq             lawyers-iraq             privacy             delete-account
+          do
+            write_redirect "_site/${slug}.html" "/${slug}.html"
+            mkdir -p "_site/${slug}"
+            write_redirect "_site/${slug}/index.html" "/${slug}"
+          done
+
+          cat > _site/404.html <<'HTML'
+          <!doctype html>
+          <html lang="ar" dir="rtl">
+          <head>
+            <meta charset="utf-8">
+            <meta name="robots" content="noindex,follow">
+            <title>استشارة — تم نقل الموقع</title>
+          </head>
+          <body>
+            <p>تم نقل منصة استشارة إلى <a id="official" href="https://istishara-iq.netlify.app/">الموقع الرسمي</a>.</p>
             <script>
               (function () {
                 var prefix = '/istishara-platform';
@@ -55,7 +86,7 @@ jobs:
           </body>
           </html>
           HTML
-          cp _site/index.html _site/404.html
+
           cat > _site/robots.txt <<'TXT'
           User-agent: *
           Disallow: /
