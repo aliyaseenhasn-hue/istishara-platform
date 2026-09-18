@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+<rect width="1080" height="1350" fill="#F7F5F0"/>
+<circle cx="40" cy="120" r="250" fill="#E9EEF4"/>
+<circle cx="990" cy="150" r="330" fill="none" stroke="#B99B62" stroke-width="8"/>
+<rect x="790" y="65" width="220" height="58" rx="29" fill="#102A43"/>
+<text x="900" y="105" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#fff" direction="rtl">استشارة قانونية</text>
+<text x="1010" y="460" text-anchor="end" font-family="Arial, sans-serif" font-size="78" font-weight="700" fill="#102A43" direction="rtl">دفعت... ثم أنكر؟</text>
+<text x="1010" y="690" text-anchor="end" font-family="Arial, sans-serif" font-size="42" font-weight="600" fill="#486581" direction="rtl">التوثيق من البداية يصنع فرقًا عند النزاع.</text>
+<rect x="100" y="930" width="880" height="180" rx="36" fill="#FFFDF8" stroke="#D5DEE7" stroke-width="2"/>
+<rect x="135" y="975" width="86" height="92" rx="10" fill="none" stroke="#1F4E79" stroke-width="6"/>
+<line x1="155" y1="1008" x2="202" y2="1008" stroke="#1F4E79" stroke-width="5"/>
+<line x1="155" y1="1034" x2="193" y2="1034" stroke="#1F4E79" stroke-width="5"/>
+<text x="935" y="1040" text-anchor="end" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#1C2733" direction="rtl">اعرف قبل أن تتصرف</text>
+<line x1="70" y1="1142" x2="1010" y2="1142" stroke="#D9E2EC" stroke-width="2"/>
+<text x="1010" y="1290" text-anchor="end" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#102A43" direction="rtl">استشارة</text>
+<text x="70" y="1286" font-family="Arial, sans-serif" font-size="26" fill="#486581">@istsh_iq</text>
+</svg>
