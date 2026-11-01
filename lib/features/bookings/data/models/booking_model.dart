@@ -9,6 +9,7 @@ class BookingModel {
   final double price;
   final DateTime? createdAt;
   final DateTime? startedAt;
+  final DateTime? completedAt;
   final String? whatsappNumber;
   final bool lawyerApproved;
   final bool paymentRequired;
@@ -30,6 +31,7 @@ class BookingModel {
     required this.price,
     this.createdAt,
     this.startedAt,
+    this.completedAt,
     this.whatsappNumber,
     this.lawyerApproved = false,
     this.paymentRequired = true,
@@ -54,6 +56,7 @@ class BookingModel {
         price: (json['price'] as num?)?.toDouble() ?? 0,
         createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
         startedAt: json['started_at'] != null ? DateTime.parse(json['started_at'] as String) : null,
+        completedAt: json['completed_at'] != null ? DateTime.tryParse(json['completed_at'].toString()) : null,
         whatsappNumber: json['whatsapp_number'] as String?,
         lawyerApproved: json['lawyer_approved'] as bool? ?? false,
         paymentRequired: json['payment_required'] as bool? ?? true,
@@ -76,6 +79,7 @@ class BookingModel {
         price: price,
         createdAt: createdAt,
         startedAt: startedAt,
+        completedAt: completedAt,
         whatsappNumber: whatsappNumber,
         lawyerApproved: lawyerApproved,
         paymentRequired: paymentRequired,
