@@ -519,7 +519,7 @@ class _LawyerCard extends StatelessWidget {
                           const SizedBox(width: 7),
                           Text(
                             'تقييم المحامي',
-                            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 10),
+                            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11),
                           ),
                         ],
                       ),
@@ -546,7 +546,7 @@ class _LawyerCard extends StatelessWidget {
                       tag.toString(),
                       style: TextStyle(
                         color: scheme.onSecondaryContainer,
-                        fontSize: 9,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -560,7 +560,7 @@ class _LawyerCard extends StatelessWidget {
             children: [
               Icon(Icons.location_on_outlined, color: scheme.onSurfaceVariant, size: 15),
               const SizedBox(width: 4),
-              Text('العراق', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 10)),
+              Text('العراق', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11)),
               const Spacer(),
               Icon(Icons.payments_outlined, color: scheme.onSurfaceVariant, size: 15),
               const SizedBox(width: 4),
@@ -568,7 +568,7 @@ class _LawyerCard extends StatelessWidget {
                 '${(lawyer.consultationPrice ?? 0).toStringAsFixed(0)} د.ع / الجلسة',
                 style: TextStyle(
                   color: scheme.onSurfaceVariant,
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
               ),

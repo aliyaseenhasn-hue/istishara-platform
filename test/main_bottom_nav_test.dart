@@ -97,7 +97,26 @@ void main() {
     expect(find.text('الرئيسية'), findsOneWidget);
     expect(find.text('المحامون'), findsOneWidget);
     expect(find.text('استشاراتي'), findsOneWidget);
+    expect(find.text('المحادثات'), findsOneWidget);
     expect(find.text('الإعدادات'), findsOneWidget);
+  });
+
+  testWidgets('client navigation fits five tabs with large text', (tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(1.6)),
+            child: Scaffold(
+              bottomNavigationBar: MainBottomNav(currentIndex: 3),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('المحادثات'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('lawyer navigation remains usable in dark mode with large text', (tester) async {

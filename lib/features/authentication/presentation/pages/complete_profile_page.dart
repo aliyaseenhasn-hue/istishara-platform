@@ -373,7 +373,7 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: _idCardBytes == null
-                    ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.badge_outlined, size: 40, color: scheme.primary), const SizedBox(height: 8), Text('اضغط لرفع صورة الهوية', style: TextStyle(fontWeight: FontWeight.w700, color: scheme.onSurface)), const SizedBox(height: 3), Text('JPG أو PNG', style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant))])
+                    ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.badge_outlined, size: 40, color: scheme.primary), const SizedBox(height: 8), Text('اضغط لرفع صورة الهوية', style: TextStyle(fontWeight: FontWeight.w700, color: scheme.onSurface)), const SizedBox(height: 3), Text('JPG أو PNG', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant))])
                     : ClipRRect(borderRadius: BorderRadius.circular(18), child: Image.memory(_idCardBytes!, fit: BoxFit.cover)),
               ),
             ),
@@ -464,7 +464,7 @@ class _RoleCard extends StatelessWidget {
             const SizedBox(height: 9),
             Text(title, style: TextStyle(fontWeight: FontWeight.w900, color: selected ? scheme.onPrimaryContainer : scheme.onSurface)),
             const SizedBox(height: 3),
-            Text(subtitle, textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: selected ? scheme.onPrimaryContainer.withValues(alpha: .75) : scheme.onSurfaceVariant)),
+            Text(subtitle, textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: selected ? scheme.onPrimaryContainer.withValues(alpha: .75) : scheme.onSurfaceVariant)),
           ],
         ),
       ),

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/utils/booking_status_text.dart';
 import '../../../../shared/styles/priority_visuals.dart';
 import '../../../../shared/widgets/loading_widget.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
@@ -154,6 +155,14 @@ class BookingsListPage extends ConsumerWidget {
         title: Text(isLawyer ? 'الاستشارات الواردة' : 'استشاراتي'),
         centerTitle: true,
         surfaceTintColor: Colors.transparent,
+        actions: [
+          if (!isLawyer)
+            TextButton.icon(
+              onPressed: () => context.push('/appointment-requests'),
+              icon: const Icon(Icons.event_note_outlined, size: 20),
+              label: const Text('طلبات المواعيد'),
+            ),
+        ],
       ),
       body: bookingsAsync.when(
         loading: () => const LoadingWidget(size: 30),
@@ -530,12 +539,14 @@ class _ClientBookingCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          visual.label,
+                          BookingStatusText.nextStep(booking.status) ??
+                              visual.label,
                           textAlign: TextAlign.right,
                           style: TextStyle(
                             color: visual.foreground,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                            height: 1.4,
                           ),
                         ),
                       ),
@@ -788,7 +799,7 @@ class _IncomingBookingCardState extends State<_IncomingBookingCard> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  _StatusChip(status: status),
+                  _StatusChip(status: status, forLawyer: true),
                 ],
               ),
               const SizedBox(height: 14),
@@ -964,13 +975,14 @@ class _InfoLine extends StatelessWidget {
 
 class _StatusChip extends StatelessWidget {
   final String status;
+  final bool forLawyer;
 
-  const _StatusChip({required this.status});
+  const _StatusChip({required this.status, this.forLawyer = false});
 
   @override
   Widget build(BuildContext context) {
     final visual = PriorityVisuals.consultation(status);
-    final label = status.trim().isEmpty ? 'بانتظار المراجعة' : status.trim();
+    final label = BookingStatusText.label(status, forLawyer: forLawyer);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(

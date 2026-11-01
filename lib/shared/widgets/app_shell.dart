@@ -42,6 +42,9 @@ class AppShell extends ConsumerWidget {
         currentLocation == '/notification-settings' ||
         currentLocation == '/payment-methods' ||
         currentLocation == '/help-center') {
+      return 4;
+    }
+    if (currentLocation == '/chats' || currentLocation.startsWith('/chat/')) {
       return 3;
     }
     if (currentLocation == '/bookings' ||
@@ -49,9 +52,7 @@ class AppShell extends ConsumerWidget {
         currentLocation == '/manual-payment' ||
         currentLocation == '/manual-payment-required' ||
         currentLocation == '/upload-payment' ||
-        currentLocation == '/payment-result' ||
-        currentLocation == '/chats' ||
-        currentLocation.startsWith('/chat/')) {
+        currentLocation == '/payment-result') {
       return 2;
     }
     if (currentLocation == '/lawyers' ||

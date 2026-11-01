@@ -286,14 +286,14 @@ class _MetricCard extends StatelessWidget {
                 const SizedBox(height: 5),
                 Text(value, style: TextStyle(color: foreground, fontSize: 21, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 2),
-                Text(label, textAlign: TextAlign.center, style: TextStyle(color: foreground.withValues(alpha: .94), fontSize: 10.5, fontWeight: FontWeight.w800)),
+                Text(label, textAlign: TextAlign.center, style: TextStyle(color: foreground.withValues(alpha: .94), fontSize: 11, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.open_in_new_rounded, color: foreground.withValues(alpha: .90), size: 13),
                     const SizedBox(width: 4),
-                    Text('عرض', style: TextStyle(color: foreground.withValues(alpha: .90), fontSize: 10, fontWeight: FontWeight.w700)),
+                    Text('عرض', style: TextStyle(color: foreground.withValues(alpha: .90), fontSize: 11, fontWeight: FontWeight.w700)),
                   ],
                 ),
               ]),
@@ -373,7 +373,7 @@ class _WalletCard extends StatelessWidget {
                             ),
                             child: const Text(
                               'فتح المحفظة',
-                              style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w800),
+                              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
                             ),
                           ),
                         ),

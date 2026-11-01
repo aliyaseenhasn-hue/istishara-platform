@@ -333,12 +333,6 @@ class _ClientWalletPageState extends ConsumerState<ClientWalletPage> {
         centerTitle: true,
         actions: [
           IconButton(
-            tooltip: 'طلبات المواعيد',
-            onPressed: () => context.push('/appointment-requests'),
-            color: AppColors.primary,
-            icon: const Icon(Icons.event_note_outlined),
-          ),
-          IconButton(
             tooltip: 'تحديث',
             onPressed: _invalidateWalletData,
             color: AppColors.teal,

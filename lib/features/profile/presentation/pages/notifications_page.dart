@@ -599,7 +599,7 @@ class _NotificationCard extends StatelessWidget {
                                             : visual.label,
                                         style: TextStyle(
                                           color: visual.foreground,
-                                          fontSize: 10,
+                                          fontSize: 11,
                                           fontWeight: FontWeight.w900,
                                         ),
                                       ),

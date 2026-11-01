@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/utils/booking_status_text.dart';
 import '../../../../core/utils/app_time_format.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../../../payments/presentation/providers/payments_provider.dart';
@@ -85,7 +86,7 @@ class BookingDetailsPage extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _hero(context, currentStatus),
+            _hero(context, currentStatus, isLawyer),
             const SizedBox(height: 12),
             _ConsultationTimingPanel(
               status: currentStatus,
@@ -99,6 +100,50 @@ class BookingDetailsPage extends ConsumerWidget {
                   ? () => _updateStatus(context, ref, currentBooking, 'قيد التنفيذ')
                   : null,
             ),
+            if (currentStatus == 'قيد التنفيذ') ...[
+              const SizedBox(height: 12),
+              InAppConsultationButton(bookingId: booking.id),
+            ],
+            const SizedBox(height: 12),
+            if (isOwner && currentPaymentRequired && currentStatus == 'قيد انتظار الدفع')
+              ElevatedButton.icon(
+                onPressed: () => context.push('/upload-payment', extra: currentBooking),
+                icon: const Icon(Icons.payment_rounded),
+                label: const Text('إكمال الدفع'),
+              ),
+            if (needsReview) ...[
+              _infoCard(
+                context,
+                'هذا الطلب بانتظار مراجعتك. يمكنك الموافقة أو رفض الطلب.',
+                Icons.rule_rounded,
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _review(context, ref, true),
+                      icon: const Icon(Icons.check_circle_outline),
+                      label: const Text('الموافقة'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _review(context, ref, false),
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: const Text('رفض الطلب'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (isLawyer && currentStatus == 'قيد التنفيذ')
+              ElevatedButton.icon(
+                onPressed: () => _updateStatus(context, ref, currentBooking, 'مكتمل'),
+                icon: const Icon(Icons.check_circle_outline),
+                label: const Text('إنهاء الاستشارة'),
+              ),
             const SizedBox(height: 14),
             BookingParticipantIdentityCard(
               bookingId: booking.id,
@@ -267,45 +312,6 @@ class BookingDetailsPage extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 20),
-            if (isOwner && currentPaymentRequired && currentStatus == 'قيد انتظار الدفع')
-              ElevatedButton.icon(
-                onPressed: () => context.push('/upload-payment', extra: currentBooking),
-                icon: const Icon(Icons.payment_rounded),
-                label: const Text('إكمال الدفع'),
-              ),
-            if (needsReview) ...[
-              _infoCard(
-                context,
-                'هذا الطلب بانتظار مراجعتك. يمكنك الموافقة أو رفض الطلب.',
-                Icons.rule_rounded,
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _review(context, ref, true),
-                      icon: const Icon(Icons.check_circle_outline),
-                      label: const Text('الموافقة'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _review(context, ref, false),
-                      icon: const Icon(Icons.cancel_outlined),
-                      label: const Text('رفض الطلب'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            if (isLawyer && currentStatus == 'قيد التنفيذ')
-              ElevatedButton.icon(
-                onPressed: () => _updateStatus(context, ref, currentBooking, 'مكتمل'),
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('إنهاء الاستشارة'),
-              ),
             if (_canPotentiallyReportNoShow(isLawyer, currentBooking))
               _NoShowReportAction(
                 isLawyer: isLawyer,
@@ -327,8 +333,9 @@ class BookingDetailsPage extends ConsumerWidget {
     );
   }
 
-  Widget _hero(BuildContext context, String status) {
+  Widget _hero(BuildContext context, String status, bool isLawyer) {
     final s = Theme.of(context).colorScheme;
+    final nextStep = BookingStatusText.nextStep(status, forLawyer: isLawyer);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -358,10 +365,18 @@ class BookingDetailsPage extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(color: s.surface, borderRadius: BorderRadius.circular(30)),
                   child: Text(
-                    status,
-                    style: TextStyle(color: s.primary, fontWeight: FontWeight.bold, fontSize: 12),
+                    BookingStatusText.label(status, forLawyer: isLawyer),
+                    style: TextStyle(color: s.primary, fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
+                if (nextStep != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    nextStep,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(color: s.onSurface, fontSize: 13, height: 1.45),
+                  ),
+                ],
               ],
             ),
           ),
@@ -385,7 +400,6 @@ class BookingDetailsPage extends ConsumerWidget {
       children: [
         Text(name.toString(), style: TextStyle(fontWeight: FontWeight.bold, color: s.onSurface)),
         if (phone != null) _row(context, 'رقم الهاتف', phone.toString()),
-        if (status == 'قيد التنفيذ') InAppConsultationButton(bookingId: booking.id),
         if (whatsapp != null && status == 'قيد التنفيذ')
           OutlinedButton.icon(
             onPressed: () => _openWhatsApp(context, whatsapp.toString()),
@@ -490,9 +504,9 @@ class BookingDetailsPage extends ConsumerWidget {
   String _consultationMethod(String? type, String? mode) {
     if (mode == 'في المكتب') return 'حضور في مكتب المحامي';
     return switch (type) {
-      'نصية' => 'محادثة نصية عبر واتساب',
-      'صوتية' => 'تواصل صوتي عبر واتساب',
-      'فيديو' => 'مكالمة فيديو عبر واتساب',
+      'نصية' => 'محادثة نصية داخل التطبيق',
+      'صوتية' => 'استشارة صوتية عن بعد',
+      'فيديو' || 'مرئية' => 'استشارة مرئية عن بعد',
       _ => 'عن بعد',
     };
   }
@@ -1048,7 +1062,7 @@ class _ConsultationTimingPanelState extends State<_ConsultationTimingPanel> {
             ),
           ),
           const SizedBox(height: 2),
-          Text(label, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 10.5)),
+          Text(label, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11)),
         ],
       ),
     );

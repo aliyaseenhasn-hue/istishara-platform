@@ -90,7 +90,7 @@ class ProfilePage extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(color: AppColors.goldTransparent, borderRadius: BorderRadius.circular(99)),
-          child: const Text('يمكن تعديل البيانات من المعلومات الشخصية', style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700)),
+          child: const Text('يمكن تعديل البيانات من المعلومات الشخصية', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
         ),
         const SizedBox(height: 18),
       ])),

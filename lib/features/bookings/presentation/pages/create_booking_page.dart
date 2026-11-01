@@ -194,7 +194,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
       try {
         final wallet = await ref.read(clientWalletProvider.future);
         if (wallet.availableBalance < expectedPrice) {
-          _showMessage('رصيد المحفظة غير كافٍ. اشحنها وانتظر اعتماد الإدارة أولاً.');
+          _showMessage('رصيدك لا يكفي لهذه الاستشارة. اشحن المحفظة، وبعد اعتماد الشحن ارجع هنا واضغط إرسال؛ طلبك محفوظ كما هو.');
           await context.push('/client-wallet?required_amount=${expectedPrice.toStringAsFixed(0)}');
           ref.invalidate(clientWalletProvider);
           return;
@@ -534,11 +534,28 @@ class _WalletStatusCard extends StatelessWidget {
               child: wallet.when(
                 loading: () => const Text('جاري تحميل رصيد المحفظة...'),
                 error: (_, __) => const Text('اضغط لفتح المحفظة والتحقق من الرصيد'),
-                data: (value) => Text(
-                  'الرصيد المتاح: ${value.availableBalance.toStringAsFixed(0)} د.ع${requiredAmount > 0 ? ' • المطلوب: ${requiredAmount.toStringAsFixed(0)} د.ع' : ''}',
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
+                data: (value) {
+                  final missing = requiredAmount - value.availableBalance;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'الرصيد المتاح: ${value.availableBalance.toStringAsFixed(0)} د.ع${requiredAmount > 0 ? ' • المطلوب: ${requiredAmount.toStringAsFixed(0)} د.ع' : ''}',
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      if (requiredAmount > 0 && missing > 0) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'ينقصك ${missing.toStringAsFixed(0)} د.ع. اضغط هنا لشحن المحفظة قبل الإرسال.',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(color: scheme.error, fontSize: 13, fontWeight: FontWeight.w700, height: 1.4),
+                        ),
+                      ],
+                    ],
+                  );
+                },
               ),
             ),
             const Icon(Icons.chevron_left_rounded),
@@ -633,7 +650,7 @@ class _ProgressHeader extends StatelessWidget {
         return Expanded(child: Column(children: [
           CircleAvatar(radius: 14, backgroundColor: active ? AppColors.ctaGold : scheme.surfaceContainerHighest, child: Text('${index + 1}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
           const SizedBox(height: 4),
-          Text(labels[index], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10.5)),
+          Text(labels[index], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
         ]));
       })),
     );
