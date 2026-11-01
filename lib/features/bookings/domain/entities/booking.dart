@@ -7,6 +7,7 @@ class Booking {
   final double price;
   final DateTime? createdAt;
   final DateTime? startedAt;
+  final DateTime? completedAt;
   final String? lawyerName;
   final String? userName;
   final String? consultationType;
@@ -33,6 +34,7 @@ class Booking {
     required this.price,
     this.createdAt,
     this.startedAt,
+    this.completedAt,
     this.lawyerName,
     this.userName,
     this.consultationType,
@@ -90,6 +92,7 @@ class Booking {
     double? price,
     DateTime? createdAt,
     DateTime? startedAt,
+    DateTime? completedAt,
     String? lawyerName,
     String? userName,
     String? consultationType,
@@ -116,6 +119,7 @@ class Booking {
       price: price ?? this.price,
       createdAt: createdAt ?? this.createdAt,
       startedAt: startedAt ?? this.startedAt,
+      completedAt: completedAt ?? this.completedAt,
       lawyerName: lawyerName ?? this.lawyerName,
       userName: userName ?? this.userName,
       consultationType: consultationType ?? this.consultationType,
