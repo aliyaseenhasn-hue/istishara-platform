@@ -30,6 +30,9 @@ Deno.serve(async (req: Request) => {
     if (Number(payload.amount) !== Number(booking.price) || payload.currency !== "IQD") return new Response("Payment amount/currency mismatch", { status: 409 });
     const raw = String(payload.status || "").toUpperCase();
     const success = raw === "SUCCESS", failed = raw === "FAILED" || raw === "AUTHENTICATION_FAILED";
+    if (payment.status === "تم استرداد المبلغ") {
+      return new Response(JSON.stringify({ received: true, processed: false, reason: "payment_already_refunded" }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
     if (payment.status === "تم الدفع" && !success) {
       return new Response(JSON.stringify({ received: true, processed: false, reason: "terminal_success_not_reverted" }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
@@ -40,7 +43,8 @@ Deno.serve(async (req: Request) => {
     if (success) bookingStatus = booking.lawyer_approved ? "مؤكد" : "قيد مراجعة المحامي";
     else if (failed) bookingStatus = "قيد انتظار الدفع";
     else bookingStatus = "قيد معالجة الدفع";
-    if (bookingStatus !== booking.status && !(booking.status === "مؤكد" && !success)) { const { error } = await admin.from("bookings").update({ status: bookingStatus }).eq("id", booking.id).eq("status", booking.status); if (error) throw error; }
+    const movable = ["قيد انتظار الدفع", "قيد معالجة الدفع", "قيد مراجعة المحامي"];
+    if (bookingStatus !== booking.status && movable.includes(booking.status)) { const { error } = await admin.from("bookings").update({ status: bookingStatus }).eq("id", booking.id).eq("status", booking.status); if (error) throw error; }
     return new Response(JSON.stringify({ received: true, processed: true, payment_status: mapped, qicard_status: raw, booking_status: bookingStatus }), { status: 200, headers: { "Content-Type": "application/json" } });
   } catch (e) { console.error("QiCard webhook error", e); return new Response("Webhook processing failed", { status: 500 }); }
 });

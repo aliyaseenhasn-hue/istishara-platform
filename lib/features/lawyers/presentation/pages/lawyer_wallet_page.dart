@@ -34,6 +34,10 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
   String? walletNumber;
   String? walletHolder;
   List<Map<String, dynamic>> requests = [];
+  // Open penalties (lawyer no-show / approved cancellation penalties). They are
+  // deducted from the next completed consultation and block that part of the
+  // balance from withdrawal.
+  num debt = 0;
   bool loading = true;
   bool submitting = false;
   bool saving = false;
@@ -76,6 +80,20 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
         policy = Map<String, dynamic>.from(policyRaw);
       } else {
         policy = <String, dynamic>{};
+      }
+
+      try {
+        final penalties = await SupabaseConfig.client
+            .from('lawyer_penalties')
+            .select('remaining_amount')
+            .eq('lawyer_id', profile['id'])
+            .gt('remaining_amount', 0);
+        debt = (penalties as List).fold<num>(
+          0,
+          (sum, row) => sum + (num.tryParse('${(row as Map)['remaining_amount'] ?? 0}') ?? 0),
+        );
+      } catch (_) {
+        debt = 0;
       }
 
       requests = List<Map<String, dynamic>>.from(
@@ -224,11 +242,16 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
       }
     }
 
-    final available = num.tryParse('${wallet?['available_balance'] ?? 0}') ?? 0;
+    final balance = num.tryParse('${wallet?['available_balance'] ?? 0}') ?? 0;
+    final available = balance - debt;
     if (available <= 0) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('لا يوجد رصيد متاح للسحب')),
+          SnackBar(
+            content: Text(debt > 0
+                ? 'رصيدك يغطي المبلغ المطلوب منك (${money(debt)}) فلا يتاح السحب حالياً'
+                : 'لا يوجد رصيد متاح للسحب'),
+          ),
         );
       }
       return;
@@ -376,6 +399,26 @@ class _LawyerWalletPageState extends State<LawyerWalletPage> {
                               fontWeight: FontWeight.w800,
                             ),
                           ),
+                          if (debt > 0) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.errorContainer,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'مبلغ مطلوب منك: ${money(debt)}\n'
+                                'يُستقطع تلقائياً من استشارتك القادمة لصالح العميل، ولا يمكن سحب هذا الجزء من رصيدك حتى تسديده.',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onErrorContainer,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 14),
                           Row(
                             children: [

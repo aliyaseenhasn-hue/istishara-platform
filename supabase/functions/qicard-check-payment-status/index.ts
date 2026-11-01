@@ -23,7 +23,12 @@ Deno.serve(async(req:Request)=>{if(req.method==='OPTIONS')return new Response('o
  const chosen=successPick||failedPick||pendingPick;if(!chosen)return json({payment_status:'قيد معالجة الدفع',booking_status:b.status,checks});
  const {p,d,raw}=chosen,success=raw==='SUCCESS',failed=raw==='FAILED'||raw==='AUTHENTICATION_FAILED',now=new Date().toISOString(),details=first(d?.details,d?.data?.details,d?.payment?.details)||{};
  const mapped=success?'تم الدفع':failed?'فشل الدفع':'قيد معالجة الدفع';
- const {error:ue}=await admin.from('payments').update({status:mapped,qicard_raw_status:raw||null,qicard_payment_type:first(d?.paymentType,d?.data?.paymentType,d?.payment?.paymentType)??null,qicard_payment_system:details?.paymentSystem??null,qicard_rrn:details?.rrn??null,qicard_auth_id:details?.authId??null,qicard_updated_at:now,verified_at:success?now:null}).eq('id',p.id);if(ue)throw ue;
- let bookingStatus=b.status;if(success)bookingStatus=b.lawyer_approved?'مؤكد':'قيد مراجعة المحامي';else if(failed)bookingStatus='قيد انتظار الدفع';else bookingStatus='قيد معالجة الدفع';if(bookingStatus!==b.status){const {error}=await admin.from('bookings').update({status:bookingStatus}).eq('id',b.id);if(error)throw error;}
+ // Never move a payment out of a terminal state (paid/refunded) from a status poll.
+ const terminal=['تم الدفع','تم استرداد المبلغ'];
+ if(!terminal.includes(p.status)&&p.status!==mapped){const {error:ue}=await admin.from('payments').update({status:mapped,qicard_raw_status:raw||null,qicard_payment_type:first(d?.paymentType,d?.data?.paymentType,d?.payment?.paymentType)??null,qicard_payment_system:details?.paymentSystem??null,qicard_rrn:details?.rrn??null,qicard_auth_id:details?.authId??null,qicard_updated_at:now,verified_at:success?now:null}).eq('id',p.id).eq('status',p.status);if(ue)throw ue;}
+ // The payment trigger already moves the booking; only adjust bookings that are still in a payment state.
+ const {data:fresh}=await admin.from('bookings').select('status').eq('id',b.id).maybeSingle();
+ const current=fresh?.status??b.status,movable=['قيد انتظار الدفع','قيد معالجة الدفع','قيد مراجعة المحامي'];
+ let bookingStatus=current;if(movable.includes(current)){if(success)bookingStatus=b.lawyer_approved?'مؤكد':'قيد مراجعة المحامي';else if(failed)bookingStatus='قيد انتظار الدفع';else bookingStatus='قيد معالجة الدفع';if(bookingStatus!==current){const {error}=await admin.from('bookings').update({status:bookingStatus}).eq('id',b.id).eq('status',current);if(error)throw error;}}
  return json({payment_status:mapped,qicard_status:raw||null,booking_status:bookingStatus,payment_id:p.id,qicard_payment_id:p.qicard_payment_id,qicard_request_id:p.qicard_request_id,checks});
  }catch(e){console.error('QiCard status error',e);return json({error:e instanceof Error?e.message:'حدث خطأ غير متوقع'},400)}});

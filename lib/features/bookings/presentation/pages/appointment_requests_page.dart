@@ -70,10 +70,6 @@ class _AppointmentRequestsPageState
   }
 
   Future<List<Map<String, dynamic>>> _load() async {
-    try {
-      await SupabaseConfig.client.rpc('expire_stale_custom_appointment_requests');
-    } catch (_) {}
-
     final rows = await SupabaseConfig.client
         .from('custom_appointment_requests')
         .select()
