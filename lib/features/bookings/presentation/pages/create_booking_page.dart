@@ -13,6 +13,7 @@ import '../../../authentication/presentation/providers/auth_provider.dart';
 import '../../../lawyers/domain/entities/lawyer_profile.dart';
 import '../../../payments/presentation/providers/client_wallet_provider.dart';
 import '../providers/bookings_provider.dart';
+import '../widgets/consultation_fee_and_chat.dart';
 
 class CreateBookingPage extends ConsumerStatefulWidget {
   final LawyerProfile lawyer;
@@ -185,8 +186,11 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     }
     final release = ref.read(appReleaseSettingsProvider).valueOrNull;
     final paymentRequired = release?['free_beta_enabled'] != true;
-    final expectedPrice = _expectedPrice();
+    var expectedPrice = _expectedPrice();
     if (paymentRequired) {
+      try {
+        expectedPrice = (await ref.read(serviceFeePreviewProvider(expectedPrice).future)).clientTotal;
+      } catch (_) {}
       try {
         final wallet = await ref.read(clientWalletProvider.future);
         if (wallet.availableBalance < expectedPrice) {
@@ -258,8 +262,16 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
     await context.push('/booking-details', extra: booking);
   }
 
+  /// Price set by the lawyer (before any platform service fee).
   double _expectedPrice() {
     return _selectedSlot?.price ?? _package?.price ?? widget.lawyer.consultationPrice ?? 0;
+  }
+
+  /// Amount the client actually pays (lawyer price + service fee, if any).
+  double _expectedClientTotal() {
+    final lawyerPrice = _expectedPrice();
+    // Called from build: watch so the wallet card updates once the preview loads.
+    return ref.watch(serviceFeePreviewProvider(lawyerPrice)).valueOrNull?.clientTotal ?? lawyerPrice;
   }
 
   @override
@@ -315,7 +327,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
                       ),
                       if (releaseSettings.valueOrNull?['free_beta_enabled'] == true) const SizedBox(height: 14),
                       if (releaseSettings.valueOrNull?['free_beta_enabled'] != true) ...[
-                        _WalletStatusCard(wallet: wallet, requiredAmount: _expectedPrice(), onOpen: () => context.push('/client-wallet')),
+                        _WalletStatusCard(wallet: wallet, requiredAmount: _expectedClientTotal(), onOpen: () => context.push('/client-wallet')),
                         const SizedBox(height: 14),
                       ],
                       _buildStepContent(items),
@@ -465,6 +477,7 @@ class _CreateBookingPageState extends ConsumerState<CreateBookingPage> {
               _ReviewRow(label: 'الموعد', value: _formatSlot(_selectedSlot!)),
               _ReviewRow(label: 'المدة', value: '${_selectedSlot!.durationMinutes} دقيقة'),
               _ReviewRow(label: 'السعر', value: _selectedSlot!.price == null ? 'حسب الباقة' : '${_selectedSlot!.price!.toStringAsFixed(0)} د.ع'),
+              _ServiceFeeReviewRows(lawyerPrice: _expectedPrice()),
             ] else ...[
               _ReviewRow(label: 'طريقة الموعد', value: 'أوقات مقترحة من العميل'),
               _ReviewRow(label: 'الفترات المقترحة', value: '${_customWindows.length}'),
@@ -743,6 +756,23 @@ class _SelectableSlot extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Shows the platform service fee and the total before the client confirms.
+/// Renders nothing when no fee applies, so the review looks as before.
+class _ServiceFeeReviewRows extends ConsumerWidget {
+  final double lawyerPrice;
+  const _ServiceFeeReviewRows({required this.lawyerPrice});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final preview = ref.watch(serviceFeePreviewProvider(lawyerPrice)).valueOrNull;
+    if (preview == null || !preview.hasServiceFee) return const SizedBox.shrink();
+    return Column(children: [
+      _ReviewRow(label: 'رسوم خدمة المنصة', value: formatIqd(preview.serviceFee)),
+      _ReviewRow(label: 'الإجمالي', value: formatIqd(preview.clientTotal)),
+    ]);
   }
 }
 
