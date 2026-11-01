@@ -98,7 +98,11 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
                     const SizedBox(width: 9),
                     Expanded(
                       child: Text(
-                        'تنبيه: إذا اعتبرت الإدارة سبب الإلغاء غير مقنع، سيتم استقطاع غرامة قدرها 1% من مبلغ الاستشارة وتحويلها للمحامي.',
+                        // Mirrors the server rule: free cancellation up to 24h
+                        // before the appointment, 20% to the lawyer after that.
+                        widget.booking.scheduledAt.difference(DateTime.now()).inMinutes >= 24 * 60
+                            ? 'الإلغاء الآن مجاني: إذا كان المبلغ مدفوعاً فسيُعاد إليك كاملاً.'
+                            : 'تنبيه: بقي أقل من 24 ساعة على الموعد، لذلك سيُستقطع 20% من سعر الاستشارة لصالح المحامي ويُعاد إليك الباقي.',
                         style: TextStyle(
                           color: Theme.of(dialogContext).colorScheme.onErrorContainer,
                           fontWeight: FontWeight.w800,
@@ -182,7 +186,7 @@ class _BookingDetailsWithCancellationState extends ConsumerState<BookingDetailsW
       await _loadCancellationState();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم تسجيل الإلغاء وتحديث حالة الاستشارة.')),
+        const SnackBar(content: Text('تم إلغاء الحجز، وسُجّل الاسترداد وفق سياسة الإلغاء.')),
       );
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_errorText(e))));
