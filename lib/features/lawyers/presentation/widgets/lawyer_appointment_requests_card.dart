@@ -499,7 +499,12 @@ class _AppointmentRequestItem extends StatelessWidget {
       request['lawyer_options'],
     );
     final packageName = request['package_name']?.toString().trim();
-    final price = double.tryParse('${request['price'] ?? 0}') ?? 0;
+    // Lawyers see their own fee; under the service-fee model `price` also
+    // includes the platform fee paid by the client.
+    final lawyerPrice = double.tryParse('${request['lawyer_price'] ?? ''}');
+    final price = lawyerPrice != null && lawyerPrice > 0
+        ? lawyerPrice
+        : double.tryParse('${request['price'] ?? 0}') ?? 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 9),
