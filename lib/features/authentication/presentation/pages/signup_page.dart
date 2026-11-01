@@ -384,7 +384,7 @@ class _SignupForm extends StatelessWidget {
       OutlinedButton.icon(onPressed: loading ? null : onGoogle, icon: const Icon(Icons.account_circle_outlined), label: const Text('المتابعة باستخدام Google')),
       const SizedBox(height: 12),
       TextButton(onPressed: loading ? null : () => context.go('/login'), child: const Text('لديك حساب بالفعل؟ تسجيل الدخول')),
-      Text('بالمتابعة، أنت توافق على شروط الاستخدام وسياسة الخصوصية.', textAlign: TextAlign.center, style: TextStyle(fontSize: 10.5, color: s.onSurfaceVariant)),
+      Text('بالمتابعة، أنت توافق على شروط الاستخدام وسياسة الخصوصية.', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: s.onSurfaceVariant)),
     ]))));
   }
 }
@@ -398,6 +398,6 @@ class _RoleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = Theme.of(context).colorScheme;
-    return Material(color: Colors.transparent, child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(16), child: Container(padding: const EdgeInsets.all(12), constraints: const BoxConstraints(minHeight: 105), decoration: BoxDecoration(color: selected ? s.primaryContainer : s.surfaceContainerLowest, borderRadius: BorderRadius.circular(16), border: Border.all(color: selected ? s.primary : s.outlineVariant, width: selected ? 1.6 : 1)), child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Icon(icon, color: selected ? s.onPrimaryContainer : s.onSurfaceVariant), const Spacer(), Text(title, style: TextStyle(fontWeight: FontWeight.w800, color: selected ? s.onPrimaryContainer : s.onSurface)), const SizedBox(height: 3), Text(subtitle, textAlign: TextAlign.right, style: TextStyle(fontSize: 9.5, color: selected ? s.onPrimaryContainer.withValues(alpha: .78) : s.onSurfaceVariant))]))));
+    return Material(color: Colors.transparent, child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(16), child: Container(padding: const EdgeInsets.all(12), constraints: const BoxConstraints(minHeight: 105), decoration: BoxDecoration(color: selected ? s.primaryContainer : s.surfaceContainerLowest, borderRadius: BorderRadius.circular(16), border: Border.all(color: selected ? s.primary : s.outlineVariant, width: selected ? 1.6 : 1)), child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Icon(icon, color: selected ? s.onPrimaryContainer : s.onSurfaceVariant), const Spacer(), Text(title, style: TextStyle(fontWeight: FontWeight.w800, color: selected ? s.onPrimaryContainer : s.onSurface)), const SizedBox(height: 3), Text(subtitle, textAlign: TextAlign.right, style: TextStyle(fontSize: 11, color: selected ? s.onPrimaryContainer.withValues(alpha: .78) : s.onSurfaceVariant))]))));
   }
 }
