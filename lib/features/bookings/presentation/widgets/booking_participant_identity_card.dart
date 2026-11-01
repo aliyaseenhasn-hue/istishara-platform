@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:astshara/core/config/supabase_config.dart';
 
+import 'consultation_fee_and_chat.dart';
+
 final bookingParticipantIdentityProvider =
     FutureProvider.autoDispose.family<Map<String, dynamic>?, String>((ref, bookingId) async {
   final response = await SupabaseConfig.client.rpc(
@@ -260,19 +262,23 @@ class _ClientConsultationWhatsAppActionState
               ),
             ),
           ),
-          error: (_, __) => const SizedBox.shrink(),
+          error: (_, __) => InAppConsultationButton(bookingId: widget.bookingId),
           data: (number) {
-            if (number == null || number.isEmpty) {
-              return const SizedBox.shrink();
-            }
-
-            return FilledButton.icon(
-              onPressed: () => _openWhatsApp(context, number),
-              icon: const Icon(Icons.chat_rounded),
-              label: const Text('بدء الاستشارة عبر واتساب'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
-              ),
+            final hasWhatsapp = number != null && number.isNotEmpty;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                InAppConsultationButton(bookingId: widget.bookingId),
+                if (hasWhatsapp)
+                  OutlinedButton.icon(
+                    onPressed: () => _openWhatsApp(context, number!),
+                    icon: const Icon(Icons.chat_rounded),
+                    label: const Text('أو عبر واتساب'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(46),
+                    ),
+                  ),
+              ],
             );
           },
         );
