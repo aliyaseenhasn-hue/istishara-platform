@@ -4,9 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/legal_specializations.dart';
+import '../../../../core/utils/app_time_format.dart';
+import '../../../../core/utils/booking_status_text.dart';
 import '../../../../shared/widgets/hover_lift.dart';
 import '../../../../shared/widgets/safe_network_avatar.dart';
 import '../../../authentication/presentation/providers/auth_provider.dart';
+import '../../../bookings/domain/entities/booking.dart';
+import '../../../bookings/presentation/providers/bookings_provider.dart';
+import '../../../bookings/presentation/widgets/consultation_fee_and_chat.dart';
 import '../../../lawyers/domain/entities/lawyer_profile.dart';
 import '../../../lawyers/presentation/providers/lawyers_provider.dart';
 import '../../../payments/presentation/providers/client_wallet_provider.dart';
@@ -27,7 +32,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateChangesProvider).value;
-    final bookingStats = ref.watch(clientHomeBookingStatsProvider);
     final liveAvatar = ref.watch(clientHomeAvatarUrlProvider);
     final lawyers = ref.watch(lawyersListProvider);
     final unread = ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
@@ -106,7 +110,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                   'مساحتك للاستشارات القانونية',
                                   style: TextStyle(
                                     color: AppColors.textSecondary,
-                                    fontSize: 10.5,
+                                    fontSize: 11,
                                   ),
                                 ),
                               ],
@@ -125,9 +129,15 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 40),
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
               sliver: SliverToBoxAdapter(
                 child: _ClientProfileHeader(name: name, avatarUrl: avatarUrl),
+              ),
+            ),
+            const SliverPadding(
+              padding: EdgeInsets.fromLTRB(18, 0, 18, 10),
+              sliver: SliverToBoxAdapter(
+                child: _UpcomingConsultationCard(),
               ),
             ),
             SliverPadding(
@@ -136,21 +146,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                 child: _ClientWalletCard(
                   wallet: wallet,
                   onTap: () => context.push('/client-wallet'),
-                  onAppointments: () => context.push('/appointment-requests'),
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
-              sliver: SliverToBoxAdapter(
-                child: bookingStats.when(
-                  loading: () => const _StatsLoading(),
-                  error: (_, __) =>
-                      const _ClientStats(total: '—', completed: '—'),
-                  data: (stats) => _ClientStats(
-                    total: '${stats.total}',
-                    completed: '${stats.completed}',
-                  ),
                 ),
               ),
             ),
@@ -271,12 +266,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 class _ClientWalletCard extends StatelessWidget {
   final AsyncValue<ClientWalletSummary> wallet;
   final VoidCallback onTap;
-  final VoidCallback onAppointments;
 
   const _ClientWalletCard({
     required this.wallet,
     required this.onTap,
-    required this.onAppointments,
   });
 
   @override
@@ -348,41 +341,6 @@ class _ClientWalletCard extends StatelessWidget {
                         Icons.chevron_left_rounded,
                         color: Colors.white70,
                       ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: HoverLift(
-            borderRadius: 17,
-            child: Material(
-              color: AppColors.tertiary,
-              borderRadius: BorderRadius.circular(17),
-              child: InkWell(
-                onTap: onAppointments,
-                borderRadius: BorderRadius.circular(17),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 18),
-                  child: Row(
-                    textDirection: TextDirection.rtl,
-                    children: [
-                      Icon(Icons.event_note_outlined, color: Colors.white),
-                      SizedBox(width: 9),
-                      Expanded(
-                        child: Text(
-                          'طلبات المواعيد',
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                      Icon(Icons.chevron_left_rounded, color: Colors.white70),
                     ],
                   ),
                 ),
