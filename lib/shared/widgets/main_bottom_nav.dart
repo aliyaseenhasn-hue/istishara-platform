@@ -24,6 +24,7 @@ class _MainBottomNavState extends ConsumerState<MainBottomNav> {
     _NavItem(Icons.home_outlined, Icons.home_rounded, 'الرئيسية'),
     _NavItem(Icons.people_outline_rounded, Icons.people_rounded, 'المحامون'),
     _NavItem(Icons.calendar_month_outlined, Icons.calendar_month_rounded, 'استشاراتي'),
+    _NavItem(Icons.forum_outlined, Icons.forum_rounded, 'المحادثات'),
     _NavItem(Icons.settings_outlined, Icons.settings_rounded, 'الإعدادات'),
   ];
 
@@ -114,7 +115,8 @@ class _MainBottomNavState extends ConsumerState<MainBottomNav> {
             0 => '/home',
             1 => '/lawyers',
             2 => '/bookings',
-            3 => '/app-settings',
+            3 => '/chats',
+            4 => '/app-settings',
             _ => '/home',
           };
 
@@ -212,7 +214,7 @@ class _NavDestination extends StatelessWidget {
                     curve: Curves.easeOutCubic,
                     style: TextStyle(
                       color: textColor,
-                      fontSize: 10.5,
+                      fontSize: 11,
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
                       height: 1.1,
                     ),
