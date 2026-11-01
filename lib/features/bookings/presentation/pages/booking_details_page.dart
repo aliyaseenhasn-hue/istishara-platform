@@ -401,7 +401,18 @@ class BookingDetailsPage extends ConsumerWidget {
       return current.status == 'مؤكد' ||
           (current.status == 'قيد التنفيذ' && current.startedAt != null);
     }
-    return current.status == 'مؤكد' && current.startedAt == null;
+    // The client can report a lawyer no-show before the start, a consultation
+    // that was "started" but never happened, or dispute a completed one while
+    // the lawyer's earnings are still on hold (24h). The server enforces the
+    // same rules.
+    if (current.status == 'مؤكد') return current.startedAt == null;
+    if (current.status == 'قيد التنفيذ') return current.startedAt != null;
+    if (current.status == 'مكتمل') {
+      final completedAt = current.completedAt;
+      return completedAt != null &&
+          DateTime.now().isBefore(completedAt.toLocal().add(const Duration(hours: 24)));
+    }
+    return false;
   }
 
   Future<void> _review(BuildContext context, WidgetRef ref, bool approved) async {
@@ -643,6 +654,9 @@ class _NoShowReportActionState extends State<_NoShowReportAction> {
 
   DateTime get _eligibleAt {
     final booking = widget.booking;
+    if (booking.status == 'مكتمل' && booking.completedAt != null) {
+      return booking.completedAt!.toLocal();
+    }
     if (booking.status == 'قيد التنفيذ' && booking.startedAt != null) {
       return booking.startedAt!.add(Duration(minutes: _duration));
     }
@@ -666,7 +680,9 @@ class _NoShowReportActionState extends State<_NoShowReportAction> {
     final scheme = Theme.of(context).colorScheme;
     final label = widget.isLawyer
         ? 'الإبلاغ عن عدم حضور طالب الاستشارة'
-        : 'الإبلاغ عن عدم حضور المحامي';
+        : widget.booking.status == 'مؤكد'
+            ? 'الإبلاغ عن عدم حضور المحامي'
+            : 'لم تتم الاستشارة؟ أبلغ الإدارة';
 
     return Padding(
       padding: const EdgeInsets.only(top: 8),
