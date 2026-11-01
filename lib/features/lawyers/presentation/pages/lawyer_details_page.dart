@@ -61,7 +61,7 @@ class LawyerDetailsPage extends ConsumerWidget {
         'واتساب • مقفل',
         style: TextStyle(
           color: _whatsAppColor,
-          fontSize: 10.5,
+          fontSize: 11,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -290,6 +290,9 @@ class LawyerDetailsPage extends ConsumerWidget {
                               ),
                             ),
                           ),
+                          // The locked WhatsApp button only confused clients; the
+                          // contact button appears once a consultation is accepted.
+                          if (whatsapp.valueOrNull != null) ...[
                           const SizedBox(width: 10),
                           SizedBox(
                             width: 138,
@@ -328,6 +331,7 @@ class LawyerDetailsPage extends ConsumerWidget {
                                     ),
                             ),
                           ),
+                          ],
                         ],
                       ),
                     ),
@@ -491,7 +495,7 @@ class _Stats extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 11,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
