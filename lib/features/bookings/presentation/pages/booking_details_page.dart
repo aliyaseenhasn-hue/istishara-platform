@@ -15,6 +15,7 @@ import '../../domain/entities/booking.dart';
 import '../providers/booking_timing_provider.dart';
 import '../providers/bookings_provider.dart';
 import '../widgets/booking_participant_identity_card.dart';
+import '../widgets/consultation_fee_and_chat.dart';
 
 class BookingDetailsPage extends ConsumerWidget {
   final Booking booking;
@@ -171,6 +172,12 @@ class BookingDetailsPage extends ConsumerWidget {
                       currentBooking.isFreeBeta ? 'السعر الأصلي' : 'الرسوم',
                       '${booking.price.toStringAsFixed(0)} د.ع',
                     ),
+                    if (!currentBooking.isFreeBeta)
+                      BookingFeeBreakdownRows(
+                        bookingId: booking.id,
+                        isLawyer: isLawyer,
+                        rowBuilder: (label, value) => _row(context, label, value),
+                      ),
                     if (currentBooking.isFreeBeta)
                       _row(context, 'المبلغ المستحق', '0 د.ع — نسخة تجريبية مجانية'),
                   ],
@@ -378,11 +385,12 @@ class BookingDetailsPage extends ConsumerWidget {
       children: [
         Text(name.toString(), style: TextStyle(fontWeight: FontWeight.bold, color: s.onSurface)),
         if (phone != null) _row(context, 'رقم الهاتف', phone.toString()),
+        if (status == 'قيد التنفيذ') InAppConsultationButton(bookingId: booking.id),
         if (whatsapp != null && status == 'قيد التنفيذ')
-          ElevatedButton.icon(
+          OutlinedButton.icon(
             onPressed: () => _openWhatsApp(context, whatsapp.toString()),
             icon: const Icon(Icons.chat_rounded),
-            label: const Text('بدء الاستشارة عبر واتساب'),
+            label: const Text('أو عبر واتساب'),
           ),
       ],
     );
