@@ -93,7 +93,7 @@ class LegalCategoriesPage extends ConsumerWidget {
                       Text(
                         uncertain ? 'اعرض كل المحامين' : 'اختر التخصص',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 10.5, fontWeight: FontWeight.w600),
+                        style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
