@@ -427,7 +427,7 @@ class _MessageBubble extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             time,
-            style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
+            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
           ),
         ],
       ),
