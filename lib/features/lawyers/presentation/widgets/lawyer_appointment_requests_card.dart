@@ -533,7 +533,7 @@ class _AppointmentRequestItem extends StatelessWidget {
                   'موعد مرن',
                   style: TextStyle(
                     color: AppColors.primary,
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -560,7 +560,7 @@ class _AppointmentRequestItem extends StatelessWidget {
             textAlign: TextAlign.right,
             style: const TextStyle(
               color: AppColors.textSecondary,
-              fontSize: 10.5,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -581,7 +581,7 @@ class _AppointmentRequestItem extends StatelessWidget {
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: AppColors.textSecondary,
-                fontSize: 10.5,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -608,7 +608,7 @@ class _AppointmentRequestItem extends StatelessWidget {
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: AppColors.textSecondary,
-                fontSize: 10.5,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
             ),
